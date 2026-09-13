@@ -12,7 +12,7 @@ export type Selection =
 
 export type Tool = "select" | "paint" | "erase";
 export type BottomTab = "tiles" | "prefabs" | "assets" | "console";
-export type CenterTab = "scene" | "rules";
+export type CenterTab = "scene" | "rules" | "dialogues";
 export type RulesScope = "scene" | "global";
 
 /** A cosa si riferisce un messaggio della Console: con un clic l'editor ci porta lì. */

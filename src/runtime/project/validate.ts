@@ -1,7 +1,7 @@
 import { getBlockDef, resolveProps, type PropSchema } from "../core/block";
 import { mergeBlocks } from "../core/scene";
 import { getRuleItemDef, splitRuleKey, type RuleItemDef } from "../rules/rules";
-import { DEFAULT_INPUT, type BlockData, type EntityData, type ProjectData, type RuleData, type RuleItem, type SceneData } from "./format";
+import { DEFAULT_INPUT, DIALOGUE_END, type BlockData, type EntityData, type ProjectData, type RuleData, type RuleItem, type SceneData } from "./format";
 
 /**
  * Controllo del progetto: trova riferimenti rotti (asset, scene, modelli, id, variabili)
@@ -43,6 +43,7 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
   const sceneIds = new Set(p.scenes.map((s) => s.id));
   const prefabs = new Map(p.prefabs.map((x) => [x.id, x]));
   const inputs = new Set([...Object.keys(DEFAULT_INPUT), ...Object.keys(p.input ?? {})]);
+  const dialogues = new Map((p.dialogues ?? []).map((d) => [d.id, d]));
   const allTags = new Set<string>();
   for (const pf of p.prefabs) pf.tags?.forEach((t) => allTags.add(t));
   for (const s of p.scenes) for (const e of flatten(s.entities)) e.tags?.forEach((t) => allTags.add(t));
@@ -80,6 +81,34 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
     const where = `Tileset ${q(t.name)}`;
     if (assets.get(t.image)?.type !== "image") add("error", where, `L'immagine ${q(t.image)} non esiste.`);
     if (!(t.columns > 0)) add("error", where, "Il numero di colonne deve essere maggiore di zero.");
+  }
+
+  // ---------------------------------------------------------- dialoghi
+  duplicates((p.dialogues ?? []).map((d) => d.id), "dialoghi", "Dialoghi");
+  for (const d of p.dialogues ?? []) {
+    const dw = `Dialogo ${q(d.name)}`;
+    if (!d.lines?.length) {
+      add("warn", dw, "Non ha battute.");
+      continue;
+    }
+    const lineIds = new Set<string>();
+    for (const l of d.lines) {
+      if (lineIds.has(l.id)) add("error", dw, `Due battute hanno lo stesso id ${q(l.id)}.`);
+      lineIds.add(l.id);
+    }
+    const validGoto = (g?: string) => !g || g === DIALOGUE_END || lineIds.has(g);
+    d.lines.forEach((l, i) => {
+      const lw = `${dw} › Battuta ${i + 1}`;
+      if (!l.text?.trim()) add("warn", lw, "Il testo è vuoto.");
+      if (l.portrait && assets.get(l.portrait)?.type !== "image") add("error", lw, `Il ritratto ${q(l.portrait)} non esiste.`);
+      if (!validGoto(l.goto)) add("error", lw, `Salta a una battuta che non esiste (${q(String(l.goto))}).`);
+      (l.choices ?? []).forEach((c, j) => {
+        const cw = `${lw} › Scelta ${j + 1}`;
+        if (!c.text?.trim()) add("warn", cw, "Il testo della scelta è vuoto.");
+        if (!validGoto(c.goto)) add("error", cw, `Porta a una battuta che non esiste (${q(String(c.goto))}).`);
+        if (c.setVar && !vars.has(c.setVar)) add("warn", cw, `La variabile ${q(c.setVar)} non è tra le variabili globali.`);
+      });
+    });
   }
 
   for (const pf of p.prefabs) checkBlocks(pf.blocks, `Modello ${q(pf.name)}`, { prefabId: pf.id }, true);
@@ -147,6 +176,20 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
     if (!isPrefab && propsOf("SceneExit") && !propsOf("SceneExit")!.scene) {
       add("warn", `${where} › Uscita verso scena`, "Scegli la scena di destinazione.", ids);
     }
+    if (!isPrefab && propsOf("Talker") && !propsOf("Talker")!.dialogue) {
+      add("warn", `${where} › Personaggio che parla`, "Scegli il dialogo.", ids);
+    }
+    if (!isPrefab && propsOf("Spawner") && !propsOf("Spawner")!.prefab) {
+      add("warn", `${where} › Generatore`, "Scegli il modello da generare.", ids);
+    }
+    const shooter = propsOf("Shooter");
+    if (shooter) {
+      const pf = prefabs.get(String(shooter.projectile));
+      if (!shooter.projectile) add("warn", `${where} › Spara`, "Scegli il proiettile.", ids);
+      else if (pf && !pf.blocks.some((b) => b.type === "Projectile" && b.enabled !== false)) {
+        add("warn", `${where} › Spara`, `Il modello ${q(pf.name)} non ha il blocco «Proiettile»: non volerà da solo.`, ids);
+      }
+    }
   }
 
   function checkProp(schema: PropSchema, v: unknown, where: string, ids: Ids, blocks: BlockData[]) {
@@ -180,6 +223,15 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
         break;
       case "select":
         if (schema.options && !schema.options.some((o) => o.value === v)) add("warn", where, `Valore ${q(String(v))} non previsto.`, ids);
+        break;
+      case "prefab":
+        if (s && !prefabs.has(s)) add("error", where, `Il modello ${q(s)} non esiste.`, ids);
+        break;
+      case "dialogue":
+        if (s && !dialogues.has(s)) add("error", where, `Il dialogo ${q(s)} non esiste.`, ids);
+        break;
+      case "input":
+        if (s && !inputs.has(s)) add("error", where, `Il comando ${q(s)} non esiste.`, ids);
         break;
       case "stateMap": {
         const sprite = blocks.find((b) => b.type === "Sprite");
@@ -262,7 +314,7 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
     switch (schema.type) {
       case "object": {
         if (!s) {
-          if (!(def.kind === "trigger" && name === def.other)) err(`Scegli ${schema.label.toLowerCase()}.`);
+          if (!(def.kind === "trigger" && name === def.other) && !schema.optional) err(`Scegli ${schema.label.toLowerCase()}.`);
           return;
         }
         if (s === "self" && (def.kind === "trigger" || !tdef?.subject)) err("«questo oggetto» non esiste con questo evento.");
@@ -292,6 +344,11 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
         if (ents?.length && !ents.some((e) => blocksOf(e).some((b) => b.type === type))) warn(`Nessun oggetto indicato ha il blocco ${q(bd!.label)}.`);
         return;
       }
+      case "dialogue":
+        if (!s) {
+          if (!schema.optional) err("Scegli il dialogo.");
+        } else if (!dialogues.has(s)) err(`Il dialogo ${q(s)} non esiste.`);
+        return;
       case "block":
         if (!s) err("Scegli il blocco.");
         else if (!getBlockDef(s)) err(`Blocco sconosciuto ${q(s)}.`);

@@ -11,6 +11,7 @@ import { PlayView } from "./components/PlayView";
 import { RulesView } from "./components/RulesView";
 import { Icon } from "./components/Icon";
 import { PanelBoundary } from "./components/PanelBoundary";
+import { DialoguesView } from "./components/DialoguesView";
 
 function useHotkeys() {
   useEffect(() => {
@@ -87,6 +88,7 @@ export function App() {
   const centerTab = useEditor((s) => s.centerTab);
   const sceneRules = useEditor((s) => currentScene(s)?.rules?.length ?? 0);
   const globalRules = useEditor((s) => s.project?.rules?.length ?? 0);
+  const dialogueCount = useEditor((s) => s.project?.dialogues?.length ?? 0);
   useHotkeys();
 
   useEffect(() => {
@@ -119,6 +121,10 @@ export function App() {
               {sceneRules + globalRules}
             </span>
           </button>
+          <button type="button" className={`ctab${centerTab === "dialogues" ? " on" : ""}`} onClick={() => setState({ centerTab: "dialogues" })}>
+            <Icon name="chat" size={13} /> Dialoghi
+            <span className="ctab-count">{dialogueCount}</span>
+          </button>
         </div>
         <div className="center-body">
           <PanelBoundary name="Scena" fill>
@@ -127,6 +133,11 @@ export function App() {
           {centerTab === "rules" && !playing && (
             <PanelBoundary name="Regole" fill>
               <RulesView />
+            </PanelBoundary>
+          )}
+          {centerTab === "dialogues" && !playing && (
+            <PanelBoundary name="Dialoghi" fill>
+              <DialoguesView />
             </PanelBoundary>
           )}
           {playing && (

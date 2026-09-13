@@ -34,4 +34,9 @@ export {
 } from "./rules/rules";
 export type { RuleCtx, RuleItemDef, RuleKind } from "./rules/rules";
 export { validateProject } from "./project/validate";
+export { DialogueRunner } from "./dialogue/dialogue";
+export type { ActiveDialogue } from "./dialogue/dialogue";
+export { findPath, lineOfSight, walkable } from "./world/pathfinding";
+export type { Cell } from "./world/pathfinding";
+export { bodyCenter, nearestTagged, facingVector } from "./blocks/targets";
 export type { ProjectIssue, IssueLevel } from "./project/validate";

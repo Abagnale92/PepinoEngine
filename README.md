@@ -58,6 +58,18 @@ Scorciatoie: `V` seleziona, `B` pennello, `E` gomma, `G` griglia, `C` collisioni
 | Interfaccia | Pulsante | Voce di menù: frecce, mouse o tocco; può portare a una scena |
 | Interfaccia | Barra | Barra che si riempie in base a una variabile (vita, energia…) |
 | Interfaccia | Rettangolo | Sfondi dei menù e riquadri colorati |
+| IA | Insegue | Vede il bersaglio (i muri bloccano la vista) e lo insegue: salta gli ostacoli nei platform, trova la strada con A* nel top-down |
+| Personaggi | Personaggio che parla | Vicino + Azione apre un dialogo; fumetto sopra la testa |
+| Combattimento | Attacco corpo a corpo | Colpo davanti a sé con preparazione, colpo attivo e recupero |
+| Combattimento | Spara | Lancia un proiettile (modello) quando premi un comando o da solo verso il bersaglio |
+| Combattimento | Proiettile | Vola dritto o ad arco, ferisce, sparisce contro i muri |
+| Gameplay | Generatore | Crea oggetti da un modello a intervalli, con un massimo |
+
+## Dialoghi
+
+Nella scheda **Dialoghi** (accanto a Scena e Regole) si scrivono le conversazioni: ogni battuta ha chi parla, un ritratto (un fotogramma di un'immagine) e il testo, con `{variabile}`. Una battuta può avere delle **scelte**: ognuna porta a un'altra battuta (o chiude il dialogo) e può impostare una variabile, da usare poi nelle Regole. Nel gioco il dialogo ferma l'azione; frecce per scegliere, Azione o Salto per andare avanti.
+
+Si collegano a un personaggio con il blocco **Personaggio che parla**, oppure si avviano da una Regola («Avvia un dialogo»). La regola «Un dialogo finisce» serve a far succedere qualcosa dopo, come nella demo: se hai accettato la missione del Nonno Cetriolo, Pepino riceve il mestolo.
 
 ## Regole
 
@@ -124,10 +136,9 @@ docs/          analisi iniziale
 
 ## Stato e prossimi passi
 
-Fatto: runtime (fase 0), editor di base (fase 1), primi blocchi con anteprima ed export (fase 2), Regole, menù, messaggi, pausa e salvataggi (fase 3).
+Fatto: runtime (fase 0), editor di base (fase 1), primi blocchi con anteprima ed export (fase 2), Regole, menù, messaggi, pausa e salvataggi (fase 3), nemici che inseguono e sparano, attacchi, generatori, dialoghi con scelte e ritratti (fase 4).
 
 Prossimi passi, secondo la roadmap in `docs/analisi.html`:
 
-1. Nemici e NPC più ricchi: IA a stati, dialoghi con scelte e ritratti, proiettili, hitbox per fotogramma, pathfinding.
-2. Blocchi custom caricati dal progetto (JS/TS), poi Python tradotto in JS.
-3. Luci 2D, particelle, shader, beat 'em up con asse z, controlli touch, autotile.
+1. Blocchi custom caricati dal progetto (JS/TS), poi Python tradotto in JS.
+2. Luci 2D, particelle, shader, beat 'em up con asse z, controlli touch, autotile.

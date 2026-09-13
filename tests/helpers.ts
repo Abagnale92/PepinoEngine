@@ -1,4 +1,15 @@
-import { Scene, registerBuiltinBlocks, type EntityData, type Intent, type PrefabData, type ProjectData, type RuleData, type SceneData, type VariableValue } from "@runtime";
+import {
+  Scene,
+  registerBuiltinBlocks,
+  type DialogueData,
+  type EntityData,
+  type Intent,
+  type PrefabData,
+  type ProjectData,
+  type RuleData,
+  type SceneData,
+  type VariableValue,
+} from "@runtime";
 
 registerBuiltinBlocks();
 
@@ -59,6 +70,7 @@ export interface ProjectOptions {
   prefabs?: PrefabData[];
   variables?: Record<string, VariableValue>;
   extraScenes?: SceneData[];
+  dialogues?: DialogueData[];
 }
 
 export function makeProject(rows: string[], entities: EntityData[], opts: ProjectOptions = {}): ProjectData {
@@ -103,6 +115,7 @@ export function makeProject(rows: string[], entities: EntityData[], opts: Projec
       ...(opts.extraScenes ?? []),
     ],
     rules: opts.globalRules,
+    dialogues: opts.dialogues,
   };
 }
 
@@ -126,6 +139,12 @@ export function makeWorld(project: ProjectData) {
     saveGame: () => calls.push("saveGame"),
     loadGame: () => calls.push("loadGame"),
     hasSave: () => false,
+    startDialogue: (id: string) => {
+      calls.push(`dialogue:${id}`);
+      return true;
+    },
+    dialogue: { active: false },
+    isBlocked: false,
   };
   const scene = new Scene(game, project.scenes[0]);
   game.scene = scene;

@@ -515,6 +515,40 @@ const DEFS: RuleItemDef[] = [
   },
 ];
 
+DEFS.push(
+  {
+    type: "dialogue.end",
+    kind: "trigger",
+    category: "Interfaccia",
+    label: "Un dialogo finisce",
+    sentence: "finisce il dialogo {dialogue}",
+    params: { dialogue: { type: "dialogue", label: "Dialogo", default: "", optional: true, help: "Vuoto = qualsiasi dialogo." } },
+  },
+  {
+    type: "dialogue.active",
+    kind: "condition",
+    category: "Interfaccia",
+    label: "È in corso un dialogo",
+    sentence: "è in corso un dialogo",
+    params: {},
+    test: (ctx, p, rs) => !!rs.game.dialogue?.active,
+  },
+  {
+    type: "dialogue.start",
+    kind: "action",
+    category: "Interfaccia",
+    label: "Avvia un dialogo",
+    sentence: "avvia il dialogo {dialogue}",
+    params: {
+      dialogue: { type: "dialogue", label: "Dialogo", default: "" },
+      speaker: { type: "object", label: "Chi parla", default: "", optional: true, help: "Facoltativo: diventa «questo oggetto» per la regola «Un dialogo finisce»." },
+    },
+    run: (ctx, p, rs) => {
+      if (p.dialogue) rs.game.startDialogue(p.dialogue, resolveRef(p.speaker, ctx, rs.scene)[0]);
+    },
+  },
+);
+
 const BY_TYPE = new Map(DEFS.map((d) => [d.type, d]));
 
 /** Tolleranza sui tempi: 30 passi da 1/60 s sommati danno 0,4999…, non 0,5. */
@@ -560,6 +594,17 @@ export class RuleSystem {
     }
     for (const name of events) {
       scene.events.on(name, (payload: { entity: Entity; data: unknown }) => this.onEvent(name, payload.entity, payload.data));
+    }
+    if (this.entries.some((e) => e.data.when.type === "dialogue.end")) {
+      scene.events.on("dialogueEnd", (payload: { entity?: Entity; data?: { dialogue?: string } }) => {
+        for (const entry of this.entries) {
+          const w = entry.data.when;
+          if (w.type !== "dialogue.end") continue;
+          const want = String(w.params.dialogue ?? "");
+          if (want && want !== payload.data?.dialogue) continue;
+          this.queue.push({ entry, ctx: { self: payload.entity } });
+        }
+      });
     }
   }
 
@@ -617,6 +662,10 @@ export class RuleSystem {
         case "contact":
         case "contact.end":
           this.checkContacts(entry, w);
+          break;
+        case "event":
+        case "scene.start":
+        case "dialogue.end":
           break;
         default:
           if (!getRuleItemDef(w.type) && !this.warned.has(w.type)) {

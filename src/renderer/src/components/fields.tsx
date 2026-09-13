@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { NamedInfo, ProjectData, PropSchema } from "@runtime";
+import { DEFAULT_INPUT, INPUT_LABELS, type NamedInfo, type ProjectData, type PropSchema } from "@runtime";
 
 export interface FieldCtx {
   project: ProjectData;
@@ -248,6 +248,38 @@ export function PropField({
         </div>
       );
     }
+    case "prefab":
+      return (
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+          <option value="">— nessuno —</option>
+          {p.prefabs.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+            </option>
+          ))}
+        </select>
+      );
+    case "dialogue":
+      return (
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{schema.optional ? "— qualsiasi —" : "— scegli —"}</option>
+          {(p.dialogues ?? []).map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+      );
+    case "input":
+      return (
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+          {[...new Set([...Object.keys(DEFAULT_INPUT), ...Object.keys(p.input ?? {})])].map((k) => (
+            <option key={k} value={k}>
+              {INPUT_LABELS[k] ?? k}
+            </option>
+          ))}
+        </select>
+      );
     case "tag":
       return <input list="pepino-tags" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
     case "variable":

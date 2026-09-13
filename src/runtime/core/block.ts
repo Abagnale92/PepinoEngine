@@ -35,7 +35,8 @@ export type PropType =
   | "condition"
   | "blockAction"
   | "block"
-  | "state";
+  | "state"
+  | "dialogue";
 
 export interface PropOption {
   value: string;
@@ -55,6 +56,8 @@ export interface PropSchema {
   help?: string;
   /** Raggruppa i campi nell'Inspector (es. "Salto", "Dash"). */
   group?: string;
+  /** Il campo può restare vuoto (il controllo del progetto non lo segnala). */
+  optional?: boolean;
 }
 
 export interface NamedInfo {
@@ -91,6 +94,8 @@ interface Hooks {
   render?: (self: Self, r: Renderer) => void;
   /** Disegno sullo schermo (HUD), a piena risoluzione. */
   renderScreen?: (self: Self, r: Renderer) => void;
+  /** Disegno di debug (F1): zone che colpiscono, percorsi, raggi di vista. */
+  renderDebug?: (self: Self, r: Renderer) => void;
   destroy?: (self: Self) => void;
 }
 
@@ -153,6 +158,7 @@ export function defineBlock(spec: BlockSpec): BlockDef {
     late: spec.late,
     render: spec.render,
     renderScreen: spec.renderScreen,
+    renderDebug: spec.renderDebug,
     destroy: spec.destroy,
   };
   registry.set(def.type, def);

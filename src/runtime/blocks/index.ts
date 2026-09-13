@@ -10,8 +10,23 @@ import "./health";
 import "./gameplay";
 import "./text";
 import "./ui";
+import "./ai";
+import "./weapons";
+import "./spawner";
+import "./npc";
 
 /** Garantisce che i blocchi di serie siano caricati (l'import sopra fa il lavoro). */
 export function registerBuiltinBlocks(): void {}
 
-export const BLOCK_CATEGORIES = ["Grafica", "Fisica", "Movimento", "Camera", "IA", "Combattimento", "Gameplay", "Interfaccia", "Personalizzati"];
+export const BLOCK_CATEGORIES = [
+  "Grafica",
+  "Fisica",
+  "Movimento",
+  "Camera",
+  "IA",
+  "Personaggi",
+  "Combattimento",
+  "Gameplay",
+  "Interfaccia",
+  "Personalizzati",
+];

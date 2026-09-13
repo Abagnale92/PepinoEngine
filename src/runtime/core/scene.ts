@@ -257,6 +257,10 @@ export class Scene {
       if (!b || e.destroyed) continue;
       r.strokeRect(b.left, b.top, b.w, b.h, 1, b.contacts.size ? yellow : green);
     }
+    for (const e of this.entities) {
+      if (e.destroyed) continue;
+      for (const b of e.blocks) if (b.enabled && b.def.renderDebug) b.def.renderDebug(b, r);
+    }
   }
 
   dispose(): void {

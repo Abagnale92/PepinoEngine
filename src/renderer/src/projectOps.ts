@@ -138,6 +138,14 @@ export function prefabUses(project: ProjectData, prefabId: string): number {
   return n;
 }
 
+/** Quanti oggetti (e modelli) usano un dialogo con il blocco Personaggio che parla. */
+export function dialogueUses(project: ProjectData, dialogueId: string): number {
+  const uses = (blocks: BlockData[]) => blocks.some((b) => b.type === "Talker" && b.enabled !== false && blockProps(b).dialogue === dialogueId);
+  let n = project.prefabs.filter((p) => uses(p.blocks)).length;
+  for (const s of project.scenes) for (const f of flattenEntities(s.entities)) if (!f.data.prefab && uses(f.data.blocks)) n++;
+  return n;
+}
+
 export type EntityKind = "player" | "enemy" | "item" | "text" | "exit" | "object";
 
 export function entityKind(project: ProjectData, e: EntityData): EntityKind {

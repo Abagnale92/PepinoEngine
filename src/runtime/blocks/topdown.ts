@@ -65,7 +65,11 @@ defineBlock({
     d.prevX = x;
     d.prevY = y;
     if (p.directions === "4" && x !== 0 && y !== 0) {
-      if (d.lastAxis === "x") y = 0;
+      // Comandi "analogici" (IA, levetta): vince l'asse più forte. Tasti: vince l'ultimo premuto.
+      if (Math.abs(x) !== Math.abs(y)) {
+        if (Math.abs(x) > Math.abs(y)) y = 0;
+        else x = 0;
+      } else if (d.lastAxis === "x") y = 0;
       else x = 0;
     }
     const len = Math.hypot(x, y);

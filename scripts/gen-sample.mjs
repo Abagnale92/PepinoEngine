@@ -343,6 +343,78 @@ sign.rect(3, 4, 10, 1, P.woodDk);
 sign.rect(3, 6, 7, 1, P.woodDk);
 sign.save("sign.png");
 
+// Nonno Cetriolo (top-down): cappello, barba, e un secondo fotogramma con gli occhi chiusi.
+const nonno = new Pix(32, 16);
+for (let f = 0; f < 2; f++) {
+  const ox = f * 16;
+  pickle(nonno, ox, 0, { l: 4, r: 11, t: 2, b: 12, view: "down", legs: [[5, 15], [9, 15]] });
+  nonno.rect(ox + 3, 1, 10, 2, P.doorDk);
+  nonno.rect(ox + 5, 0, 6, 1, P.doorDk);
+  nonno.rect(ox + 5, 8, 6, 3, P.white);
+  nonno.rect(ox + 6, 11, 4, 1, P.white);
+  if (f === 1) {
+    for (const ex of [5, 9]) {
+      nonno.rect(ox + ex, 5, 2, 3, P.pickle);
+      nonno.rect(ox + ex, 6, 2, 1, P.pickleOut);
+    }
+  }
+}
+nonno.save("nonno.png");
+
+// Ritratti per i dialoghi: due volti 16×16 ingranditi ×2 su sfondo colorato.
+function blitScaled(src, dst, dx, dy, k) {
+  for (let y = 0; y < src.h; y++) {
+    for (let x = 0; x < src.w; x++) {
+      const i = (y * src.w + x) * 4;
+      if (src.data[i + 3] === 0) continue;
+      const c = `#${[0, 1, 2].map((j) => src.data[i + j].toString(16).padStart(2, "0")).join("")}`;
+      dst.rect(dx + x * k, dy + y * k, k, k, c);
+    }
+  }
+}
+const portraitFace = (old) => {
+  const f = new Pix(16, 16);
+  pickle(f, 0, 0, { l: 3, r: 12, t: old ? 3 : 2, b: 18, view: "front", legs: [] });
+  if (old) {
+    f.rect(2, 1, 12, 2, P.doorDk);
+    f.rect(4, 0, 8, 1, P.doorDk);
+    f.rect(5, 10, 7, 4, P.white);
+    f.rect(6, 14, 5, 1, P.white);
+    f.rect(6, 6, 2, 1, P.white);
+    f.rect(9, 6, 2, 1, P.white);
+  }
+  return f;
+};
+const ritratti = new Pix(64, 32);
+ritratti.rect(0, 0, 32, 32, "#cfe8c4");
+ritratti.rect(32, 0, 32, 32, "#f0dcae");
+blitScaled(portraitFace(false), ritratti, 0, 0, 2);
+blitScaled(portraitFace(true), ritratti, 32, 0, 2);
+ritratti.save("ritratti.png");
+
+// Seme sputato dalla pianta.
+const seme = new Pix(8, 8);
+shape(seme, 0, 0, ellipse(4, 4, 3.2, 2.4), "#c8914f", "#6b4229", [0, 0, 7, 7]);
+seme.set(3, 3, "#e8c48a");
+seme.save("seme.png");
+
+// Sputasemi: pianta in vaso che guarda a destra (2 fotogrammi).
+const sputa = new Pix(32, 16);
+for (let f = 0; f < 2; f++) {
+  const ox = f * 16;
+  for (let y = 10; y < 16; y++) {
+    const inset = Math.floor((y - 10) / 2);
+    sputa.rect(ox + 3 + inset, y, 10 - inset * 2, 1, y === 10 ? "#d98a5a" : "#b5653a");
+  }
+  sputa.rect(ox + 2, 9, 12, 2, "#7a3f22");
+  shape(sputa, ox, 0, ellipse(8, 5.5, 5.5, f ? 5 : 4.5), "#4f9a3a", "#2a6d2a", [0, 0, 15, 15]);
+  const mr = f ? 2 : 1.4;
+  shape(sputa, ox, 0, ellipse(11.5, 6, mr, mr), P.ink, P.ink, [0, 0, 15, 15]);
+  sputa.rect(ox + 6, 3, 2, 2, P.white);
+  sputa.set(ox + 7, 4, P.ink);
+}
+sputa.save("sputasemi.png");
+
 // ---------------------------------------------------------------- Audio (WAV 16 bit mono)
 
 const RATE = 22050;
@@ -536,6 +608,8 @@ function levelPlatform() {
       inst("slime", "Slime", cx(20), feet(13)),
       inst("slime", "Slime", cx(33), feet(13)),
       inst("slime", "Slime", cx(64), feet(13)),
+      inst("sputasemi", "Sputasemi", cx(49), feet(6)),
+      inst("sputasemi", "Sputasemi", cx(63), feet(13)),
       ...coins.map(([x, y]) => inst("moneta", "Moneta", cx(x), mid(y))),
       inst("porta", "Porta del villaggio", cx(69), feet(13), [{ type: "SceneExit", props: { scene: "villaggio" } }]),
       {
@@ -629,10 +703,24 @@ function levelVillage() {
           { type: "Animator", props: {} },
           { type: "CameraFollow", props: { mode: "topdown", deadzoneW: 1, deadzoneH: 1, offsetY: -0.5, lookahead: 0 } },
           { type: "Health", props: { max: 3, variable: "vita", onDeath: "restart", hurtSound: "colpo" } },
+          { type: "Attack", enabled: false, props: { target: "nemico", damage: 1 } },
         ],
       },
       inst("slime_td", "Slime vagante", cx(9), feet(13)),
       inst("slime_td", "Slime vagante", cx(21), feet(12)),
+      inst("slime_td", "Slime vagante", cx(24), feet(15)),
+      {
+        id: "nonno",
+        name: "Nonno Cetriolo",
+        x: cx(7),
+        y: feet(9),
+        tags: ["npc"],
+        blocks: [
+          { type: "Sprite", props: { image: "nonno" } },
+          { type: "Animator", props: {} },
+          { type: "Talker", props: { dialogue: "nonno", range: 1.6 } },
+        ],
+      },
       ...coins.map(([x, y]) => inst("moneta", "Moneta", cx(x), mid(y))),
       inst("porta", "Porta delle colline", cx(27), feet(10), [{ type: "SceneExit", props: { scene: "livello1" } }]),
       {
@@ -673,6 +761,38 @@ function levelVillage() {
         { type: "input.pressed", params: { action: "action" } },
         [{ type: "object.touching", params: { target: "#giocatore", other: "@cartello" } }],
         [say("«Le porte collegano i mondi. Vicino a un cartello premi C per leggerlo.»", 0, true)],
+      ),
+      rule(
+        "missione",
+        "Accettata la missione: Pepino riceve il mestolo",
+        { type: "dialogue.end", params: { dialogue: "nonno" } },
+        [{ type: "var.compare", params: { variable: "missione", op: "==", value: "1" } }],
+        [
+          { type: "block.enable", params: { enabled: "on", block: "Attack", target: "#giocatore" } },
+          say("Hai il mestolo! Premi V per colpire gli slime.", 3),
+        ],
+        { once: true },
+      ),
+      rule(
+        "mestolo",
+        "Dopo un riavvio Pepino ha ancora il mestolo",
+        { type: "scene.start", params: {} },
+        [{ type: "var.compare", params: { variable: "missione", op: "==", value: "1" } }],
+        [{ type: "block.enable", params: { enabled: "on", block: "Attack", target: "#giocatore" } }],
+      ),
+      rule("slime_sconfitto", "Uno slime sconfitto lascia una moneta", { type: "event", params: { target: "#nemico", event: "died" } }, [], [
+        { type: "object.spawn", params: { prefab: "moneta", target: "self", offsetX: 0, offsetY: -0.5 } },
+      ]),
+      rule(
+        "villaggio_salvo",
+        "Tutti gli slime sconfitti",
+        { type: "always", params: {} },
+        [
+          { type: "var.compare", params: { variable: "missione", op: "==", value: "1" } },
+          { type: "count", params: { target: "#nemico", op: "==", value: "0" } },
+        ],
+        [say("Pepinopoli è salva! Il nonno ti regala 10 monete.", 3.5), { type: "var.add", params: { amount: 10, variable: "monete" } }],
+        { once: true },
       ),
     ],
   };
@@ -783,9 +903,10 @@ const project = {
     jump: ["Key:Space", "Key:KeyZ", "Pad:A"],
     dash: ["Key:ShiftLeft", "Key:KeyX", "Pad:RB", "Pad:B"],
     action: ["Key:KeyC", "Key:Enter", "Pad:X"],
+    attack: ["Key:KeyV", "Key:KeyJ", "Pad:Y"],
     pause: ["Key:Escape", "Pad:Start"],
   },
-  variables: { monete: 0, vita: 3 },
+  variables: { monete: 0, vita: 3, missione: 0 },
   assets: [
     { id: "tiles", type: "image", src: "assets/tiles.png" },
     {
@@ -843,6 +964,24 @@ const project = {
     },
     { id: "door", type: "image", src: "assets/door.png" },
     { id: "cartello", type: "image", src: "assets/sign.png" },
+    {
+      id: "nonno",
+      type: "image",
+      src: "assets/nonno.png",
+      frameWidth: 16,
+      frameHeight: 16,
+      animations: { idle: { frames: [0, 0, 0, 0, 1], fps: 4, loop: true } },
+    },
+    { id: "ritratti", type: "image", src: "assets/ritratti.png", frameWidth: 32, frameHeight: 32 },
+    { id: "seme", type: "image", src: "assets/seme.png" },
+    {
+      id: "sputasemi",
+      type: "image",
+      src: "assets/sputasemi.png",
+      frameWidth: 16,
+      frameHeight: 16,
+      animations: { idle: { frames: [0, 1], fps: 2, loop: true } },
+    },
     { id: "salto", type: "audio", src: "assets/jump.wav" },
     { id: "moneta", type: "audio", src: "assets/coin.wav" },
     { id: "colpo", type: "audio", src: "assets/hurt.wav" },
@@ -894,8 +1033,10 @@ const project = {
       blocks: [
         { type: "Sprite", props: { image: "slime" } },
         { type: "Body", props: { width: 12, height: 8, group: "nemici", collidesWith: ["giocatore"] } },
-        { type: "TopDownController", props: { input: "ai", speed: 1.5, directions: "4" } },
+        { type: "TopDownController", props: { input: "ai", speed: 1.8, directions: "4" } },
         { type: "Patrol", props: { axis: "vertical", turnAtEdges: false } },
+        { type: "Chaser", props: { target: "giocatore", seeRange: 4.5, loseRange: 7 } },
+        { type: "Health", props: { max: 2, invulnerability: 0.4, knockback: 7 } },
         { type: "ContactDamage", props: { target: "giocatore", stompable: false } },
         { type: "Animator", props: {} },
       ],
@@ -921,8 +1062,60 @@ const project = {
         { type: "SceneExit", props: { scene: "" } },
       ],
     },
+    {
+      id: "seme",
+      name: "Seme",
+      tags: ["proiettile"],
+      blocks: [
+        { type: "Sprite", props: { image: "seme", origin: "center" } },
+        { type: "Body", props: { width: 6, height: 6, group: "proiettili", collidesWith: [], world: true } },
+        { type: "Projectile", props: { target: "giocatore", damage: 1, lifetime: 3 } },
+      ],
+    },
+    {
+      id: "sputasemi",
+      name: "Sputasemi",
+      tags: ["nemico"],
+      blocks: [
+        { type: "Sprite", props: { image: "sputasemi" } },
+        { type: "Body", props: { width: 12, height: 13, group: "nemici", collidesWith: ["giocatore"], world: false } },
+        { type: "Health", props: { max: 1, invulnerability: 0, knockback: 0 } },
+        { type: "ContactDamage", props: { target: "giocatore", stompSound: "schiaccia" } },
+        { type: "Shooter", props: { projectile: "seme", mode: "auto", aim: "target", range: 7, interval: 2.2, speed: 5, offsetX: 4, offsetY: -8 } },
+        { type: "Animator", props: {} },
+      ],
+    },
   ],
   scenes: [levelMenu(), levelPlatform(), levelVillage()],
+  dialogues: [
+    {
+      id: "nonno",
+      name: "Nonno Cetriolo",
+      lines: [
+        { id: "b1", speaker: "Nonno Cetriolo", portrait: "ritratti", portraitFrame: 1, text: "Pepino! Gli slime sono scappati dal laghetto e ora inseguono chiunque passi." },
+        {
+          id: "b2",
+          speaker: "Nonno Cetriolo",
+          portrait: "ritratti",
+          portraitFrame: 1,
+          text: "Te la senti di dargli una lezione?",
+          choices: [
+            { text: "Certo, ci penso io!", goto: "b3", setVar: "missione", setValue: "1" },
+            { text: "Magari più tardi...", goto: "b5" },
+          ],
+        },
+        { id: "b3", speaker: "Nonno Cetriolo", portrait: "ritratti", portraitFrame: 1, text: "Prendi il mio vecchio mestolo. Premi V per colpire." },
+        { id: "b4", speaker: "Pepino", portrait: "ritratti", portraitFrame: 0, text: "Grazie nonno, vado subito!", goto: "fine" },
+        {
+          id: "b5",
+          speaker: "Nonno Cetriolo",
+          portrait: "ritratti",
+          portraitFrame: 1,
+          text: "Va bene, ma stai lontano dagli slime. Torna a parlarmi quando sei pronto.",
+        },
+      ],
+    },
+  ],
 };
 
 writeFileSync(join(OUT, "project.json"), JSON.stringify(project, null, 2));

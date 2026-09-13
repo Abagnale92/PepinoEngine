@@ -130,7 +130,7 @@ export function argSchemas(def: RuleItemDef, item: RuleItem): Record<string, Pro
   return (isCond ? bd?.conditions[name]?.params : bd?.actions[name]?.params) ?? {};
 }
 
-const REQUIRED = new Set(["object", "event", "condition", "blockAction", "block", "prefab", "scene", "variable", "input"]);
+const REQUIRED = new Set(["object", "event", "condition", "blockAction", "block", "prefab", "scene", "variable", "input", "dialogue"]);
 
 /** Testo di un parametro dentro la frase della regola; `missing` = da completare. */
 export function formatToken(
@@ -144,6 +144,7 @@ export function formatToken(
   const s = String(value ?? "");
   const ok = (text: string) => ({ text, missing: false });
   const miss = (text: string) => ({ text, missing: true });
+  if (s === "" && schema.optional) return ok(schema.type === "object" ? "nessuno" : "qualsiasi");
   if (s === "" && REQUIRED.has(schema.type)) return miss(`${schema.label.toLowerCase()}?`);
   const argsText = () => {
     const args = argSchemas(def, item);
@@ -166,6 +167,10 @@ export function formatToken(
     case "prefab": {
       const pf = rc.project.prefabs.find((x) => x.id === s);
       return pf ? ok(pf.name) : miss(s);
+    }
+    case "dialogue": {
+      const dl = rc.project.dialogues?.find((x) => x.id === s);
+      return dl ? ok(dl.name) : miss(s);
     }
     case "audio":
       return ok(s || "nessuna");

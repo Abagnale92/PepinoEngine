@@ -123,6 +123,36 @@ export interface RuleData {
   actions: RuleItem[];
 }
 
+/** Valore speciale di `goto`: il dialogo termina. */
+export const DIALOGUE_END = "fine";
+
+export interface DialogueChoice {
+  text: string;
+  /** Dove andare: "" = battuta successiva, "fine" = termina, altrimenti l'id di una battuta. */
+  goto?: string;
+  /** Se indicata, scegliendo si imposta questa variabile globale (da usare poi nelle Regole). */
+  setVar?: string;
+  setValue?: string;
+}
+
+export interface DialogueLine {
+  id: string;
+  speaker?: string;
+  /** Immagine del ritratto e fotogramma da mostrare. */
+  portrait?: string;
+  portraitFrame?: number;
+  text: string;
+  choices?: DialogueChoice[];
+  /** Solo senza scelte: "" = battuta successiva, "fine" = termina, altrimenti l'id di una battuta. */
+  goto?: string;
+}
+
+export interface DialogueData {
+  id: string;
+  name: string;
+  lines: DialogueLine[];
+}
+
 export interface SceneData {
   id: string;
   name: string;
@@ -164,6 +194,7 @@ export interface ProjectData {
   scenes: SceneData[];
   /** Regole globali: valgono in tutte le scene. */
   rules?: RuleData[];
+  dialogues?: DialogueData[];
 }
 
 export const DEFAULT_INPUT: Record<string, string[]> = {
@@ -174,6 +205,7 @@ export const DEFAULT_INPUT: Record<string, string[]> = {
   jump: ["Key:Space", "Key:KeyZ", "Pad:A"],
   dash: ["Key:ShiftLeft", "Key:KeyX", "Pad:RB", "Pad:B"],
   action: ["Key:KeyC", "Key:Enter", "Pad:X"],
+  attack: ["Key:KeyV", "Key:KeyJ", "Pad:Y"],
   pause: ["Key:Escape", "Pad:Start"],
 };
 
@@ -185,5 +217,6 @@ export const INPUT_LABELS: Record<string, string> = {
   jump: "Salto",
   dash: "Dash",
   action: "Azione",
+  attack: "Attacco",
   pause: "Pausa",
 };

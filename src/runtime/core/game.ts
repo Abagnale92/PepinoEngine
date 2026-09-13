@@ -7,6 +7,10 @@ import { Assets } from "../assets/assets";
 import { packColor, parseColor } from "../math";
 import { DEFAULT_INPUT, type ProjectData, type VariableValue } from "../project/format";
 import { registerBuiltinBlocks } from "../blocks";
+import { interpolate } from "../blocks/text";
+import { frameRect } from "../assets/assets";
+import { DialogueRunner } from "../dialogue/dialogue";
+import type { Entity } from "./entity";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -69,6 +73,9 @@ export class Game {
   /** Variabili com'erano all'ingresso nella scena: "Riavvia scena" le ripristina. */
   private sceneStartVars: Record<string, VariableValue> = {};
   private stopped = false;
+  /** Dialoghi con scelte: mentre uno è aperto il gioco resta fermo. */
+  readonly dialogue: DialogueRunner;
+  private dialogueWrap: { key: string; lines: string[] } | null = null;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -83,6 +90,25 @@ export class Game {
     this.assets = new Assets(opts.baseUrl, this.renderer, this.audio);
     this.vars = structuredClone(project.variables ?? {});
     this.debug.overlay = !!opts.debug;
+    this.dialogue = new DialogueRunner(
+      () => this.project.dialogues ?? [],
+      () => this.vars,
+      (id, speaker) => this.onDialogueEnd(id, speaker),
+    );
+  }
+
+  /** Apre un dialogo del progetto. `speaker` = chi parla (per le Regole: "questo oggetto"). */
+  startDialogue(id: string, speaker?: Entity): boolean {
+    if (this.dialogue.active) return false;
+    const ok = this.dialogue.start(id, speaker);
+    if (!ok) this.log(`Il dialogo "${id}" non esiste o non ha battute`, "warn");
+    return ok;
+  }
+
+  private onDialogueEnd(id: string, speaker?: Entity) {
+    const payload = { dialogue: id };
+    if (speaker && !speaker.destroyed) speaker.emit("dialogueEnd", payload);
+    else this.scene?.events.emit("dialogueEnd", { entity: undefined, data: payload });
   }
 
   get settings() {
@@ -105,6 +131,7 @@ export class Game {
     if (!data) throw new Error("Il progetto non contiene scene.");
     this.scene?.dispose();
     this.paused = false;
+    this.dialogue.cancel();
     if (restoreVars) this.vars = structuredClone(this.sceneStartVars);
     else this.sceneStartVars = structuredClone(this.vars);
     this.scene = new Scene(this, data);
@@ -140,9 +167,9 @@ export class Game {
     if (text) this.messages.push({ text, duration, pause });
   }
 
-  /** Vero se il gioco è fermo per la pausa o per un messaggio. */
+  /** Vero se il gioco è fermo per la pausa, un messaggio o un dialogo. */
   get isBlocked(): boolean {
-    return this.paused || !!this.message?.pause;
+    return this.paused || !!this.message?.pause || this.dialogue.active;
   }
 
   // ---------- salvataggi ----------
@@ -229,9 +256,11 @@ export class Game {
   private tick(dt: number): void {
     this.input.beginStep();
     if (this.input.keyPressed("F1")) this.debug.overlay = !this.debug.overlay;
-    if (this.input.pressed("pause") && !this.message?.pause && !this.fade.pending) this.paused = !this.paused;
+    if (this.input.pressed("pause") && !this.message?.pause && !this.dialogue.active && !this.fade.pending) this.paused = !this.paused;
     if (!this.isBlocked) this.scene?.update(dt);
-    this.updateMessage(dt);
+    // Il dialogo si aggiorna dal passo dopo quello in cui è partito (lo protegge anche la sua breve attesa).
+    if (this.dialogue.active) this.dialogue.update(dt, this.input);
+    else this.updateMessage(dt);
     this.input.endStep();
 
     const f = this.fade;
@@ -272,7 +301,8 @@ export class Game {
     this.scene?.render(r, this.debug.overlay);
     r.present(this.settings.pixelPerfect);
     this.scene?.renderScreen(r);
-    this.renderMessage(r);
+    if (this.dialogue.active) this.renderDialogue(r);
+    else this.renderMessage(r);
     if (this.paused) this.renderPause(r);
     if (this.fade.alpha > 0) r.rect(0, 0, r.width, r.height, packColor(0, 0, 0, this.fade.alpha));
     if (this.debug.overlay) this.renderDebugHud(r);
@@ -316,6 +346,62 @@ export class Game {
     });
     const interactive = m.pause || m.duration <= 0;
     if (interactive && m.shown >= m.text.length && Math.floor(performance.now() / 400) % 2 === 0) {
+      r.text("▼", W - pad * 2 - 6, y + boxH - 12, { size: 7, color: "#8cc480" });
+    }
+  }
+
+  private renderDialogue(r: Renderer): void {
+    const d = this.dialogue.current;
+    const line = this.dialogue.line;
+    if (!d || !line) return;
+    const W = r.width;
+    const H = r.height;
+    const pad = 8;
+    const img = line.portrait ? this.assets.image(line.portrait) : undefined;
+    const pSize = img ? 36 : 0;
+    const textX = pad * 2 + (img ? pSize + 8 : 0);
+    const key = `${d.data.id}:${d.index}:${d.text}`;
+    if (this.dialogueWrap?.key !== key) this.dialogueWrap = { key, lines: this.wrap(r, d.text, W - textX - pad * 2) };
+    const lines = this.dialogueWrap.lines;
+    const lineH = 11;
+    const nameH = line.speaker ? 12 : 0;
+    const choices = this.dialogue.choices;
+    const showChoices = this.dialogue.fullyShown && choices.length > 0;
+    const bodyH = nameH + lines.length * lineH + (showChoices ? choices.length * lineH + 4 : 0);
+    const boxH = Math.max(pSize + 12, bodyH + 12);
+    const y = H - boxH - pad;
+    const t = Math.max(1 / r.pixelScale, 0.5);
+    const accent = packColor(0.55, 0.77, 0.5, 1);
+    r.rect(pad, y, W - pad * 2, boxH, packColor(0.04, 0.06, 0.04, 0.92));
+    r.strokeRect(pad, y, W - pad * 2, boxH, t, accent);
+    if (img) {
+      const f = frameRect(img, line.portraitFrame ?? 0);
+      r.rect(pad * 2 - 1, y + 5, pSize + 2, pSize + 2, accent);
+      r.rect(pad * 2, y + 6, pSize, pSize, packColor(0.1, 0.13, 0.1, 1));
+      r.draw(img.tex, f.sx, f.sy, f.fw, f.fh, pad * 2, y + 6, pSize, pSize);
+    }
+    let ty = y + 6;
+    if (line.speaker) {
+      r.text(line.speaker, textX, ty, { size: 8, color: "#8cc480" });
+      ty += nameH;
+    }
+    let left = Math.floor(d.shown);
+    lines.forEach((ln, i) => {
+      if (left <= 0) return;
+      r.text(ln.slice(0, left), textX, ty + i * lineH, MESSAGE_STYLE);
+      left -= ln.length + 1;
+    });
+    ty += lines.length * lineH + 4;
+    if (showChoices) {
+      choices.forEach((c, i) => {
+        const on = i === d.choice;
+        r.text(`${on ? "▶" : "  "} ${interpolate(c.text, this.vars)}`, textX, ty + i * lineH, {
+          size: 8,
+          bold: on,
+          color: on ? "#ffffff" : "#9aa894",
+        });
+      });
+    } else if (this.dialogue.fullyShown && Math.floor(performance.now() / 400) % 2 === 0) {
       r.text("▼", W - pad * 2 - 6, y + boxH - 12, { size: 7, color: "#8cc480" });
     }
   }
