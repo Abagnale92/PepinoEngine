@@ -1,0 +1,786 @@
+<title>Analisi Pepino Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Pixelify+Sans:wght@600&family=Schibsted+Grotesk:wght@500;700;800&display=swap">
+<style>
+:root{
+  --ground:#F1F4EC;
+  --surface:#FBFCF8;
+  --sunk:#E7ECE0;
+  --ink:#17201A;
+  --muted:#586555;
+  --line:#D3DBCB;
+  --line-strong:#A9B6A1;
+  --accent:#2C6A3C;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#DCEBD1;
+  --seed:#9A5A0B;
+  --seed-soft:#F5E4C8;
+  --later:#4C5F70;
+  --later-soft:#E0E7EE;
+  --grid:rgba(44,106,60,.09);
+  --shadow:0 1px 0 rgba(23,32,26,.04),0 12px 32px -12px rgba(23,32,26,.22);
+  --f-display:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --f-pixel:"Pixelify Sans","Schibsted Grotesk",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#101510;
+    --surface:#171E17;
+    --sunk:#1C241C;
+    --ink:#E2EADB;
+    --muted:#9AA894;
+    --line:#2A352A;
+    --line-strong:#43533F;
+    --accent:#8CC480;
+    --accent-ink:#0F1A10;
+    --accent-soft:#1F3321;
+    --seed:#E2A55A;
+    --seed-soft:#35291A;
+    --later:#9FB3C4;
+    --later-soft:#1F2932;
+    --grid:rgba(140,196,128,.07);
+    --shadow:0 1px 0 rgba(0,0,0,.3),0 16px 40px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101510;
+  --surface:#171E17;
+  --sunk:#1C241C;
+  --ink:#E2EADB;
+  --muted:#9AA894;
+  --line:#2A352A;
+  --line-strong:#43533F;
+  --accent:#8CC480;
+  --accent-ink:#0F1A10;
+  --accent-soft:#1F3321;
+  --seed:#E2A55A;
+  --seed-soft:#35291A;
+  --later:#9FB3C4;
+  --later-soft:#1F2932;
+  --grid:rgba(140,196,128,.07);
+  --shadow:0 1px 0 rgba(0,0,0,.3),0 16px 40px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{background:var(--ground);color:var(--ink);font:16px/1.62 var(--f-body);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+p{margin:0}
+.label{font:600 11.5px/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- hero ---------- */
+.hero{position:relative;border-bottom:1px solid var(--line);overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:16px 16px;
+  -webkit-mask-image:linear-gradient(115deg,#000 20%,transparent 75%);mask-image:linear-gradient(115deg,#000 20%,transparent 75%);
+  pointer-events:none}
+.hero-inner{position:relative;max-width:1180px;margin:0 auto;padding:56px 28px 56px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:56px;align-items:start}
+.wordmark{font:600 56px/1 var(--f-pixel);color:var(--accent);letter-spacing:.01em;display:flex;align-items:center;gap:14px}
+.wordmark .tile{width:22px;height:22px;background:var(--accent);box-shadow:22px 0 0 var(--accent-soft),0 22px 0 var(--accent-soft);margin-right:26px}
+.hero h1{font-size:clamp(28px,3.2vw,40px);font-weight:800;margin-top:22px;letter-spacing:-.015em;max-width:18ch}
+.lede{margin-top:18px;font-size:18px;color:var(--muted);max-width:56ch}
+.lede strong{color:var(--ink);font-weight:600}
+.meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:8px 22px;font:13px/1.4 var(--f-mono);color:var(--muted)}
+.meta b{color:var(--ink);font-weight:500}
+
+/* inspector mock */
+.inspector{background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:var(--shadow);font-size:13px;overflow:hidden}
+.insp-tabs{display:flex;gap:2px;background:var(--sunk);border-bottom:1px solid var(--line);padding:6px 6px 0}
+.insp-tabs span{padding:6px 12px;border-radius:5px 5px 0 0;color:var(--muted);font-weight:500}
+.insp-tabs span.on{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-bottom-color:var(--surface);margin-bottom:-1px}
+.insp-obj{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.insp-obj .sw{width:28px;height:28px;border-radius:4px;background:
+  linear-gradient(var(--accent) 0 0) 9px 5px/10px 8px no-repeat,
+  linear-gradient(var(--accent) 0 0) 7px 13px/14px 10px no-repeat,
+  var(--accent-soft)}
+.insp-obj b{font-family:var(--f-display);font-size:15px}
+.tag{font:500 11px/1 var(--f-mono);padding:4px 6px;border-radius:4px;background:var(--sunk);color:var(--muted);margin-left:auto}
+.comp{border-bottom:1px solid var(--line)}
+.comp-h{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--sunk);font-weight:600}
+.comp-h .chk{width:12px;height:12px;border-radius:3px;background:var(--accent);flex:none}
+.comp-h small{margin-left:auto;font:400 11px var(--f-mono);color:var(--muted)}
+.comp.hot .comp-h{background:var(--accent-soft)}
+.row{display:grid;grid-template-columns:1fr auto;gap:12px;padding:5px 14px;align-items:baseline}
+.row span:first-child{color:var(--muted)}
+.row .v{font-family:var(--f-mono);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right}
+.row .v i{font-style:normal;color:var(--muted)}
+.anim{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:6px 14px 10px}
+.anim span{color:var(--muted)}
+.anim code{font-size:12px;background:var(--sunk);padding:1px 6px;border-radius:3px;justify-self:start}
+.add{display:block;width:calc(100% - 28px);margin:12px 14px 14px;padding:8px;border:1px dashed var(--line-strong);border-radius:5px;background:transparent;color:var(--accent);font:600 13px var(--f-body);cursor:pointer}
+.add:hover{background:var(--accent-soft)}
+.insp-cap{margin-top:12px;font-size:13px;color:var(--muted)}
+
+/* ---------- layout ---------- */
+.layout{max-width:1180px;margin:0 auto;padding:0 28px 96px;display:grid;grid-template-columns:210px minmax(0,1fr);gap:56px}
+.toc{position:sticky;top:0;align-self:start;padding-top:48px;max-height:100vh;overflow:auto}
+.toc .label{display:block;margin-bottom:12px}
+.toc ol{list-style:none;margin:0;padding:0;font:13px/1.35 var(--f-mono)}
+.toc li{position:relative;padding-left:18px}
+.toc li::before{content:"";position:absolute;left:4px;top:0;bottom:0;border-left:1px solid var(--line-strong)}
+.toc li:last-child::before{bottom:auto;height:11px}
+.toc li::after{content:"";position:absolute;left:4px;top:11px;width:9px;border-top:1px solid var(--line-strong)}
+.toc a{display:block;padding:3px 6px;border-radius:4px;color:var(--ink);text-decoration:none}
+.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+.toc .root{font:600 13px var(--f-mono);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.toc .root::before{content:"";width:10px;height:10px;background:var(--accent);border-radius:2px}
+
+main{min-width:0}
+section{padding-top:56px;scroll-margin-top:8px}
+section > h2{font-size:28px;font-weight:700;letter-spacing:-.01em}
+section > .kicker{display:block;margin-bottom:10px}
+.prose{max-width:68ch;margin-top:14px;display:grid;gap:14px}
+.prose p{color:var(--ink)}
+.prose .dim{color:var(--muted)}
+h3{font-size:19px;font-weight:700;margin-top:34px}
+
+/* verdict */
+.verdict{margin-top:22px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.verdict div{background:var(--surface);padding:18px 20px;display:grid;gap:6px;align-content:start}
+.verdict b{font-family:var(--f-display);font-size:16px}
+.verdict p{font-size:14.5px;color:var(--muted)}
+
+/* tables */
+.tbl-wrap{margin-top:20px;overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:11px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font:600 11.5px/1.3 var(--f-body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--sunk);white-space:nowrap}
+td:first-child{font-weight:600;white-space:nowrap}
+td.lesson{color:var(--ink)}
+td .dim{color:var(--muted)}
+tr.ref td{background:var(--accent-soft)}
+.num{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:13px}
+
+/* legend + feature groups */
+.legend{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px;color:var(--muted);align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;font:600 11px/1 var(--f-body);letter-spacing:.05em;text-transform:uppercase;padding:5px 8px;border-radius:4px;white-space:nowrap}
+.chip::before{content:"";width:7px;height:7px;border-radius:2px;background:currentColor}
+.c-idea{background:var(--accent-soft);color:var(--accent)}
+.c-mvp{background:var(--seed-soft);color:var(--seed)}
+.c-dopo{background:var(--later-soft);color:var(--later)}
+.feat-grid{margin-top:26px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:34px 40px}
+.feat h3{margin:0 0 10px;font-size:16px;padding-top:12px;border-top:2px solid var(--ink)}
+.feat ul{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.feat li{display:grid;grid-template-columns:92px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14.5px;line-height:1.5;align-items:baseline}
+.feat li .chip{justify-self:start}
+.feat li span.t{color:var(--muted)}
+.feat li span.t b{color:var(--ink);font-weight:600}
+
+/* comparison of logic */
+.opts{margin-top:22px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.opt{border:1px solid var(--line);border-radius:8px;padding:18px;display:grid;gap:10px;align-content:start;background:var(--surface)}
+.opt.pick{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt h4{margin:0;font:700 16px var(--f-display)}
+.opt p{font-size:14px;color:var(--muted)}
+.opt .who{font:12px var(--f-mono);color:var(--muted)}
+.opt .verd{font-size:13.5px;font-weight:600;color:var(--ink)}
+.opt.pick .verd{color:var(--accent)}
+
+/* event sheet mock */
+.sheet{margin-top:22px;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface);font-size:14px}
+.sheet-h{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);background:var(--sunk);border-bottom:1px solid var(--line)}
+.sheet-h span{padding:8px 16px}
+.ev{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev > div{padding:12px 16px;display:grid;gap:6px;align-content:start}
+.ev > div:first-child{border-right:1px solid var(--line)}
+.ln{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.obj{font:500 12.5px/1 var(--f-mono);padding:4px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+.val{font:500 12.5px/1 var(--f-mono);padding:3px 6px;border-radius:4px;border:1px solid var(--line-strong)}
+.kw{font-weight:600;color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+
+/* anatomy */
+.anat{margin-top:22px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--line);gap:1px}
+.anat div{background:var(--surface);padding:14px;display:grid;gap:6px;align-content:start}
+.anat b{font-family:var(--f-display);font-size:15px}
+.anat p{font-size:13px;color:var(--muted)}
+.anat code{font-size:12px;color:var(--accent)}
+pre{margin:20px 0 0;padding:18px 20px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;overflow-x:auto;font:13px/1.6 var(--f-mono);color:var(--ink)}
+pre .c{color:var(--muted)}
+pre .k{color:var(--accent);font-weight:500}
+pre .s{color:var(--seed)}
+
+/* formula */
+.formula{margin-top:20px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.formula div{background:var(--surface);padding:14px 16px;display:grid;gap:4px}
+.formula .big{font:500 20px var(--f-mono);font-variant-numeric:tabular-nums}
+.formula .big small{font-size:13px;color:var(--muted)}
+.formula .how{font:12px var(--f-mono);color:var(--muted)}
+.formula .in{background:var(--accent-soft)}
+
+/* diagram */
+figure{margin:22px 0 0}
+.diagram{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:16px;overflow-x:auto;color:var(--ink)}
+.diagram svg{display:block;width:100%;min-width:760px;height:auto}
+figcaption{margin-top:10px;font-size:13.5px;color:var(--muted);max-width:72ch}
+.d-box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.2}
+.d-hot{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.6}
+.d-soft{fill:var(--sunk);stroke:var(--line-strong);stroke-width:1.2;stroke-dasharray:4 3}
+.d-t{fill:var(--ink);font:700 14px var(--f-display)}
+.d-s{fill:var(--muted);font:12px var(--f-mono)}
+.d-a{fill:var(--muted);font:500 11.5px var(--f-body)}
+.d-acc{fill:var(--accent)}
+.d-line{stroke:var(--muted);stroke-width:1.4;fill:none}
+.d-dash{stroke:var(--accent);stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+.d-head{fill:var(--muted)}
+.d-head-acc{fill:var(--accent)}
+
+/* roadmap */
+.phases{margin-top:22px;display:grid;gap:0;border-left:2px solid var(--line-strong);margin-left:10px}
+.phase{position:relative;padding:0 0 26px 30px;display:grid;gap:6px}
+.phase::before{content:"";position:absolute;left:-7px;top:4px;width:12px;height:12px;background:var(--ground);border:2px solid var(--accent);border-radius:2px}
+.phase .ph{font:500 12px var(--f-mono);color:var(--accent)}
+.phase h4{margin:0;font:700 17px var(--f-display)}
+.phase p{font-size:14.5px;color:var(--muted);max-width:70ch}
+.phase .done{font-size:14px;color:var(--ink)}
+.phase .done b{font-weight:600}
+
+/* decisions */
+.dec{margin-top:22px;display:grid;gap:0;border-top:1px solid var(--line)}
+.dec > div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;padding:16px 0;border-bottom:1px solid var(--line)}
+.dec b{font-family:var(--f-display);font-size:16px}
+.dec p{font-size:14.5px;color:var(--muted)}
+.dec .rec{color:var(--ink)}
+.dec .rec em{font-style:normal;color:var(--accent);font-weight:600}
+
+footer{max-width:1180px;margin:0 auto;padding:28px;border-top:1px solid var(--line);font:13px var(--f-mono);color:var(--muted);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:1040px){
+  .hero-inner{grid-template-columns:1fr;gap:40px}
+  .inspector-wrap{max-width:460px}
+  .layout{grid-template-columns:1fr;gap:0}
+  .toc{position:static;max-height:none;padding-top:36px}
+  .toc ol{columns:2;column-gap:24px}
+  .anat{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:720px){
+  .hero-inner,.layout{padding-left:18px;padding-right:18px}
+  .wordmark{font-size:44px}
+  .verdict,.feat-grid,.opts,.formula{grid-template-columns:1fr}
+  .dec > div{grid-template-columns:1fr;gap:6px}
+  .anat{grid-template-columns:1fr}
+  .toc ol{columns:1}
+  .sheet-h,.ev{grid-template-columns:1fr}
+  .ev > div:first-child{border-right:0;border-bottom:1px dashed var(--line)}
+  .sheet-h span:last-child{display:none}
+}
+</style>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="wordmark" aria-label="Pepino"><span class="tile" aria-hidden="true"></span>Pepino</div>
+      <h1>Analisi preliminare di un engine 2D a blocchi</h1>
+      <p class="lede">Un engine dove si crea un oggetto, gli si dà una sprite e poi <strong>gli si aggiungono blocchi già pronti</strong>: telecamera, movimento, salto, nemici, dialoghi. Tutto si configura dall'Inspector, i programmatori scrivono blocchi nuovi e il gioco si esporta per il web. Qui sotto trovi cosa fanno gli altri engine, cosa manca all'idea iniziale e le scelte da fare prima di scrivere codice.</p>
+      <div class="meta">
+        <span>target <b>2D · WebGL</b></span>
+        <span>utenti <b>non programmatori + dev</b></span>
+        <span>riferimenti <b>Unity · Godot · Construct · GDevelop</b></span>
+      </div>
+    </div>
+
+    <div class="inspector-wrap">
+      <div class="inspector" role="img" aria-label="Esempio di Inspector di Pepino: l'oggetto Giocatore con i blocchi Corpo, Controller Platform, Animazioni per stato e Camera, ognuno configurato con parametri in tile e secondi.">
+        <div class="insp-tabs"><span class="on">Inspector</span><span>Regole</span><span>Debug</span></div>
+        <div class="insp-obj"><span class="sw"></span><b>Giocatore</b><span class="tag">#giocatore</span></div>
+        <div class="comp">
+          <div class="comp-h"><span class="chk"></span>Corpo<small>collisione</small></div>
+          <div class="row"><span>Forma</span><span class="v">Box 12 × 22 <i>px</i></span></div>
+          <div class="row"><span>Collide con</span><span class="v">Mondo, Nemici</span></div>
+        </div>
+        <div class="comp hot">
+          <div class="comp-h"><span class="chk"></span>Controller Platform<small>blocco</small></div>
+          <div class="row"><span>Velocità</span><span class="v">7 <i>tile/s</i></span></div>
+          <div class="row"><span>Altezza salto</span><span class="v">3.5 <i>tile</i></span></div>
+          <div class="row"><span>Doppio salto</span><span class="v">sì</span></div>
+          <div class="row"><span>Coyote time</span><span class="v">0.10 <i>s</i></span></div>
+          <div class="row"><span>Dash</span><span class="v">0.18 <i>s</i> · Maiusc</span></div>
+        </div>
+        <div class="comp">
+          <div class="comp-h"><span class="chk"></span>Animazioni per stato<small>blocco</small></div>
+          <div class="anim">
+            <span>fermo</span><code>eroe_idle · 4 fr</code>
+            <span>corsa</span><code>eroe_run · 6 fr</code>
+            <span>salto</span><code>eroe_jump · 2 fr</code>
+            <span>dash</span><code>eroe_dash · 3 fr</code>
+          </div>
+        </div>
+        <div class="comp">
+          <div class="comp-h"><span class="chk"></span>Camera<small>blocco</small></div>
+          <div class="row"><span>Modalità</span><span class="v">Segui · Platform</span></div>
+          <div class="row"><span>Zona morta</span><span class="v">2 × 3 <i>tile</i></span></div>
+        </div>
+        <button class="add" type="button">+ Aggiungi blocco</button>
+      </div>
+      <p class="insp-cap">L'idea in un'immagine: niente codice, solo blocchi e parametri in unità che un designer capisce.</p>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Indice">
+    <span class="label">Gerarchia</span>
+    <div class="root">Analisi.scena</div>
+    <ol>
+      <li><a href="#verdetto">Verdetto</a></li>
+      <li><a href="#engine">Altri engine</a></li>
+      <li><a href="#nucleo">Nucleo comune</a></li>
+      <li><a href="#logica">Blocchi e Regole</a></li>
+      <li><a href="#generi">Generi</a></li>
+      <li><a href="#architettura">Architettura</a></li>
+      <li><a href="#python">Python o JS</a></li>
+      <li><a href="#vocabolario">Vocabolario</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#decisioni">Decisioni</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="verdetto">
+      <span class="label kicker">In breve</span>
+      <h2>L'idea funziona. Va completata in quattro punti.</h2>
+      <div class="prose">
+        <p>Il modello "oggetto + comportamenti pronti e configurabili" non è una scommessa: è quello su cui si reggono <b>Construct 3</b> e <b>GDevelop</b>, due engine che hanno un pubblico enorme proprio tra chi non programma. È una buona notizia, perché l'approccio è già dimostrato, ma vuol dire anche che Pepino deve distinguersi. Il suo spazio: l'esperienza di Unity e Godot (gerarchia, Inspector, modelli riutilizzabili) unita a blocchi pensati per genere e a template pronti.</p>
+      </div>
+      <div class="verdict">
+        <div><b>I blocchi da soli non bastano</b><p>Dicono <i>come</i> si muove un oggetto, non <i>cosa succede quando</i>: la moneta che sparisce, la porta che si apre con la chiave. Serve un secondo strumento visuale: le Regole "Quando → Allora".</p></div>
+        <div><b>Python nel browser costa caro</b><p>Una build WebGL gira in JavaScript. Python completo vuol dire megabyte in più e secondi di avvio per ogni gioco. Meglio JS/TS subito e Python dopo, come sottoinsieme tradotto.</p></div>
+        <div><b>Mancano pezzi di base</b><p>Undo/redo, modelli (prefab), gruppi di collisione, stati di animazione, mappa dei comandi, risoluzione pixel-perfect, salvataggi. Senza, anche il miglior blocco di salto resta un giocattolo.</p></div>
+        <div><b>Il perimetro è grande</b><p>Un engine completo richiede mesi. La strada sicura è un MVP che copra bene un genere, pubblicabile su itch.io, e poi allargare.</p></div>
+      </div>
+    </section>
+
+    <section id="engine">
+      <span class="label kicker">Panorama</span>
+      <h2>Cosa fanno gli altri engine</h2>
+      <div class="prose"><p class="dim">Per ognuno interessa una cosa sola: cosa ci insegna per Pepino.</p></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Engine</th><th>Modello a oggetti</th><th>Logica senza codice</th><th>Codice</th><th>Lezione per Pepino</th></tr></thead>
+          <tbody>
+            <tr><td>Unity</td><td>GameObject + Componenti, Prefab</td><td>Visual Scripting a grafi</td><td>C#</td><td class="lesson">L'Inspector a componenti e i Prefab sono lo standard che tutti conoscono: da riprendere.</td></tr>
+            <tr><td>Godot</td><td>Albero di nodi, scene riusabili, segnali</td><td class="dim">Nessuna: VisualScript è stato rimosso in Godot 4</td><td>GDScript, C#</td><td class="lesson">Da copiare: layer e maschere di collisione, Input Map, fisica per singola tile. Da evitare: i grafi a nodi non hanno fatto presa sui principianti.</td></tr>
+            <tr><td>GameMaker</td><td>Oggetti con eventi (Create, Step, Collisione)</td><td>GameMaker Visual</td><td>GML</td><td class="lesson">Ragionare per eventi dell'oggetto è intuitivo anche per chi non programma.</td></tr>
+            <tr class="ref"><td>Construct 3</td><td>Oggetti + behavior pronti: Platform, 8 Direction, Solid, Jump-thru, Scroll To…</td><td>Fogli eventi</td><td>JavaScript</td><td class="lesson">È esattamente il tuo modello, e l'editor gira nel browser. Il riferimento principale.</td></tr>
+            <tr class="ref"><td>GDevelop</td><td>Oggetti + behavior, estensioni</td><td>Fogli eventi</td><td>JavaScript</td><td class="lesson">Open source, stesso modello, export HTML5: il concorrente diretto da cui differenziarsi.</td></tr>
+            <tr><td>RPG Maker</td><td>Database di genere, eventi su mappa</td><td>Comandi evento a lista</td><td>JS (plugin)</td><td class="lesson">Un genere preciso trasforma tutto in configurazione: i template di genere valgono oro.</td></tr>
+            <tr><td>Phaser · Defold</td><td>Codice / collezioni</td><td class="dim">—</td><td>JS/TS · Lua</td><td class="lesson">Runtime web piccoli e veloci: la build di Pepino deve restare leggera.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="nucleo">
+      <span class="label kicker">Checklist</span>
+      <h2>Il nucleo comune a tutti gli engine 2D</h2>
+      <div class="prose"><p>Ho confrontato la tua lista con le funzioni presenti in quasi tutti gli engine. Ogni voce ha uno stato: c'era già nella tua idea, va aggiunta perché è essenziale, oppure può aspettare dopo la prima versione.</p></div>
+      <div class="legend">
+        <span class="chip c-idea">nell'idea</span><span>già previsto da te</span>
+        <span class="chip c-mvp">aggiungere</span><span>essenziale per l'MVP</span>
+        <span class="chip c-dopo">dopo</span><span>dopo la prima versione</span>
+      </div>
+
+      <div class="feat-grid">
+        <div class="feat">
+          <h3>Editor</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Griglia e snap</b>: tile e oggetti allineati.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Annulla/ripeti, copia/incolla</b>: senza, nessuno osa sperimentare.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Gerarchia padre/figlio</b>: l'arma segue la mano, la barra vita segue il nemico.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Modelli (prefab)</b>: crei il nemico una volta, ne piazzi cento, lo modifichi e cambiano tutti.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Gizmo</b> sposta/ruota/scala, zoom e pan della vista.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Layer visibili/bloccati</b>: nascondi lo sfondo mentre dipingi i muri.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Righelli, guide, selezione multipla avanzata.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Mondo e tile</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Layer della mappa</b>: sfondo, terreno, decori, primo piano.</span></li>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Calpestabile / muro</b> leggibile a colpo d'occhio.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Tipi di collisione per tile</b>: solido, attraversabile dal basso, pendenza, scala, acqua, danno, zona morta. Ognuno con il suo colore nell'overlay.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Autotile</b>: dipingi "erba" e bordi e angoli si sistemano da soli.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Ordinamento per Y</b>: chi è più in basso si disegna davanti. Indispensabile per top-down e beat 'em up.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Parallasse</b> per gli sfondi.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Mappe isometriche, import da Tiled e LDtk.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Movimento e collisioni</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>4/8 direzioni, salto, doppio salto, dash, azione.</b></span></li>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Collisioni</b> con ambiente e nemici.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Gruppi di collisione</b>: i proiettili del giocatore colpiscono i nemici ma non le monete.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Trigger</b>: aree che rilevano senza bloccare (checkpoint, porte, zone dialogo).</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Game feel</b>: coyote time, jump buffer, salto variabile, accelerazione e attrito.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Piattaforme mobili</b>, salto e scivolata sui muri.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Fisica a corpi rigidi (casse, catene) come blocco opzionale.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Grafica e animazione</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Sprite</b> sull'oggetto.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Animazioni a frame</b> da sprite sheet, con import dei tag di Aseprite.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Stati di animazione collegati ai blocchi</b>: il controller dice "sto correndo" e l'animazione "corsa" parte da sola.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Risoluzione virtuale pixel-perfect</b>: 320×180 scalato ×4 = 1280×720, pixel nitidi.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Tween</b> e flash bianco quando si viene colpiti.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t"><b>Luci 2D</b>: ambiente, puntiformi, normal map, ombre, giorno/notte.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Particelle, shader e post-processing (CRT, bloom, palette).</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Camera</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Segui il personaggio</b>, con modalità per genere.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Zona morta, anticipo, smorzamento, limiti</b> della mappa.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Scossa dello schermo</b> e zoom.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Camera a stanze (metroidvania), blocco a ondate (beat 'em up), schermo diviso.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Gameplay e IA</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Nemici e NPC.</b></span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Salute, danno, contraccolpo, invulnerabilità</b> temporanea.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Hitbox legate ai frame</b>: il pugno colpisce solo nel frame giusto.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Proiettili, generatori, raccoglibili, checkpoint.</b></span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>IA a stati</b>: pattuglia, insegue, attacca, fugge; campo visivo.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Pathfinding A* su griglia, inventario, missioni.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Testi, UI, audio</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Testi, menù, audio.</b></span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>HUD</b> ancorato agli angoli: barre vita, punteggio, icone.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Dialoghi</b> con effetto macchina da scrivere, ritratti, scelte.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Menu navigabili</b> da tastiera e gamepad, non solo col mouse.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Canali audio</b> musica/effetti con volumi separati e dissolvenza tra brani.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Font bitmap, pannelli 9-slice, traduzioni, audio posizionale.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Sistema di gioco</h3>
+          <ul>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Mappa dei comandi</b>: "salta" = Spazio, tasto A del gamepad o tocco sullo schermo.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Controlli touch virtuali</b>: la build web gira anche sui telefoni.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Variabili globali</b> (punti, vite, chiavi) e salvataggio nel browser.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Cambio scena</b> con transizione, pausa, timer.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Segnali</b> tra oggetti: la leva avvisa la porta.</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Test, debug, build</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Anteprima, debug, build WebGL.</b></span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Overlay</b> di collisioni e hitbox, FPS, console.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Rallentatore e avanzamento a frame</b>, Inspector sugli oggetti a gioco avviato.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Build pronta per itch.io</b> (cartella o zip) con schermata di caricamento.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Profiler, ricarica a caldo dei blocchi, build installabile (PWA).</span></li>
+          </ul>
+        </div>
+
+        <div class="feat">
+          <h3>Progetto ed estensioni</h3>
+          <ul>
+            <li><span class="chip c-idea">idea</span><span class="t"><b>Blocchi custom</b> in JavaScript e Python.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Template per genere</b>: si parte da un platform che funziona già, non da una scena vuota.</span></li>
+            <li><span class="chip c-mvp">aggiungere</span><span class="t"><b>Progetto in file di testo</b> (JSON): leggibile e compatibile con Git.</span></li>
+            <li><span class="chip c-dopo">dopo</span><span class="t">Libreria condivisa di blocchi, guida integrata nell'editor.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="logica">
+      <span class="label kicker">Valutazione chiave</span>
+      <h2>Blocchi per il comportamento, Regole per la logica</h2>
+      <div class="prose">
+        <p>Con i blocchi giocatore, camera e nemico si muovono già da soli. Ma un gioco è pieno di fatti specifici: <i>quando il giocatore tocca la moneta, sparisce e dà dieci punti</i>. Creare un blocco apposta per ogni caso non regge. Serve un modo visuale per collegare i fatti, e ci sono tre strade possibili.</p>
+      </div>
+      <div class="opts">
+        <div class="opt">
+          <h4>Solo blocchi</h4>
+          <span class="who">Buildbox, template "no code"</span>
+          <p>Semplicissimo finché il gioco rientra nei blocchi disponibili. Appena serve qualcosa di diverso, si rimane bloccati.</p>
+          <span class="verd">Troppo rigido</span>
+        </div>
+        <div class="opt">
+          <h4>Grafi a nodi</h4>
+          <span class="who">Unreal Blueprints, Unity Visual Scripting</span>
+          <p>Potenti, ma di fatto sono programmazione con i fili: flussi di esecuzione, tipi, variabili. Godot li ha tolti perché li usavano in pochi.</p>
+          <span class="verd">Difficile per chi non programma</span>
+        </div>
+        <div class="opt pick">
+          <h4>Regole "Quando → Allora"</h4>
+          <span class="who">Construct 3, GDevelop</span>
+          <p>Si leggono come frasi. A sinistra le condizioni, a destra le azioni. Le condizioni e le azioni sono quelle dei blocchi.</p>
+          <span class="verd">Consigliato per Pepino</span>
+        </div>
+      </div>
+
+      <div class="sheet" role="img" aria-label="Esempio di foglio Regole: tre righe Quando/Allora per moneta, game over e porta con chiave.">
+        <div class="sheet-h"><span class="label">Quando</span><span class="label">Allora</span></div>
+        <div class="ev">
+          <div><div class="ln"><span class="obj">Giocatore</span> tocca <span class="obj">Moneta</span></div></div>
+          <div>
+            <div class="ln"><span class="obj">Moneta</span> distruggi</div>
+            <div class="ln"><span class="obj">Partita</span> punti <span class="val">+10</span></div>
+            <div class="ln"><span class="obj">Audio</span> suona <span class="val">moneta.wav</span></div>
+          </div>
+        </div>
+        <div class="ev">
+          <div><div class="ln"><span class="obj">Giocatore</span> salute <span class="val">≤ 0</span></div></div>
+          <div><div class="ln"><span class="obj">Scena</span> vai a <span class="val">GameOver</span> dissolvenza <span class="val">0.5 s</span></div></div>
+        </div>
+        <div class="ev">
+          <div>
+            <div class="ln"><span class="obj">Porta</span> interagisci</div>
+            <div class="ln"><span class="kw">e</span> <span class="obj">Giocatore</span> ha <span class="val">chiave</span></div>
+          </div>
+          <div>
+            <div class="ln"><span class="obj">Porta</span> anima <span class="val">apri</span></div>
+            <div class="ln"><span class="obj">Dialogo</span> mostra <span class="val">"La porta si apre."</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Un solo contratto per ogni blocco</h3>
+      <div class="prose"><p>Il punto che tiene insieme tutto: ogni blocco, di serie o scritto da un programmatore, dichiara le stesse cinque cose. L'editor le legge e genera da solo l'Inspector, gli slot delle animazioni e le voci disponibili nelle Regole. Un blocco custom diventa così visuale senza lavoro in più.</p></div>
+      <div class="anat">
+        <div><b>Proprietà</b><p>Parametri con tipo, unità e valore predefinito. Diventano i campi dell'Inspector.</p><code>altezzaSalto: 3.5 tile</code></div>
+        <div><b>Stati</b><p>Cosa sta facendo l'oggetto. Ogni stato ha uno slot animazione.</p><code>fermo · corsa · salto</code></div>
+        <div><b>Condizioni</b><p>Domande vero/falso usabili nel "Quando".</p><code>aTerra?</code></div>
+        <div><b>Azioni</b><p>Comandi usabili nell'"Allora".</p><code>salta() · dash()</code></div>
+        <div><b>Eventi</b><p>Cose che accadono e che altri possono ascoltare.</p><code>atterrato · colpito</code></div>
+      </div>
+<pre><span class="c">// blocchi/rimbalzo.js: un blocco scritto da un programmatore</span>
+<span class="k">export default</span> Pepino.block({
+  name: <span class="s">"Bounce"</span>,
+  label: <span class="s">"Rimbalzo sui nemici"</span>,
+  props: {
+    impulse: { type: <span class="s">"number"</span>, unit: <span class="s">"tile/s"</span>, default: 9, min: 0 },
+    target:  { type: <span class="s">"tag"</span>, default: <span class="s">"nemico"</span> },
+  },
+  states: [<span class="s">"rimbalzo"</span>],
+  events: [<span class="s">"bounced"</span>],
+  conditions: { isBouncing: (self) =&gt; self.state === <span class="s">"rimbalzo"</span> },
+  actions: {
+    bounce(self) {
+      self.body.velocity.y = -self.props.impulse * self.scene.tileSize;
+      self.emit(<span class="s">"bounced"</span>);
+    },
+  },
+  update(self, dt) {
+    <span class="k">if</span> (self.body.touched(self.props.target, <span class="s">"bottom"</span>)) self.actions.bounce();
+  },
+});</pre>
+    </section>
+
+    <section id="generi">
+      <span class="label kicker">Valutazione chiave</span>
+      <h2>Ogni genere chiede cose diverse</h2>
+      <div class="prose"><p>"Camera che segue" e "movimento" cambiano parecchio da un genere all'altro. Conviene che ogni blocco abbia un preset per genere, invece di dieci parametri da regolare a mano.</p></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Genere</th><th>Movimento</th><th>Camera</th><th>Serve in più</th></tr></thead>
+          <tbody>
+            <tr><td>Platform</td><td>Gravità, salto, pendenze, piattaforme attraversabili, scale</td><td>Anticipo orizzontale, zona morta verticale</td><td>Coyote time, jump buffer, salto sui muri</td></tr>
+            <tr><td>Metroidvania</td><td>Come il platform</td><td>A stanze, con transizione</td><td>Mappa, abilità sbloccabili, salvataggi</td></tr>
+            <tr><td>Top-down</td><td>4/8 direzioni, niente gravità</td><td>Centrata o a schermate</td><td>Ordinamento per Y, interazione frontale con NPC</td></tr>
+            <tr><td>Beat 'em up</td><td>Sul pavimento (x, y) + altezza <span class="mono">z</span></td><td>Scorre e si ferma a ogni ondata</td><td>Ombra, ordinamento per Y, colpi validi solo sulla stessa "fila"</td></tr>
+            <tr><td>Shoot 'em up</td><td>8 direzioni, dentro lo schermo</td><td>Scorrimento automatico</td><td>Schemi di proiettili, riuso degli oggetti</td></tr>
+            <tr><td>Griglia / puzzle</td><td>Una casella per volta</td><td>Fissa o a scatti</td><td>Movimento a tile, annulla mossa</td></tr>
+            <tr><td>Runner</td><td>Corsa automatica</td><td>Segue con distacco fisso</td><td>Segmenti di livello generati</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose" style="margin-top:18px">
+        <p><b>Il beat 'em up è il caso delicato.</b> Il personaggio cammina su un pavimento visto di tre quarti, ma salta verso l'alto: servono due coordinate verticali distinte, la <span class="mono">y</span> del pavimento (profondità) e l'altezza <span class="mono">z</span> del salto, più un'ombra che resta a terra. Se non lo si prevede nel runtime da subito, dopo tocca riscriverlo.</p>
+      </div>
+
+      <h3>Parametri in tile e secondi, non in pixel per frame</h3>
+      <div class="prose"><p>Chi non programma non sa quanto valga una "gravità di 980". Sa però che vuole un salto alto <b>3 tile e mezzo</b> e che deve arrivare in cima in <b>poco meno di mezzo secondo</b>. Il blocco ricava da solo la fisica. Ecco un esempio con tile da 16 px:</p></div>
+      <div class="formula">
+        <div class="in"><span class="label">Altezza salto</span><span class="big">3.5 <small>tile</small></span><span class="how">h = 56 px</span></div>
+        <div class="in"><span class="label">Tempo al vertice</span><span class="big">0.38 <small>s</small></span><span class="how">t</span></div>
+        <div><span class="label">Gravità</span><span class="big">776 <small>px/s²</small></span><span class="how">g = 2h / t²</span></div>
+        <div><span class="label">Spinta iniziale</span><span class="big">295 <small>px/s</small></span><span class="how">v₀ = 2h / t</span></div>
+      </div>
+    </section>
+
+    <section id="architettura">
+      <span class="label kicker">Tecnica</span>
+      <h2>Architettura: un solo runtime, dall'anteprima alla build</h2>
+      <div class="prose"><p>La build finale gira nel browser, quindi il runtime è scritto in TypeScript. Se anche l'editor è un'applicazione web, l'anteprima è semplicemente lo stesso runtime aperto in un riquadro: <b>quello che provi è esattamente quello che pubblichi</b>, e il debug può leggere lo stato del gioco dal vivo.</p></div>
+      <figure>
+        <div class="diagram">
+          <svg viewBox="0 0 960 390" role="img" aria-label="L'editor salva il progetto in JSON; il runtime Pepino carica il progetto e lo esegue sia nell'anteprima dentro l'editor sia nella build WebGL; l'anteprima rimanda all'editor lo stato per il debug; i blocchi custom si registrano nel runtime e forniscono all'editor lo schema delle proprietà.">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head"/></marker>
+              <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-head-acc"/></marker>
+            </defs>
+
+            <!-- debug loop -->
+            <path d="M845 96 V44 H115 V90" class="d-dash" marker-end="url(#ahA)"/>
+            <text x="480" y="36" text-anchor="middle" class="d-a" style="fill:var(--accent)">debug dal vivo: stato degli oggetti, log, overlay collisioni</text>
+
+            <!-- editor -->
+            <rect x="20" y="96" width="190" height="190" rx="6" class="d-box"/>
+            <text x="40" y="126" class="d-t">Editor</text>
+            <text x="40" y="154" class="d-s">Vista scena + griglia</text>
+            <text x="40" y="176" class="d-s">Gerarchia</text>
+            <text x="40" y="198" class="d-s">Inspector</text>
+            <text x="40" y="220" class="d-s">Regole</text>
+            <text x="40" y="242" class="d-s">Asset · Tileset</text>
+            <text x="40" y="264" class="d-s">Pulsante Play</text>
+
+            <!-- project -->
+            <line x1="210" y1="191" x2="266" y2="191" class="d-line" marker-end="url(#ah)"/>
+            <text x="238" y="183" text-anchor="middle" class="d-a">salva</text>
+            <rect x="270" y="141" width="160" height="100" rx="6" class="d-box"/>
+            <text x="290" y="170" class="d-t">Progetto</text>
+            <text x="290" y="196" class="d-s">scene, modelli,</text>
+            <text x="290" y="216" class="d-s">regole · JSON</text>
+
+            <!-- runtime -->
+            <line x1="430" y1="191" x2="486" y2="191" class="d-line" marker-end="url(#ah)"/>
+            <text x="458" y="183" text-anchor="middle" class="d-a">carica</text>
+            <rect x="490" y="96" width="200" height="190" rx="6" class="d-hot"/>
+            <text x="510" y="126" class="d-t" style="fill:var(--accent)">Runtime Pepino</text>
+            <text x="510" y="154" class="d-s">Loop a 60 Hz fissi</text>
+            <text x="510" y="176" class="d-s">Renderer WebGL2</text>
+            <text x="510" y="198" class="d-s">Collisioni tile/AABB</text>
+            <text x="510" y="220" class="d-s">Input · Audio</text>
+            <text x="510" y="242" class="d-s">Blocchi + Regole</text>
+            <text x="510" y="264" class="d-s">TypeScript</text>
+
+            <!-- outputs -->
+            <line x1="690" y1="136" x2="746" y2="136" class="d-line" marker-end="url(#ah)"/>
+            <text x="718" y="128" text-anchor="middle" class="d-a">esegue</text>
+            <rect x="750" y="96" width="190" height="80" rx="6" class="d-box"/>
+            <text x="770" y="126" class="d-t">Anteprima</text>
+            <text x="770" y="152" class="d-s">riquadro nell'editor</text>
+
+            <line x1="690" y1="246" x2="746" y2="246" class="d-line" marker-end="url(#ah)"/>
+            <text x="718" y="238" text-anchor="middle" class="d-a">esporta</text>
+            <rect x="750" y="206" width="190" height="80" rx="6" class="d-box"/>
+            <text x="770" y="236" class="d-t">Build WebGL</text>
+            <text x="770" y="262" class="d-s">index.html + asset</text>
+
+            <!-- custom blocks -->
+            <rect x="390" y="320" width="220" height="52" rx="6" class="d-soft"/>
+            <text x="410" y="342" class="d-t">Blocchi custom</text>
+            <text x="410" y="361" class="d-s">JS/TS · Python → JS</text>
+            <line x1="580" y1="320" x2="580" y2="290" class="d-line" marker-end="url(#ah)"/>
+            <text x="590" y="310" class="d-a">registra</text>
+            <path d="M390 346 H115 V290" class="d-line" marker-end="url(#ah)"/>
+            <text x="250" y="338" text-anchor="middle" class="d-a">schema → campi dell'Inspector</text>
+          </svg>
+        </div>
+        <figcaption>Il runtime, evidenziato, è l'unico pezzo che esegue il gioco. Anteprima e build lo usano identico, e i blocchi custom si agganciano allo stesso punto dei blocchi di serie.</figcaption>
+      </figure>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Parte</th><th>Scelta proposta</th><th>Perché</th></tr></thead>
+          <tbody>
+            <tr><td>Linguaggio</td><td>TypeScript ovunque</td><td>Un solo linguaggio per editor, runtime e blocchi; i tipi evitano errori in un progetto grande.</td></tr>
+            <tr><td>Editor</td><td>App web (Vite + React), poi desktop con Tauri</td><td>Anteprima istantanea; Tauri aggiunge accesso ai file con un'app leggera.</td></tr>
+            <tr><td>Rendering</td><td>WebGL2 scritto su misura</td><td>Sprite in batch e tilemap a blocchi bastano per il 2D; controllo pieno su luci e pixel-perfect, build leggera.</td></tr>
+            <tr><td>Collisioni</td><td>Tile + AABB su misura</td><td>I controller dei platform vogliono una precisione che i motori fisici generici non danno. Fisica rigida opzionale più avanti.</td></tr>
+            <tr><td>Regole</td><td>Tradotte in JS al momento della build</td><td>Nessun interprete lento a gioco avviato.</td></tr>
+            <tr><td>Asset</td><td>PNG, sprite sheet, JSON di Aseprite</td><td>Aseprite è lo standard per la pixel art; i tag diventano animazioni.</td></tr>
+            <tr><td>Audio</td><td>Web Audio API</td><td>Nativa nel browser, niente dipendenze.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="python">
+      <span class="label kicker">Valutazione chiave</span>
+      <h2>Python o JavaScript per i blocchi custom</h2>
+      <div class="prose"><p>Il gioco esportato gira nel browser, e il browser capisce solo JavaScript (e WebAssembly). Qualunque altro linguaggio va tradotto o portato dietro. Il costo lo paga ogni giocatore, a ogni caricamento.</p></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Opzione</th><th>Come funziona</th><th>Peso sulla build</th><th>Limite</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>JavaScript / TypeScript</td><td>Nativo</td><td class="num">nessuno</td><td>Chi conosce solo Python deve impararlo.</td></tr>
+            <tr><td>Python completo (Pyodide)</td><td>CPython compilato in WebAssembly</td><td class="num">diversi MB + secondi di avvio</td><td>Pesante per un gioco web; chiamare Python a ogni frame è lento.</td></tr>
+            <tr><td>Python ridotto → JS</td><td>Pepino traduce il file al salvataggio</td><td class="num">quasi nullo</td><td>Sintassi Python, ma senza la libreria standard e i pacchetti.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose" style="margin-top:16px"><p><b>Consiglio:</b> JavaScript/TypeScript subito, come linguaggio principale dei blocchi. Python arriva più avanti come sottoinsieme tradotto in JS, così chi viene da Python scrive con la sintassi che conosce senza appesantire il gioco.</p></div>
+    </section>
+
+    <section id="vocabolario">
+      <span class="label kicker">Linguaggio</span>
+      <h2>Vocabolario: Unity, Godot e Pepino</h2>
+      <div class="prose"><p class="dim">Nomi riconoscibili per chi arriva da Unity o Godot, ma in parole comuni. L'interfaccia è in italiano (con l'inglese come seconda lingua), l'API di programmazione in inglese, come negli altri engine.</p></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Unity</th><th>Godot</th><th>Pepino</th></tr></thead>
+          <tbody>
+            <tr><td>Scene</td><td>Scene</td><td>Scena</td></tr>
+            <tr><td>GameObject</td><td>Node</td><td>Oggetto</td></tr>
+            <tr><td>Component</td><td>Nodo figlio / script</td><td>Blocco</td></tr>
+            <tr><td>Prefab</td><td>PackedScene</td><td>Modello</td></tr>
+            <tr><td>Visual Scripting</td><td class="dim">—</td><td>Regole</td></tr>
+            <tr><td>Layer Collision Matrix</td><td>Collision layer / mask</td><td>Gruppi di collisione</td></tr>
+            <tr><td>Tag</td><td>Group</td><td>Etichetta</td></tr>
+            <tr><td>Tilemap + Tile Palette</td><td>TileMapLayer + TileSet</td><td>Mappa + Tileset</td></tr>
+            <tr><td>Input Actions</td><td>Input Map</td><td>Comandi</td></tr>
+            <tr><td>Sorting Layer</td><td>z_index / CanvasLayer</td><td>Livello di disegno</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <span class="label kicker">Piano</span>
+      <h2>Roadmap per fasi</h2>
+      <div class="prose"><p>Ogni fase si chiude con qualcosa di giocabile, così si verifica l'engine su un gioco vero e non su una lista di funzioni.</p></div>
+      <div class="phases">
+        <div class="phase"><span class="ph">Fase 0</span><h4>Fondamenta del runtime</h4><p>Loop a passo fisso, renderer WebGL2 a batch, mappa dei comandi, caricamento asset, audio, modello Scena · Oggetto · Blocco.</p><p class="done"><b>Fine fase:</b> una scena scritta a mano in JSON gira nel browser.</p></div>
+        <div class="phase"><span class="ph">Fase 1</span><h4>Editor di base</h4><p>Vista scena con griglia, snap e zoom; gerarchia; Inspector generato dagli schemi; pannello asset; annulla/ripeti; salvataggio; pittura tile con layer e tipi di collisione; pulsante Play.</p><p class="done"><b>Fine fase:</b> disegni un livello e ci cammini dentro.</p></div>
+        <div class="phase"><span class="ph">Fase 2</span><h4>Primi blocchi e prima build</h4><p>Controller platform e top-down, camera, animazioni per stato, salute e danno, raccoglibili, suoni, modelli, overlay di debug, export WebGL.</p><p class="done"><b>Fine fase:</b> un platform completo senza una riga di codice, pubblicabile su itch.io.</p></div>
+        <div class="phase"><span class="ph">Fase 3</span><h4>Regole e interfaccia</h4><p>Fogli "Quando → Allora", variabili globali, HUD, menu, cambi scena con transizione, salvataggi, pausa.</p><p class="done"><b>Fine fase:</b> titolo, livelli, game over e punteggio, tutto visuale.</p></div>
+        <div class="phase"><span class="ph">Fase 4</span><h4>Nemici e personaggi</h4><p>IA a stati, NPC con dialoghi e scelte, proiettili, generatori, hitbox legate ai frame, pathfinding.</p><p class="done"><b>Fine fase:</b> un livello top-down con nemici che inseguono e un NPC che parla.</p></div>
+        <div class="phase"><span class="ph">Fase 5</span><h4>Blocchi in codice</h4><p>API documentata per blocchi in JS/TS con Inspector automatico, poi il sottoinsieme Python tradotto in JS.</p><p class="done"><b>Fine fase:</b> un blocco scritto a mano compare nell'Inspector e nelle Regole.</p></div>
+        <div class="phase"><span class="ph">Fase 6</span><h4>Rifinitura e altri generi</h4><p>Luci 2D, particelle, shader, parallasse, beat 'em up con asse z, camera a stanze, controlli touch, traduzioni, template di genere.</p><p class="done"><b>Fine fase:</b> template pronti per platform, top-down e beat 'em up.</p></div>
+      </div>
+    </section>
+
+    <section id="decisioni">
+      <span class="label kicker">Da confermare</span>
+      <h2>Decisioni prima di iniziare</h2>
+      <div class="dec">
+        <div><b>Dove gira l'editor</b><p class="rec"><em>Consigliato: nel browser</em>, stesso codice della build e anteprima istantanea; versione desktop con Tauri in un secondo momento.</p></div>
+        <div><b>Primo genere da coprire</b><p class="rec"><em>Consigliato: platform.</em> Mette alla prova collisioni, camera, animazioni e game feel; il top-down arriva quasi gratis dopo.</p></div>
+        <div><b>Quando arriva Python</b><p class="rec"><em>Consigliato: in fase 5</em>, come sottoinsieme tradotto in JS, dopo che l'API in JS è stabile.</p></div>
+        <div><b>Renderer</b><p class="rec"><em>Consigliato: WebGL2 su misura.</em> In alternativa PixiJS, più veloce da avviare ma con meno controllo su luci e dimensioni della build.</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer><span>Pepino · analisi preliminare</span><span>12 settembre 2026</span></footer>

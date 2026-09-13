@@ -1,0 +1,35 @@
+{
+  "name": "pepino-engine",
+  "version": "0.1.0",
+  "description": "Pepino: engine 2D a blocchi visuali con export WebGL",
+  "private": true,
+  "main": "out/main/index.js",
+  "author": "Peppe Abagnale",
+  "scripts": {
+    "dev": "npm run build:player && electron-vite dev",
+    "dev:web": "vite --config vite.web.config.ts",
+    "dev:player": "vite --config vite.player.config.ts",
+    "build": "npm run build:player && electron-vite build",
+    "build:player": "vite build --config vite.player.config.ts",
+    "start": "electron-vite preview",
+    "samples": "node scripts/gen-sample.mjs",
+    "export:demo": "npm run build:player && vite-node scripts/export-demo.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^41.7.1",
+    "electron-vite": "^3.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
