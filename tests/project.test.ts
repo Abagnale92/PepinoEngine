@@ -1,14 +1,18 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
-import { validateProject, type ProjectData } from "@runtime";
+import { loadScripts, validateProject, type ProjectData } from "@runtime";
 import { FLAT, makeProject, player, rule } from "./helpers";
 
 const demo = (): ProjectData => JSON.parse(readFileSync(resolve("samples/demo/project.json"), "utf8"));
 
 describe("controllo del progetto", () => {
   it("il progetto demo non ha errori né avvisi", () => {
-    const issues = validateProject(demo());
+    const p = demo();
+    // I blocchi scritti negli script del demo (Fluttua, Molla) devono esistere prima del controllo.
+    const scripts = loadScripts(p.scripts ?? []);
+    expect(scripts.filter((s) => s.error)).toEqual([]);
+    const issues = validateProject(p);
     expect(issues.map((i) => `${i.level} · ${i.where}: ${i.message}`)).toEqual([]);
   });
 

@@ -52,7 +52,13 @@ export function checkProject(report = true): number {
   if (!p) return 0;
   const issues = validateProject(p);
   for (const i of issues) {
-    log(i.level, `${i.where}: ${i.message}`, { sceneId: i.sceneId, entityId: i.entityId, prefabId: i.prefabId, ruleId: i.ruleId });
+    log(i.level, `${i.where}: ${i.message}`, {
+      sceneId: i.sceneId,
+      entityId: i.entityId,
+      prefabId: i.prefabId,
+      ruleId: i.ruleId,
+      scriptId: i.scriptId,
+    });
   }
   const errors = issues.filter((i) => i.level === "error").length;
   if (report) {

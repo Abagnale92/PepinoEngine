@@ -153,6 +153,14 @@ export interface DialogueData {
   lines: DialogueLine[];
 }
 
+/** Uno script del progetto: definisce blocchi personalizzati in JavaScript o in Python ridotto. */
+export interface ScriptData {
+  id: string;
+  name: string;
+  language: "js" | "py";
+  code: string;
+}
+
 export interface SceneData {
   id: string;
   name: string;
@@ -195,6 +203,7 @@ export interface ProjectData {
   /** Regole globali: valgono in tutte le scene. */
   rules?: RuleData[];
   dialogues?: DialogueData[];
+  scripts?: ScriptData[];
 }
 
 export const DEFAULT_INPUT: Record<string, string[]> = {

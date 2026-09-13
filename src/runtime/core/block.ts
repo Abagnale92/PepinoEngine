@@ -113,6 +113,10 @@ export interface BlockDef extends Hooks {
   requires: string[];
   /** Ordine di esecuzione: più basso = prima. */
   priority: number;
+  /** "builtin" = blocco di Pepino, "custom" = scritto in uno script del progetto. */
+  source: "builtin" | "custom";
+  /** Id dello script che l'ha definito (solo blocchi personalizzati). */
+  script?: string;
 }
 
 /** Forma "comoda" con cui si scrive un blocco (anche un blocco custom). */
@@ -152,6 +156,7 @@ export function defineBlock(spec: BlockSpec): BlockDef {
     ),
     requires: spec.requires ?? [],
     priority: spec.priority ?? 50,
+    source: "builtin",
     init: spec.init,
     update: spec.update,
     physics: spec.physics,
@@ -167,6 +172,50 @@ export function defineBlock(spec: BlockSpec): BlockDef {
 
 export const getBlockDef = (type: string) => registry.get(type);
 export const listBlockDefs = () => [...registry.values()];
+
+/** Toglie i blocchi definiti dagli script (prima di ricaricarli). Restituisce quelli tolti. */
+export function unregisterCustomBlocks(): BlockDef[] {
+  const removed: BlockDef[] = [];
+  for (const [type, def] of registry) {
+    if (def.source !== "custom") continue;
+    registry.delete(type);
+    removed.push(def);
+  }
+  return removed;
+}
+
+/** Rimette blocchi personalizzati tolti in precedenza, se nel frattempo il nome non è stato preso. */
+export function restoreCustomBlocks(defs: BlockDef[]): string[] {
+  const out: string[] = [];
+  for (const d of defs) {
+    if (registry.has(d.type)) continue;
+    registry.set(d.type, d);
+    out.push(d.type);
+  }
+  return out;
+}
+
+/** Tipi di proprietà che un blocco personalizzato può usare. */
+export const CUSTOM_PROP_TYPES = new Set<string>([
+  "number",
+  "integer",
+  "boolean",
+  "string",
+  "text",
+  "select",
+  "image",
+  "audio",
+  "scene",
+  "tag",
+  "group",
+  "groups",
+  "color",
+  "variable",
+  "prefab",
+  "dialogue",
+  "input",
+  "stateMap",
+]);
 
 /** Valori finali delle proprietà: quelli salvati, altrimenti i predefiniti dello schema. */
 export function resolveProps(def: BlockDef, values: Record<string, unknown> = {}): Record<string, any> {
@@ -228,7 +277,11 @@ export class BlockInstance<P extends Record<string, any> = Record<string, any>> 
   }
 
   dispose(): void {
-    this.def.destroy?.(this);
+    try {
+      this.def.destroy?.(this);
+    } catch {
+      // un blocco personalizzato che sbaglia in destroy non deve bloccare il cambio di scena
+    }
     for (const u of this.unsubs) u();
     this.unsubs = [];
   }

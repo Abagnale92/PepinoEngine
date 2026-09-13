@@ -1,11 +1,8 @@
-import { Game, defineBlock, type ProjectData } from "@runtime";
+import { Game, type ProjectData } from "@runtime";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const loading = document.getElementById("loading")!;
 const bar = document.getElementById("bar")!;
-
-// API globale per i blocchi custom caricati come script.
-(window as unknown as { Pepino: unknown }).Pepino = { defineBlock };
 
 async function boot() {
   const params = new URLSearchParams(location.search);

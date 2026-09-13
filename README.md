@@ -1,6 +1,6 @@
 # Pepino
 
-Engine per giochi 2D pensato per chi non sa programmare. Si crea un oggetto, gli si dà una sprite e poi si aggiungono **blocchi** già pronti (controller platform, camera che segue, salute, danno, raccoglibili…) configurabili dall'Inspector, con parametri in tile e secondi. Chi programma può scrivere blocchi nuovi in JavaScript/TypeScript. I giochi si esportano per il web (WebGL).
+Engine per giochi 2D pensato per chi non sa programmare. Si crea un oggetto, gli si dà una sprite e poi si aggiungono **blocchi** già pronti (controller platform, camera che segue, salute, danno, raccoglibili…) configurabili dall'Inspector, con parametri in tile e secondi. Chi programma può scrivere blocchi nuovi in JavaScript o in Python, direttamente nell'editor. I giochi si esportano per il web (WebGL).
 
 L'analisi di partenza (confronto con gli altri engine, funzioni, architettura e roadmap) si trova in [docs/analisi.html](docs/analisi.html).
 
@@ -22,7 +22,7 @@ Altri comandi:
 | `npm run dev:player` | Solo il gioco: http://localhost:5181/?project=/demo/project.json |
 | `npm run build` | Compila il player (`dist/player/pepino.js`) e l'app Electron (`out/`) |
 | `npm run export:demo` | Esporta la demo come build WebGL in `dist/export/pepino-demo-web` |
-| `npm test` | Test automatici: fisica, controller, combattimento, Regole, modelli, editor, export |
+| `npm test` | Test automatici: fisica, controller, combattimento, Regole, dialoghi, script, traduttore Python, editor, export |
 | `npm run typecheck` | Controllo dei tipi TypeScript |
 
 ## Come si usa l'editor
@@ -33,6 +33,7 @@ Altri comandi:
 - **Tileset** (in basso): scegli un tile e dipingi con il pennello. Per ogni tile scegli cosa fa: muro/pavimento, attraversabile dal basso, scala, pericolo. Il pulsante **Collisioni** mostra questi colori sul livello.
 - **Modelli**: oggetti riutilizzabili (come i Prefab di Unity). Trascinali nella scena; le modifiche al modello valgono per tutte le istanze.
 - **Regole** (scheda accanto a Scena): la logica del gioco senza codice, scritta come frasi «Quando → Allora». Vedi sotto.
+- **Codice**: blocchi nuovi scritti in JavaScript o Python. Vedi «Blocchi in codice».
 - **Prova** (F5): avvia il gioco nell'editor con lo stesso runtime della build. Pausa, avanzamento di un frame, velocità, collisioni e variabili in tempo reale.
 - **Esporta WebGL**: crea una cartella con `index.html`, `pepino.js`, `project.json` e gli asset, pronta per itch.io o un qualsiasi server web. Il gioco va aperto da un server (itch.io, `npx vite preview`…): aprendo `index.html` con doppio clic il browser blocca il caricamento dei file.
 - **Controlla progetto** (pannello Console): cerca asset, scene, modelli e id inesistenti, blocchi mancanti e regole incomplete. Parte da solo quando premi Prova; clic su un messaggio per andare all'oggetto o alla regola.
@@ -93,26 +94,33 @@ Le regole della scena valgono solo lì; quelle **globali** valgono in tutte le s
 
 Nel gioco: `Esc` (o Start sul gamepad) mette in pausa; i messaggi compaiono in basso con l'effetto macchina da scrivere e si chiudono con Azione o Salto.
 
-## Scrivere un blocco
+## Blocchi in codice
+
+Quando i blocchi pronti non bastano, nella scheda **Codice** si scrive un blocco nuovo in **JavaScript** o in **Python**. Il blocco compare nell'Inspector («Aggiungi blocco» → Personalizzati) e le sue azioni, condizioni ed eventi compaiono nelle Regole, esattamente come quelli di Pepino. Il codice viene salvato dentro `project.json` e finisce anche nella build WebGL.
+
+- Le modifiche si applicano da sole mentre scrivi; gli errori di scrittura vengono sottolineati, con la riga.
+- Se uno script ha un errore, gli oggetti continuano a usare l'ultima versione che funzionava.
+- Se un blocco va in errore a gioco avviato, si ferma solo quel blocco e la Console indica script e riga (clic per aprirlo).
+- La demo ne ha due: **Fluttua** (JavaScript, fa ondeggiare il titolo del menù) e **Molla** (Python, la molla rossa nel livello 1, prima del muretto).
 
 Ogni blocco dichiara proprietà, stati, condizioni, azioni ed eventi: l'editor li legge e genera l'Inspector da solo.
 
 ```js
-import { defineBlock } from "@runtime";
-
-defineBlock({
-  name: "Bounce",
+Pepino.defineBlock({
+  name: "Rimbalzo",
   label: "Rimbalzo sui nemici",
-  category: "Personalizzati",
   props: {
     impulse: { type: "number", label: "Spinta", unit: "tile/s", default: 9, min: 0 },
     target: { type: "tag", label: "Etichetta", default: "nemico" },
   },
-  events: ["bounced"],
+  events: [{ id: "bounced", label: "Ha rimbalzato" }],
   actions: {
-    bounce(self) {
-      self.body.vy = -self.props.impulse * self.scene.tileSize;
-      self.emit("bounced");
+    bounce: {
+      label: "Rimbalza",
+      run(self) {
+        self.body.vy = -self.props.impulse * self.scene.tileSize;
+        self.emit("bounced");
+      },
     },
   },
   update(self, dt) {
@@ -120,6 +128,43 @@ defineBlock({
   },
 });
 ```
+
+Lo stesso in Python: le variabili del file diventano la definizione del blocco, le funzioni con i nomi `init`, `update`, `physics`, `late`, `destroy` sono i momenti in cui gira, e `actions`/`conditions` collegano altre funzioni alle Regole.
+
+```python
+name = "Rimbalzo"
+label = "Rimbalzo sui nemici"
+props = {
+    "impulse": {"type": "number", "label": "Spinta", "unit": "tile/s", "default": 9, "min": 0},
+    "target": {"type": "tag", "label": "Etichetta", "default": "nemico"},
+}
+events = [{"id": "bounced", "label": "Ha rimbalzato"}]
+actions = {"bounce": "Rimbalza"}
+
+
+def bounce(self):
+    self.body.vy = -self.props.impulse * self.scene.tileSize
+    self.emit("bounced")
+
+
+def update(self, dt):
+    if self.body and self.body.touched(self.props.target, "bottom"):
+        bounce(self)
+```
+
+Cosa si trova in `self`:
+
+| | |
+| --- | --- |
+| `self.props` | i valori scelti nell'Inspector |
+| `self.data` | la memoria del blocco (timer, contatori…) |
+| `self.entity` | l'oggetto: `x`, `y`, `visible`, `state`, `facingX`, `tags`, `get("Blocco")`, `destroy()` |
+| `self.body` | il Corpo, se c'è: `vx`, `vy`, `onGround`, `touching("etichetta")` |
+| `self.scene` | `tileSize`, `time`, `find("nome")`, `findAll("etichetta")`, `spawn("modello", x, y)` |
+| `self.game` | `vars`, `audio.play("suono")`, `input.isDown("jump")`, `goToScene("id")` |
+| `self.emit("evento")` | manda un evento che le Regole vedono in «Quando» |
+
+**Il Python di Pepino** è una versione ridotta, tradotta in JavaScript mentre scrivi: il gioco esportato non contiene un interprete Python e resta leggero. Ci sono `if/elif/else`, `for` (anche con `range`), `while`, `def` con valori predefiniti e argomenti con nome, liste, dizionari, tuple, f-string, slice, `import math` e `import random`, `print()` (scrive nella Console). Non ci sono classi, `try/except`, `with`, `lambda`, comprehension e `global`: per ricordare valori tra un fotogramma e l'altro si usa `self.data`. Con il pulsante «JavaScript generato» si vede il codice che gira davvero.
 
 ## Struttura
 
@@ -136,9 +181,9 @@ docs/          analisi iniziale
 
 ## Stato e prossimi passi
 
-Fatto: runtime (fase 0), editor di base (fase 1), primi blocchi con anteprima ed export (fase 2), Regole, menù, messaggi, pausa e salvataggi (fase 3), nemici che inseguono e sparano, attacchi, generatori, dialoghi con scelte e ritratti (fase 4).
+Fatto: runtime (fase 0), editor di base (fase 1), primi blocchi con anteprima ed export (fase 2), Regole, menù, messaggi, pausa e salvataggi (fase 3), nemici che inseguono e sparano, attacchi, generatori, dialoghi con scelte e ritratti (fase 4), blocchi in codice JavaScript e Python con editor integrato (fase 5).
 
 Prossimi passi, secondo la roadmap in `docs/analisi.html`:
 
-1. Blocchi custom caricati dal progetto (JS/TS), poi Python tradotto in JS.
-2. Luci 2D, particelle, shader, beat 'em up con asse z, controlli touch, autotile.
+1. Luci 2D, particelle, shader, beat 'em up con asse z, controlli touch, autotile.
+2. Script in TypeScript e completamento automatico dell'API nell'editor del codice.

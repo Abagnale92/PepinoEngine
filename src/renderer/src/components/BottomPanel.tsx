@@ -267,6 +267,10 @@ function AssetsTab() {
 /** Porta l'editor all'oggetto, al modello o alla regola a cui si riferisce un messaggio. */
 function goTo(t?: LogTarget) {
   if (!t) return;
+  if (t.scriptId) {
+    setState({ centerTab: "code", codeScriptId: t.scriptId });
+    return;
+  }
   if (t.prefabId && !t.sceneId) {
     setState({ selection: { kind: "prefab", id: t.prefabId } });
     return;

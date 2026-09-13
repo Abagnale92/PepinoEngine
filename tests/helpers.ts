@@ -8,6 +8,7 @@ import {
   type ProjectData,
   type RuleData,
   type SceneData,
+  type ScriptData,
   type VariableValue,
 } from "@runtime";
 
@@ -71,6 +72,7 @@ export interface ProjectOptions {
   variables?: Record<string, VariableValue>;
   extraScenes?: SceneData[];
   dialogues?: DialogueData[];
+  scripts?: ScriptData[];
 }
 
 export function makeProject(rows: string[], entities: EntityData[], opts: ProjectOptions = {}): ProjectData {
@@ -116,6 +118,7 @@ export function makeProject(rows: string[], entities: EntityData[], opts: Projec
     ],
     rules: opts.globalRules,
     dialogues: opts.dialogues,
+    scripts: opts.scripts,
   };
 }
 

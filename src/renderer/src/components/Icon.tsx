@@ -40,6 +40,8 @@ const PATHS: Record<string, string> = {
   coin: "M8 2.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11zM8 5v6",
   enemy: "M3 12c0-4 2.2-7 5-7s5 3 5 7zM6 8.5v1M10 8.5v1",
   bug: "M5.5 5.5h5v6a2.5 2.5 0 01-5 0zM8 5.5V3M3 8h2.5M10.5 8H13M3.5 12l2-1M12.5 12l-2-1M6 3l1 1.5M10 3L9 4.5",
+  code: "M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5M9 3l-2 10",
+  book: "M2.5 3h4a1.5 1.5 0 011.5 1.5V13a1.5 1.5 0 00-1.5-1.5h-4zM13.5 3h-4A1.5 1.5 0 008 4.5V13a1.5 1.5 0 011.5-1.5h4z",
 };
 
 const FILLED = new Set(["play", "stop", "pause"]);

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { LogLevel, ProjectData, SceneData } from "@runtime";
+import { loadScripts, setScriptLogger, type LogLevel, type ProjectData, type SceneData, type ScriptResult } from "@runtime";
 import type { OpenedProject } from "./api";
 import { findEntity } from "./projectOps";
 
@@ -12,7 +12,7 @@ export type Selection =
 
 export type Tool = "select" | "paint" | "erase";
 export type BottomTab = "tiles" | "prefabs" | "assets" | "console";
-export type CenterTab = "scene" | "rules" | "dialogues";
+export type CenterTab = "scene" | "rules" | "dialogues" | "code";
 export type RulesScope = "scene" | "global";
 
 /** A cosa si riferisce un messaggio della Console: con un clic l'editor ci porta lì. */
@@ -21,6 +21,7 @@ export interface LogTarget {
   entityId?: string;
   prefabId?: string;
   ruleId?: string;
+  scriptId?: string;
 }
 
 export interface LogEntry {
@@ -52,6 +53,12 @@ export interface EditorState {
   bottomTab: BottomTab;
   centerTab: CenterTab;
   rulesScope: RulesScope;
+  /** Esito dell'ultimo caricamento degli script del progetto. */
+  scriptResults: ScriptResult[];
+  /** Cresce quando cambiano i blocchi personalizzati: Inspector e Regole si ridisegnano. */
+  blocksVersion: number;
+  /** Script aperto nella scheda Codice. */
+  codeScriptId: string;
 }
 
 let state: EditorState = {
@@ -74,6 +81,9 @@ let state: EditorState = {
   bottomTab: "tiles",
   centerTab: "scene",
   rulesScope: "scene",
+  scriptResults: [],
+  blocksVersion: 0,
+  codeScriptId: "",
 };
 
 const listeners = new Set<() => void>();
@@ -183,7 +193,25 @@ export function loadProject(o: OpenedProject): void {
     playing: false,
     canUndo: false,
     canRedo: false,
+    codeScriptId: p.scripts?.[0]?.id ?? "",
   });
+  reloadScripts(true);
+}
+
+let scriptsKey: string | null = null;
+
+/**
+ * Ricarica i blocchi scritti negli script del progetto, se il codice è cambiato.
+ * `fresh` = progetto appena aperto: non si tengono blocchi del progetto precedente.
+ */
+export function reloadScripts(fresh = false): void {
+  const scripts = state.project?.scripts ?? [];
+  const key = JSON.stringify(scripts);
+  if (!fresh && key === scriptsKey) return;
+  scriptsKey = key;
+  setScriptLogger((m) => log("info", m));
+  const results = loadScripts(scripts, { keepOnError: !fresh });
+  setState({ scriptResults: results, blocksVersion: state.blocksVersion + 1 });
 }
 
 export function log(level: LogLevel, message: string, target?: LogTarget): void {

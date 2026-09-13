@@ -37,6 +37,8 @@ export function RulesView() {
   const project = useEditor((s) => s.project)!;
   const scene = useEditor(currentScene);
   const scope = useEditor((s) => s.rulesScope);
+  // Azioni e condizioni dei blocchi personalizzati cambiano quando si modifica il codice.
+  useEditor((s) => s.blocksVersion);
   if (!scene) return null;
   const rules = (scope === "global" ? project.rules : scene.rules) ?? [];
 

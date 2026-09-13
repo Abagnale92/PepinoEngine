@@ -10,6 +10,20 @@ import { buildCollisionGrid, drawTileLayer } from "../world/tilemap";
 import type { Renderer } from "../render/renderer";
 import { COLLISION_TYPES } from "../project/format";
 import { RuleSystem } from "../rules/rules";
+import { describeScriptError } from "../scripting/errors";
+import type { BlockInstance } from "./block";
+
+type HookName = "init" | "update" | "physics" | "late" | "render" | "renderScreen" | "renderDebug";
+
+const HOOK_LABEL: Record<HookName, string> = {
+  init: "all'avvio",
+  update: "in update",
+  physics: "in physics",
+  late: "in late",
+  render: "nel disegno",
+  renderScreen: "nel disegno dell'HUD",
+  renderDebug: "nel disegno di debug",
+};
 
 const OPPOSITE: Record<Side, Side> = { top: "bottom", bottom: "top", left: "right", right: "left" };
 
@@ -58,6 +72,30 @@ export class Scene {
   uiFocus = 0;
   private removals = new Set<Entity>();
   private spawnCounter = 0;
+  private reported = new Set<string>();
+
+  /** Esegue una funzione di un blocco: se va in errore si ferma quel blocco, non il gioco. */
+  callHook(b: BlockInstance, hook: HookName, arg?: unknown): void {
+    const fn = b.def[hook] as ((self: BlockInstance, a?: unknown) => void) | undefined;
+    if (!fn) return;
+    try {
+      fn(b, arg);
+    } catch (err) {
+      this.blockFailed(b, hook, err);
+    }
+  }
+
+  private blockFailed(b: BlockInstance, hook: HookName, err: unknown): void {
+    b.enabled = false;
+    const d = describeScriptError(err);
+    const key = `${b.def.type}|${hook}|${d.message}`;
+    if (this.reported.has(key)) return;
+    this.reported.add(key);
+    this.game.log(
+      `Il blocco «${b.def.label}» su «${b.entity.name}» si è fermato ${HOOK_LABEL[hook]}: ${d.message}${d.where ? ` (${d.where})` : ""}`,
+      "error",
+    );
+  }
 
   constructor(
     readonly game: Game,
@@ -135,17 +173,17 @@ export class Scene {
     const list = this.entities;
     for (const e of list) {
       if (e.destroyed) continue;
-      for (const b of e.blocks) if (b.enabled && b.def.update) b.def.update(b, dt);
+      for (const b of e.blocks) if (b.enabled && b.def.update) this.callHook(b, "update", dt);
     }
     for (const e of list) e.body?.savePrev();
     for (const e of list) {
       if (e.destroyed) continue;
-      for (const b of e.blocks) if (b.enabled && b.def.physics) b.def.physics(b, dt);
+      for (const b of e.blocks) if (b.enabled && b.def.physics) this.callHook(b, "physics", dt);
     }
     this.updateContacts();
     for (const e of list) {
       if (e.destroyed) continue;
-      for (const b of e.blocks) if (b.enabled && b.def.late) b.def.late(b, dt);
+      for (const b of e.blocks) if (b.enabled && b.def.late) this.callHook(b, "late", dt);
     }
     this.rules.process(dt);
     this.camera.update(dt);
@@ -220,7 +258,7 @@ export class Scene {
         drawTileLayer(r, this.game.assets, ts, d.layer, this.tileSize, lx, ly, vw, vh, d.layer.opacity ?? 1);
       } else {
         r.setView(x0, y0, cam.zoom);
-        for (const b of d.entity!.blocks) if (b.enabled && b.def.render) b.def.render(b, r);
+        for (const b of d.entity!.blocks) if (b.enabled && b.def.render) this.callHook(b, "render", r);
       }
     }
     if (debug) {
@@ -233,7 +271,7 @@ export class Scene {
     const list = [...this.entities].sort((a, b) => a.z - b.z || a.uid - b.uid);
     for (const e of list) {
       if (e.destroyed || !e.visible) continue;
-      for (const b of e.blocks) if (b.enabled && b.def.renderScreen) b.def.renderScreen(b, r);
+      for (const b of e.blocks) if (b.enabled && b.def.renderScreen) this.callHook(b, "renderScreen", r);
     }
   }
 
@@ -259,7 +297,7 @@ export class Scene {
     }
     for (const e of this.entities) {
       if (e.destroyed) continue;
-      for (const b of e.blocks) if (b.enabled && b.def.renderDebug) b.def.renderDebug(b, r);
+      for (const b of e.blocks) if (b.enabled && b.def.renderDebug) this.callHook(b, "renderDebug", r);
     }
   }
 

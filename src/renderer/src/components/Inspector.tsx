@@ -35,6 +35,8 @@ import { AnimPreview, FrameThumb } from "./thumbs";
 export function Inspector() {
   const sel = useEditor((s) => s.selection);
   const project = useEditor((s) => s.project);
+  // I blocchi personalizzati possono cambiare mentre si scrive il codice: ridisegna quando succede.
+  useEditor((s) => s.blocksVersion);
   if (!project) return null;
   return (
     <aside className="panel inspector">

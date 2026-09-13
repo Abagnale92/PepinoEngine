@@ -10,6 +10,8 @@ import { registerBuiltinBlocks } from "../blocks";
 import { interpolate } from "../blocks/text";
 import { frameRect } from "../assets/assets";
 import { DialogueRunner } from "../dialogue/dialogue";
+import { loadScripts } from "../scripting/loader";
+import { setScriptLogger } from "../scripting/pyruntime";
 import type { Entity } from "./entity";
 
 export type LogLevel = "info" | "warn" | "error";
@@ -116,6 +118,11 @@ export class Game {
   }
 
   async start(onProgress?: (p: number) => void): Promise<void> {
+    // Blocchi scritti negli script del progetto: vanno registrati prima di creare le scene.
+    setScriptLogger((m) => this.log(m));
+    for (const r of loadScripts(this.project.scripts ?? [])) {
+      if (r.error) this.log(`Script «${r.name}»${r.error.line ? `, riga ${r.error.line}` : ""}: ${r.error.message}`, "error");
+    }
     await this.assets.loadAll(this.project, onProgress);
     // Fermato mentre caricava (es. "Ferma" premuto subito nell'editor): non partire.
     if (this.stopped) return;

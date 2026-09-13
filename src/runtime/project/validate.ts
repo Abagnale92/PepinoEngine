@@ -1,6 +1,7 @@
 import { getBlockDef, resolveProps, type PropSchema } from "../core/block";
 import { mergeBlocks } from "../core/scene";
 import { getRuleItemDef, splitRuleKey, type RuleItemDef } from "../rules/rules";
+import { compilePython, PythonError } from "../scripting/python";
 import { DEFAULT_INPUT, DIALOGUE_END, type BlockData, type EntityData, type ProjectData, type RuleData, type RuleItem, type SceneData } from "./format";
 
 /**
@@ -19,9 +20,10 @@ export interface ProjectIssue {
   entityId?: string;
   prefabId?: string;
   ruleId?: string;
+  scriptId?: string;
 }
 
-type Ids = Pick<ProjectIssue, "sceneId" | "entityId" | "prefabId" | "ruleId">;
+type Ids = Pick<ProjectIssue, "sceneId" | "entityId" | "prefabId" | "ruleId" | "scriptId">;
 
 const q = (s: string) => `«${s}»`;
 
@@ -81,6 +83,28 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
     const where = `Tileset ${q(t.name)}`;
     if (assets.get(t.image)?.type !== "image") add("error", where, `L'immagine ${q(t.image)} non esiste.`);
     if (!(t.columns > 0)) add("error", where, "Il numero di colonne deve essere maggiore di zero.");
+  }
+
+  // ---------------------------------------------------------- script
+  duplicates((p.scripts ?? []).map((s) => s.id), "script", "Script");
+  for (const s of p.scripts ?? []) {
+    const sw = `Script ${q(s.name)}`;
+    const ids = { scriptId: s.id };
+    if (s.language === "py") {
+      try {
+        compilePython(s.code ?? "");
+      } catch (err) {
+        if (err instanceof PythonError) add("error", sw, `Riga ${err.line}: ${err.reason}`, ids);
+        else throw err;
+      }
+    } else {
+      try {
+        // Solo compilazione, niente esecuzione: controlla la sintassi.
+        new Function("Pepino", s.code ?? "");
+      } catch (err) {
+        add("error", sw, `Errore di sintassi: ${(err as Error).message}`, ids);
+      }
+    }
   }
 
   // ---------------------------------------------------------- dialoghi

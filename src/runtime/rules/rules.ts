@@ -4,6 +4,12 @@ import type { Scene } from "../core/scene";
 import { overlaps } from "../math";
 import type { RuleData, RuleItem, VariableValue } from "../project/format";
 import { interpolate } from "../blocks/text";
+import { describeScriptError } from "../scripting/errors";
+
+const errorText = (err: unknown) => {
+  const d = describeScriptError(err);
+  return d.where ? `${d.message} (${d.where})` : d.message;
+};
 
 /**
  * Regole "Quando → Allora": la logica del gioco senza codice.
@@ -720,7 +726,7 @@ export class RuleSystem {
       try {
         ok = def?.test ? def.test(ctx, c.params, this) : true;
       } catch (err) {
-        this.game.log(`Errore in una condizione (${c.type}): ${(err as Error).message}`, "error");
+        this.game.log(`Errore in una condizione (${def?.label ?? c.type}): ${errorText(err)}`, "error");
         ok = false;
       }
       if (c.not) ok = !ok;
@@ -743,7 +749,7 @@ export class RuleSystem {
       try {
         def.run(ctx, a.params, this);
       } catch (err) {
-        this.game.log(`Errore in un'azione (${def.label}): ${(err as Error).message}`, "error");
+        this.game.log(`Errore in un'azione (${def.label}): ${errorText(err)}`, "error");
       }
     }
   }

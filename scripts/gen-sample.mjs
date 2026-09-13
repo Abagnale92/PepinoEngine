@@ -415,6 +415,18 @@ for (let f = 0; f < 2; f++) {
 }
 sputa.save("sputasemi.png");
 
+// Molla: piattaforma rossa su una spirale (il blocco è scritto in Python, vedi SCRIPT_MOLLA).
+const molla = new Pix(16, 10);
+molla.rect(1, 0, 14, 2, "#e5484d");
+molla.rect(1, 2, 14, 1, "#9e2a2f");
+for (let i = 0; i < 3; i++) {
+  molla.rect(3, 3 + i * 2, 10, 1, "#c9d1d9");
+  if (4 + i * 2 < 8) molla.rect(4, 4 + i * 2, 8, 1, "#7d8590");
+}
+molla.rect(2, 8, 12, 2, "#57606a");
+molla.rect(2, 9, 12, 1, "#3d444d");
+molla.save("molla.png");
+
 // ---------------------------------------------------------------- Audio (WAV 16 bit mono)
 
 const RATE = 22050;
@@ -610,6 +622,17 @@ function levelPlatform() {
       inst("slime", "Slime", cx(64), feet(13)),
       inst("sputasemi", "Sputasemi", cx(49), feet(6)),
       inst("sputasemi", "Sputasemi", cx(63), feet(13)),
+      {
+        id: "molla",
+        name: "Molla",
+        x: cx(52),
+        y: feet(13),
+        blocks: [
+          { type: "Sprite", props: { image: "molla", flipWithFacing: false } },
+          { type: "Body", props: { width: 14, height: 6, group: "trigger", collidesWith: ["giocatore"], world: false } },
+          { type: "Molla", props: { force: 22, target: "giocatore", sound: "salto" } },
+        ],
+      },
       ...coins.map(([x, y]) => inst("moneta", "Moneta", cx(x), mid(y))),
       inst("porta", "Porta del villaggio", cx(69), feet(13), [{ type: "SceneExit", props: { scene: "villaggio" } }]),
       {
@@ -629,6 +652,14 @@ function levelPlatform() {
       ...hud(),
     ],
     rules: [
+      rule(
+        "boing",
+        "La prima volta che la molla (blocco in Python) lancia il giocatore",
+        { type: "event", params: { target: "@molla", event: "launched" } },
+        [],
+        [say("Boing! Questa molla è un blocco scritto in Python: guardalo nella scheda Codice.", 3)],
+        { once: true },
+      ),
       rule("benvenuto", "Messaggio di inizio livello", { type: "scene.start", params: {} }, [], [
         say("Raccogli le monete e raggiungi la porta in fondo al livello!", 3.5),
       ]),
@@ -825,7 +856,16 @@ function levelMenu() {
       makeLayer("terreno", "Terreno", W, H, ground, 0, true),
     ],
     entities: [
-      { id: "titolo", name: "Titolo", x: 160, y: 20, blocks: [{ type: "Text", props: { text: "PEPINO", size: 30, align: "center" } }] },
+      {
+        id: "titolo",
+        name: "Titolo",
+        x: 160,
+        y: 20,
+        blocks: [
+          { type: "Text", props: { text: "PEPINO", size: 30, align: "center" } },
+          { type: "Fluttua", props: { height: 3, speed: 0.4 } },
+        ],
+      },
       {
         id: "sottotitolo",
         name: "Sottotitolo",
@@ -880,6 +920,64 @@ function levelMenu() {
     ],
   };
 }
+
+// ---------------------------------------------------------------- Script (blocchi in codice)
+
+const SCRIPT_FLUTTUA = `// Blocco scritto in JavaScript: fa salire e scendere dolcemente l'oggetto.
+// Nel demo lo usa il titolo del menù.
+Pepino.defineBlock({
+  name: "Fluttua",
+  label: "Fluttua",
+  description: "Fa salire e scendere l'oggetto piano piano (scritto in JavaScript).",
+  props: {
+    height: { type: "number", label: "Altezza", unit: "px", default: 4, min: 0 },
+    speed: { type: "number", label: "Velocità", unit: "giri/s", default: 0.5, min: 0, step: 0.1 },
+  },
+
+  init(self) {
+    self.data.baseY = self.entity.y;
+    self.data.t = 0;
+  },
+
+  update(self, dt) {
+    self.data.t += dt * self.props.speed;
+    self.entity.y = self.data.baseY + Math.sin(self.data.t * Math.PI * 2) * self.props.height;
+  },
+});
+`;
+
+const SCRIPT_MOLLA = `# Blocco scritto in Python: Pepino lo traduce in JavaScript.
+# Quando il giocatore tocca la molla scendendo (o camminandoci sopra), viene lanciato in alto.
+name = "Molla"
+label = "Molla"
+description = "Lancia in alto chi la tocca (scritto in Python)."
+requires = ["Body"]
+props = {
+    "force": {"type": "number", "label": "Forza", "unit": "tile/s", "default": 22, "min": 0},
+    "target": {"type": "tag", "label": "Chi lancia", "default": "giocatore"},
+    "sound": {"type": "audio", "label": "Suono", "default": "", "optional": True},
+}
+events = [{"id": "launched", "label": "Ha lanciato qualcuno"}]
+actions = {
+    "potenzia": {
+        "label": "Cambia la forza",
+        "params": {"force": {"type": "number", "label": "Forza", "unit": "tile/s", "default": 30}},
+    },
+}
+
+
+def update(self, dt):
+    for other in self.body.touching(self.props.target):
+        if other.body and other.body.vy >= 0:
+            other.body.vy = -self.props.force * self.scene.tileSize
+            if self.props.sound:
+                self.game.audio.play(self.props.sound)
+            self.emit("launched", other)
+
+
+def potenzia(self, force):
+    self.props.force = force
+`;
 
 // ---------------------------------------------------------------- Progetto
 
@@ -974,6 +1072,7 @@ const project = {
     },
     { id: "ritratti", type: "image", src: "assets/ritratti.png", frameWidth: 32, frameHeight: 32 },
     { id: "seme", type: "image", src: "assets/seme.png" },
+    { id: "molla", type: "image", src: "assets/molla.png" },
     {
       id: "sputasemi",
       type: "image",
@@ -1087,6 +1186,10 @@ const project = {
     },
   ],
   scenes: [levelMenu(), levelPlatform(), levelVillage()],
+  scripts: [
+    { id: "fluttua", name: "Fluttua", language: "js", code: SCRIPT_FLUTTUA },
+    { id: "molla", name: "Molla", language: "py", code: SCRIPT_MOLLA },
+  ],
   dialogues: [
     {
       id: "nonno",

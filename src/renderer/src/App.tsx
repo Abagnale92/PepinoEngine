@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { currentScene, getState, redo, setState, undo, useEditor } from "./store";
+import { currentScene, getState, redo, reloadScripts, setState, undo, useEditor } from "./store";
 import { deleteSelection, duplicateSelection, openProjectDialog, openSample, saveProject, togglePlay } from "./commands";
 import { api } from "./api";
 import { Toolbar } from "./components/Toolbar";
@@ -12,12 +12,14 @@ import { RulesView } from "./components/RulesView";
 import { Icon } from "./components/Icon";
 import { PanelBoundary } from "./components/PanelBoundary";
 import { DialoguesView } from "./components/DialoguesView";
+import { CodeView } from "./components/CodeView";
 
 function useHotkeys() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = getState();
-      const typing = !!(e.target as HTMLElement | null)?.closest?.("input, textarea, select");
+      // .cm-editor = editor del codice: lì Ctrl+Z, Ctrl+D e Canc sono dell'editor di testo.
+      const typing = !!(e.target as HTMLElement | null)?.closest?.("input, textarea, select, .cm-editor");
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       if (e.key === "F5") {
@@ -89,7 +91,15 @@ export function App() {
   const sceneRules = useEditor((s) => currentScene(s)?.rules?.length ?? 0);
   const globalRules = useEditor((s) => s.project?.rules?.length ?? 0);
   const dialogueCount = useEditor((s) => s.project?.dialogues?.length ?? 0);
+  const scripts = useEditor((s) => s.project?.scripts);
+  const scriptErrors = useEditor((s) => s.scriptResults.filter((r) => r.error).length);
   useHotkeys();
+
+  // Mentre si scrive, gli script si ricaricano appena ci si ferma un attimo.
+  useEffect(() => {
+    const t = window.setTimeout(() => reloadScripts(), 350);
+    return () => window.clearTimeout(t);
+  }, [scripts]);
 
   useEffect(() => {
     openSample();
@@ -125,6 +135,12 @@ export function App() {
             <Icon name="chat" size={13} /> Dialoghi
             <span className="ctab-count">{dialogueCount}</span>
           </button>
+          <button type="button" className={`ctab${centerTab === "code" ? " on" : ""}`} onClick={() => setState({ centerTab: "code" })}>
+            <Icon name="code" size={13} /> Codice
+            <span className={`ctab-count${scriptErrors ? " err" : ""}`} title={scriptErrors ? `${scriptErrors} script con errori` : "Script del progetto"}>
+              {scripts?.length ?? 0}
+            </span>
+          </button>
         </div>
         <div className="center-body">
           <PanelBoundary name="Scena" fill>
@@ -138,6 +154,11 @@ export function App() {
           {centerTab === "dialogues" && !playing && (
             <PanelBoundary name="Dialoghi" fill>
               <DialoguesView />
+            </PanelBoundary>
+          )}
+          {centerTab === "code" && !playing && (
+            <PanelBoundary name="Codice" fill>
+              <CodeView />
             </PanelBoundary>
           )}
           {playing && (

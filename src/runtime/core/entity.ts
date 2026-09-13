@@ -88,7 +88,7 @@ export class Entity {
     const inst = new BlockInstance(def, this, resolveProps(def, data.props), data.enabled !== false);
     this.blocks.push(inst);
     this.blocks.sort((a, b) => a.def.priority - b.def.priority);
-    if (this.initialized) def.init?.(inst);
+    if (this.initialized) this.scene.callHook(inst, "init");
     return inst;
   }
 
@@ -116,7 +116,7 @@ export class Entity {
   init(): void {
     if (this.initialized) return;
     this.initialized = true;
-    for (const b of this.blocks) b.def.init?.(b);
+    for (const b of this.blocks) this.scene.callHook(b, "init");
   }
 
   destroy(): void {
