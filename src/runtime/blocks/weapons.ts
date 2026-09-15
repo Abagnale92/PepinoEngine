@@ -177,6 +177,20 @@ function startAttack(self: BlockInstance) {
 
 const isActive = (self: BlockInstance) => self.data.t >= self.props.startup && self.data.t < self.props.startup + self.props.active;
 
+/** Bersagli dentro la zona del colpo. Nei beat 'em up conta anche l'altezza: chi salta alto non viene preso. */
+function targetsInReach(self: BlockInstance): Entity[] {
+  const p = self.props;
+  const e = self.entity;
+  const box = hitbox(self);
+  const out: Entity[] = [];
+  for (const o of self.scene.entities) {
+    if (o === e || o.destroyed || !o.hasTag(p.target) || !o.body) continue;
+    if (Math.abs(o.elevation - e.elevation) > p.height) continue;
+    if (overlaps(box, o.body.rect())) out.push(o);
+  }
+  return out;
+}
+
 defineBlock({
   name: "Attack",
   label: "Attacco corpo a corpo",
@@ -191,10 +205,20 @@ defineBlock({
       default: "player",
       options: [
         { value: "player", label: "Giocatore (comando)" },
+        { value: "auto", label: "Da solo, quando il bersaglio è a portata" },
         { value: "ai", label: "IA o Regole (azione «Attacca»)" },
       ],
     },
     command: { type: "input", label: "Comando", default: "attack" },
+    cooldown: {
+      type: "number",
+      label: "Attesa tra due attacchi",
+      unit: "s",
+      default: 0.8,
+      min: 0,
+      step: 0.1,
+      help: "Solo «Da solo»: quanto aspetta prima di colpire di nuovo.",
+    },
     target: { type: "tag", label: "Colpisce chi ha l'etichetta", default: "nemico" },
     damage: { type: "integer", label: "Danno", default: 1, min: 0 },
     reach: { type: "number", label: "Distanza dal centro", unit: "px", default: 14, min: 0, group: "Zona che colpisce" },
@@ -220,13 +244,23 @@ defineBlock({
   init(self) {
     self.data.t = -1;
     self.data.hit = new Set<Entity>();
+    self.data.cool = 0;
   },
   update(self, dt) {
     const p = self.props;
     const d = self.data;
     const e = self.entity;
+    // Colpito mentre si prepara: l'attacco viene annullato (come nei picchiaduro).
+    if (d.t >= 0 && e.stunned > 0) d.t = -1;
     if (d.t < 0) {
       if (p.mode === "player" && self.game.input.pressed(p.command)) startAttack(self);
+      else if (p.mode === "auto") {
+        d.cool -= dt;
+        if (d.cool <= 0 && e.stunned <= 0 && targetsInReach(self).length) {
+          d.cool = p.cooldown;
+          startAttack(self);
+        }
+      }
       if (d.t < 0) return;
     }
     d.t += dt;
@@ -240,11 +274,9 @@ defineBlock({
       if (e.has("TopDownController")) e.body.vy = 0;
     }
     if (!isActive(self)) return;
-    const box = hitbox(self);
     const from = bodyCenter(e);
-    for (const o of self.scene.entities) {
-      if (o === e || o.destroyed || !o.hasTag(p.target) || !o.body || d.hit.has(o)) continue;
-      if (!overlaps(box, o.body.rect())) continue;
+    for (const o of targetsInReach(self)) {
+      if (d.hit.has(o)) continue;
       d.hit.add(o);
       o.get("Health")?.actions.damage(p.damage, from);
       self.emit("hit", o);
@@ -254,7 +286,7 @@ defineBlock({
     if (!self.props.slash || self.data.t < 0 || !isActive(self)) return;
     const b = hitbox(self);
     const k = 1 - (self.data.t - self.props.startup) / self.props.active;
-    r.rect(b.x, b.y, b.w, b.h, hexColor(self.props.slashColor, 0.35 + 0.5 * k));
+    r.rect(b.x, b.y - self.entity.elevation, b.w, b.h, hexColor(self.props.slashColor, 0.35 + 0.5 * k));
   },
   renderDebug(self, r) {
     if (self.data.t < 0) return;

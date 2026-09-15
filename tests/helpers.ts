@@ -1,6 +1,8 @@
 import {
   Scene,
+  Translator,
   registerBuiltinBlocks,
+  type CutsceneData,
   type DialogueData,
   type EntityData,
   type Intent,
@@ -72,7 +74,10 @@ export interface ProjectOptions {
   variables?: Record<string, VariableValue>;
   extraScenes?: SceneData[];
   dialogues?: DialogueData[];
+  cutscenes?: CutsceneData[];
   scripts?: ScriptData[];
+  languages?: ProjectData["languages"];
+  translations?: ProjectData["translations"];
 }
 
 export function makeProject(rows: string[], entities: EntityData[], opts: ProjectOptions = {}): ProjectData {
@@ -118,7 +123,10 @@ export function makeProject(rows: string[], entities: EntityData[], opts: Projec
     ],
     rules: opts.globalRules,
     dialogues: opts.dialogues,
+    cutscenes: opts.cutscenes,
     scripts: opts.scripts,
+    languages: opts.languages,
+    translations: opts.translations,
   };
 }
 
@@ -128,8 +136,16 @@ export function makeWorld(project: ProjectData) {
   const logs: { level: string; message: string }[] = [];
   const messages: string[] = [];
   const calls: string[] = [];
+  const i18n = new Translator(project);
   const game: any = {
     project,
+    i18n,
+    get language() {
+      return i18n.language;
+    },
+    t: (s: string) => i18n.t(s),
+    setLanguage: (id: string) => i18n.set(id),
+    nextLanguage: () => i18n.set(i18n.nextId()),
     vars: structuredClone(project.variables),
     input,
     audio: { play() {}, playMusic() {}, stopMusic() {} },
@@ -138,6 +154,7 @@ export function makeWorld(project: ProjectData) {
     log: (message: string, level = "info") => logs.push({ level, message }),
     goToScene: (id: string) => calls.push(`goToScene:${id}`),
     restartScene: () => calls.push("restartScene"),
+    hitstop: (s: number) => calls.push(`hitstop:${s}`),
     showMessage: (text: string) => messages.push(text),
     saveGame: () => calls.push("saveGame"),
     loadGame: () => calls.push("loadGame"),
@@ -146,8 +163,23 @@ export function makeWorld(project: ProjectData) {
       calls.push(`dialogue:${id}`);
       return true;
     },
-    dialogue: { active: false },
+    dialogue: {
+      active: false,
+      cancel() {
+        this.active = false;
+      },
+    },
     isBlocked: false,
+    // Filmati: la dissolvenza è istantanea, barre e comandi si registrano soltanto.
+    fadeAlpha: 0,
+    fadeTo(target: number) {
+      calls.push(`fade:${target}`);
+      this.fadeAlpha = target;
+    },
+    setBars: (on: boolean) => calls.push(`bars:${on}`),
+    lockControls: false,
+    hasMessage: false,
+    clearMessages: () => calls.push("clearMessages"),
   };
   const scene = new Scene(game, project.scenes[0]);
   game.scene = scene;

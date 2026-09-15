@@ -30,6 +30,24 @@ export interface SpriteState {
   visible: boolean;
 }
 
+/**
+ * Deformazione del momento, calcolata ogni fotogramma dal blocco Effetti animati:
+ * spostamento, scala, rotazione, inclinazione, trasparenza e lampo di colore.
+ */
+export interface SpriteFX {
+  dx: number;
+  dy: number;
+  sx: number;
+  sy: number;
+  rot: number;
+  skew: number;
+  alpha: number;
+  flash: number;
+  flashColor: number;
+}
+
+export const identityFx = (): SpriteFX => ({ dx: 0, dy: 0, sx: 1, sy: 1, rot: 0, skew: 0, alpha: 1, flash: 0, flashColor: 0xffffff });
+
 let nextUid = 1;
 
 export class Entity {
@@ -47,6 +65,10 @@ export class Entity {
   direction: Direction = "down";
   /** Secondi in cui l'oggetto non risponde ai comandi (dopo un contraccolpo). */
   stunned = 0;
+  /** Altezza da terra in pixel (salti nei beat 'em up): lo sprite sale, l'ombra e il corpo restano a terra. */
+  elevation = 0;
+  /** Effetti animati del momento (schiacciata, lampo, tremolio…): li legge lo Sprite. */
+  fx: SpriteFX = identityFx();
   intent: Intent = { x: 0, y: 0, jump: false, jumpPressed: false, dashPressed: false, actionPressed: false };
   blocks: BlockInstance[] = [];
   body?: BodyState;

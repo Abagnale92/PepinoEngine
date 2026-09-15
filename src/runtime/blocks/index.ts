@@ -14,12 +14,19 @@ import "./ai";
 import "./weapons";
 import "./spawner";
 import "./npc";
+import "./beatemup";
+import "./particles";
+import "./light";
+import "./juice";
+import "./combo";
+import "./boss";
 
 /** Garantisce che i blocchi di serie siano caricati (l'import sopra fa il lavoro). */
 export function registerBuiltinBlocks(): void {}
 
 export const BLOCK_CATEGORIES = [
   "Grafica",
+  "Effetti",
   "Fisica",
   "Movimento",
   "Camera",

@@ -10,9 +10,11 @@ import { registerBuiltinBlocks } from "../blocks";
 import { interpolate } from "../blocks/text";
 import { frameRect } from "../assets/assets";
 import { DialogueRunner } from "../dialogue/dialogue";
+import { Translator } from "../i18n/translator";
 import { loadScripts } from "../scripting/loader";
 import { setScriptLogger } from "../scripting/pyruntime";
 import type { Entity } from "./entity";
+import type { ScreenEffect } from "../render/effects";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -22,6 +24,8 @@ export interface GameOptions {
   debug?: boolean;
   startScene?: string;
   onLog?: (level: LogLevel, message: string) => void;
+  /** Lingua con cui partire (altrimenti: quella scelta l'ultima volta, poi quella del browser). */
+  language?: string;
 }
 
 export interface DebugState {
@@ -48,6 +52,9 @@ interface ActiveMessage extends Message {
 
 const MESSAGE_STYLE: TextStyle = { size: 8, color: "#f2f7ee", bold: false };
 
+/** Comandi che non arrivano al personaggio mentre scorre un filmato (dialoghi e messaggi li ricevono lo stesso). */
+const LOCKED_ACTIONS = new Set(["left", "right", "up", "down", "jump", "dash", "action", "attack"]);
+
 /**
  * Il gioco: carica gli asset, gestisce le scene e fa girare il loop a passo fisso (60 Hz).
  * È lo stesso codice nell'anteprima dell'editor e nella build WebGL.
@@ -64,6 +71,14 @@ export class Game {
   scene?: Scene;
   /** Pausa chiesta dal giocatore (Esc / Start). */
   paused = false;
+  /** Effetto a tutto schermo scelto da una Regola; vale fino al cambio di scena. */
+  screenEffect: ScreenEffect | null = null;
+  /** Secondi di "fermo d'immagine" rimasti (colpo andato a segno). */
+  private freeze = 0;
+  /** Comandi del giocatore bloccati da una Regola (i filmati li bloccano da soli). */
+  lockControls = false;
+  /** Barre nere del cinema: 0 = nascoste, 1 = del tutto dentro. */
+  private bars = { amount: 0, target: 0 };
 
   private raf = 0;
   private last = 0;
@@ -77,6 +92,8 @@ export class Game {
   private stopped = false;
   /** Dialoghi con scelte: mentre uno è aperto il gioco resta fermo. */
   readonly dialogue: DialogueRunner;
+  /** Traduzioni dei testi nella lingua del giocatore. */
+  readonly i18n: Translator;
   private dialogueWrap: { key: string; lines: string[] } | null = null;
 
   constructor(
@@ -92,10 +109,12 @@ export class Game {
     this.assets = new Assets(opts.baseUrl, this.renderer, this.audio);
     this.vars = structuredClone(project.variables ?? {});
     this.debug.overlay = !!opts.debug;
+    this.i18n = new Translator(project, opts.language || this.initialLanguage());
     this.dialogue = new DialogueRunner(
       () => this.project.dialogues ?? [],
       () => this.vars,
       (id, speaker) => this.onDialogueEnd(id, speaker),
+      (text) => this.t(text),
     );
   }
 
@@ -105,6 +124,92 @@ export class Game {
     const ok = this.dialogue.start(id, speaker);
     if (!ok) this.log(`Il dialogo "${id}" non esiste o non ha battute`, "warn");
     return ok;
+  }
+
+  /** Fermo d'immagine: il gioco si blocca per un attimo quando un colpo va a segno e l'impatto si "sente". */
+  hitstop(seconds: number): void {
+    this.freeze = Math.max(this.freeze, Math.min(0.3, seconds));
+  }
+
+  // ---------- filmati ----------
+
+  /** Vero se il giocatore non comanda il personaggio (filmato in corso o Regola «Blocca i comandi»). */
+  get controlsLocked(): boolean {
+    return this.lockControls || !!this.scene?.rules.cutscene;
+  }
+
+  /** Schermo verso il nero (1) o di nuovo visibile (0) in `seconds` secondi. */
+  fadeTo(target: number, seconds: number): void {
+    if (this.fade.pending) return;
+    this.fade.target = Math.max(0, Math.min(1, target));
+    this.fade.duration = Math.max(0.01, seconds);
+  }
+
+  get fadeAlpha(): number {
+    return this.fade.alpha;
+  }
+
+  setBars(on: boolean): void {
+    this.bars.target = on ? 1 : 0;
+  }
+
+  /** C'è un messaggio a schermo o in attesa di comparire. */
+  get hasMessage(): boolean {
+    return !!this.message || this.messages.length > 0;
+  }
+
+  /** Toglie il messaggio a schermo e quelli in attesa (per esempio saltando un filmato). */
+  clearMessages(): void {
+    this.messages = [];
+    this.message = null;
+  }
+
+  // ---------- lingue ----------
+
+  get language(): string {
+    return this.i18n.language;
+  }
+
+  /** Il testo nella lingua del giocatore (se manca la traduzione, l'originale). */
+  t(text: string): string {
+    return this.i18n.t(text);
+  }
+
+  /** Cambia lingua e la ricorda per la prossima volta. */
+  setLanguage(id: string): boolean {
+    if (!this.i18n.set(id)) {
+      this.log(`La lingua "${id}" non è tra le lingue del gioco`, "warn");
+      return false;
+    }
+    try {
+      localStorage.setItem(this.languageKey, id);
+    } catch {
+      // senza memoria del browser la scelta vale solo per questa partita
+    }
+    this.dialogueWrap = null;
+    this.events.emit("languageChanged", id);
+    return true;
+  }
+
+  nextLanguage(): void {
+    const id = this.i18n.nextId();
+    if (id) this.setLanguage(id);
+  }
+
+  private get languageKey() {
+    return `pepino:${this.project.name}:lingua`;
+  }
+
+  /** La lingua scelta l'ultima volta, altrimenti quella del browser (se il gioco ce l'ha). */
+  private initialLanguage(): string | undefined {
+    try {
+      const saved = localStorage.getItem(this.languageKey);
+      if (saved) return saved;
+    } catch {
+      // nessuna memoria disponibile
+    }
+    const nav = typeof navigator !== "undefined" ? (navigator.language || "").slice(0, 2).toLowerCase() : "";
+    return nav || undefined;
   }
 
   private onDialogueEnd(id: string, speaker?: Entity) {
@@ -138,7 +243,10 @@ export class Game {
     if (!data) throw new Error("Il progetto non contiene scene.");
     this.scene?.dispose();
     this.paused = false;
+    this.screenEffect = null;
     this.dialogue.cancel();
+    this.lockControls = false;
+    this.bars.amount = this.bars.target = 0;
     if (restoreVars) this.vars = structuredClone(this.sceneStartVars);
     else this.sceneStartVars = structuredClone(this.vars);
     this.scene = new Scene(this, data);
@@ -263,8 +371,17 @@ export class Game {
   private tick(dt: number): void {
     this.input.beginStep();
     if (this.input.keyPressed("F1")) this.debug.overlay = !this.debug.overlay;
-    if (this.input.pressed("pause") && !this.message?.pause && !this.dialogue.active && !this.fade.pending) this.paused = !this.paused;
-    if (!this.isBlocked) this.scene?.update(dt);
+    const cutscene = this.scene?.rules.cutscene;
+    // Durante un filmato Esc (o Start) lo salta, se si può; altrimenti mette in pausa come sempre.
+    if (cutscene && cutscene.data.skippable !== false && this.input.pressed("pause") && !this.paused && !this.fade.pending) {
+      this.scene!.rules.skipCutscene();
+    } else if (this.input.pressed("pause") && !this.message?.pause && !this.dialogue.active && !this.fade.pending) this.paused = !this.paused;
+    if (this.freeze > 0) this.freeze -= dt;
+    else if (!this.isBlocked) {
+      this.input.masked = this.controlsLocked ? LOCKED_ACTIONS : null;
+      this.scene?.update(dt);
+      this.input.masked = null;
+    }
     // Il dialogo si aggiorna dal passo dopo quello in cui è partito (lo protegge anche la sua breve attesa).
     if (this.dialogue.active) this.dialogue.update(dt, this.input);
     else this.updateMessage(dt);
@@ -280,6 +397,8 @@ export class Game {
       f.pending = null;
       run();
     }
+    const b = this.bars;
+    if (b.amount !== b.target) b.amount = b.amount < b.target ? Math.min(b.target, b.amount + dt / 0.35) : Math.max(b.target, b.amount - dt / 0.35);
   }
 
   private updateMessage(dt: number): void {
@@ -303,17 +422,30 @@ export class Game {
   private render(): void {
     const r = this.renderer;
     r.resize();
+    r.defaultFont = this.settings.font ?? "";
     const bg = parseColor(this.scene?.data.background || this.settings.background, [0.08, 0.09, 0.1, 1]);
     r.beginVirtual(bg);
     this.scene?.render(r, this.debug.overlay);
-    r.present(this.settings.pixelPerfect);
+    r.present(this.settings.pixelPerfect, this.currentEffect());
     this.scene?.renderScreen(r);
+    if (this.bars.amount > 0) {
+      const h = Math.round(r.height * 0.12 * this.bars.amount);
+      r.rect(0, 0, r.width, h, packColor(0, 0, 0, 1));
+      r.rect(0, r.height - h, r.width, h, packColor(0, 0, 0, 1));
+    }
     if (this.dialogue.active) this.renderDialogue(r);
     else this.renderMessage(r);
     if (this.paused) this.renderPause(r);
     if (this.fade.alpha > 0) r.rect(0, 0, r.width, r.height, packColor(0, 0, 0, this.fade.alpha));
     if (this.debug.overlay) this.renderDebugHud(r);
     r.endFrame();
+  }
+
+  /** Effetto a tutto schermo attivo: quello di una Regola, altrimenti quello della scena. */
+  currentEffect(): ScreenEffect | undefined {
+    if (this.screenEffect) return this.screenEffect;
+    const d = this.scene?.data;
+    return d?.effect && d.effect !== "none" ? { id: d.effect, strength: d.effectStrength ?? 1 } : undefined;
   }
 
   private wrap(r: Renderer, text: string, maxW: number): string[] {
@@ -389,7 +521,7 @@ export class Game {
     }
     let ty = y + 6;
     if (line.speaker) {
-      r.text(line.speaker, textX, ty, { size: 8, color: "#8cc480" });
+      r.text(this.t(line.speaker), textX, ty, { size: 8, color: "#8cc480" });
       ty += nameH;
     }
     let left = Math.floor(d.shown);
@@ -402,7 +534,7 @@ export class Game {
     if (showChoices) {
       choices.forEach((c, i) => {
         const on = i === d.choice;
-        r.text(`${on ? "▶" : "  "} ${interpolate(c.text, this.vars)}`, textX, ty + i * lineH, {
+        r.text(`${on ? "▶" : "  "} ${interpolate(this.t(c.text), this.vars)}`, textX, ty + i * lineH, {
           size: 8,
           bold: on,
           color: on ? "#ffffff" : "#9aa894",
@@ -417,8 +549,8 @@ export class Game {
     const W = r.width;
     const H = r.height;
     r.rect(0, 0, W, H, packColor(0, 0, 0, 0.55));
-    r.text("Pausa", W / 2, H / 2 - 14, { size: 16, align: "center", shadow: true });
-    r.text("Premi Esc (o Start) per riprendere", W / 2, H / 2 + 6, { size: 7, align: "center", color: "#c8d8c0", bold: false });
+    r.text(this.t("Pausa"), W / 2, H / 2 - 14, { size: 16, align: "center", shadow: true });
+    r.text(this.t("Premi Esc (o Start) per riprendere"), W / 2, H / 2 + 6, { size: 7, align: "center", color: "#c8d8c0", bold: false });
   }
 
   private renderDebugHud(r: Renderer): void {

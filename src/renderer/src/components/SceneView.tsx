@@ -22,6 +22,8 @@ import {
 import { currentScene, editProject, getState, log, setState, useEditor, viewInfo } from "../store";
 import { blockProps, effectiveBlocks, findEntity, flattenEntities, sceneOf, spriteOf, type FlatEntity } from "../projectOps";
 import { addEntityAt } from "../commands";
+import { N, T } from "../i18n";
+import { getSettings } from "../settings";
 
 interface View {
   x: number;
@@ -39,13 +41,11 @@ const COLL_FILL: Record<number, number> = Object.fromEntries(
 );
 const ACCENT = hexColor("#8cc480");
 const BODY = hexColor("#5dff8a", 0.9);
-const GRID = packColor(1, 1, 1, 0.07);
-const GRID_MAJOR = packColor(1, 1, 1, 0.14);
 const BOUNDS = hexColor("#8cc480", 0.8);
 const SCREEN = hexColor("#7fb4d9", 0.55);
 const ERASE = hexColor("#e5695f");
 const PLACEHOLDER = packColor(0.55, 0.77, 0.5, 0.25);
-const TOOL_LABEL = { select: "Seleziona", paint: "Pennello", erase: "Gomma" } as const;
+const TOOL_LABEL = { select: N("Seleziona"), paint: N("Pennello"), erase: N("Gomma") };
 
 function entityBounds(project: ProjectData, assets: Assets, it: FlatEntity, blocks: BlockData[]) {
   const sp = spriteOf(project, blocks);
@@ -126,13 +126,14 @@ export function SceneView({ hidden }: { hidden: boolean }) {
 
   function ensureAssets(project: ProjectData, baseUrl: string) {
     const g = gpu.current!;
-    const images = project.assets.filter((a) => a.type === "image");
-    const key = `${baseUrl}|${JSON.stringify(images)}`;
+    const list = project.assets.filter((a) => a.type === "image" || a.type === "font");
+    const key = `${baseUrl}|${JSON.stringify(list)}`;
     if (key === g.assetsKey) return;
     g.assetsKey = key;
     g.assets.baseUrl = baseUrl;
-    for (const a of images) {
-      if (a.type === "image") g.assets.loadImage(a).catch(() => log("error", `Immagine non caricata: ${a.src}`));
+    for (const a of list) {
+      if (a.type === "image") g.assets.loadImage(a).catch(() => log("error", T("Immagine non caricata: {0}", a.src)));
+      else if (a.type === "font") g.assets.loadFont(a).catch(() => log("error", T("Carattere non caricato: {0}", a.src)));
     }
   }
 
@@ -176,6 +177,7 @@ export function SceneView({ hidden }: { hidden: boolean }) {
     const scene = currentScene(s);
     if (!project || !scene) return r.endFrame();
     ensureAssets(project, s.baseUrl);
+    r.defaultFont = project.settings.font ?? "";
     if (scene.id !== g.sceneId) {
       g.sceneId = scene.id;
       fit(project, scene);
@@ -219,7 +221,14 @@ export function SceneView({ hidden }: { hidden: boolean }) {
         if (p.screen) hasHud = true;
         const prev = r.pixelScale;
         r.pixelScale = z;
-        r.text(interpolate(String(p.text), project.variables), it.wx, it.wy, { size: p.size, color: p.color, align: p.align, shadow: p.shadow });
+        r.text(interpolate(String(p.text), project.variables), it.wx, it.wy, {
+          size: p.size,
+          color: p.color,
+          align: p.align,
+          shadow: p.shadow,
+          outline: p.outline,
+          font: p.font,
+        });
         r.pixelScale = prev;
         drawn = true;
       }
@@ -244,6 +253,9 @@ export function SceneView({ hidden }: { hidden: boolean }) {
     }
 
     if (s.showGrid && z * ts >= 5) {
+      const gs = getSettings();
+      const GRID = hexColor(gs.gridColor, gs.gridOpacity * 0.55);
+      const GRID_MAJOR = hexColor(gs.gridColor, gs.gridOpacity);
       const t = 1 / z;
       const y0 = Math.max(0, v.y);
       const y1 = Math.min(H, v.y + vh);
@@ -299,7 +311,7 @@ export function SceneView({ hidden }: { hidden: boolean }) {
 
     const layer = scene.layers.find((l) => l.id === s.layerId);
     const status = [
-      TOOL_LABEL[s.tool],
+      T(TOOL_LABEL[s.tool]),
       s.tool !== "select" ? `layer: ${layer?.name ?? "—"}` : "",
       `zoom ${Math.round(v.zoom * 100)}%`,
       cellLabel,
@@ -344,7 +356,7 @@ export function SceneView({ hidden }: { hidden: boolean }) {
     const layer = scene.layers.find((l) => l.id === s.layerId);
     if (!layer) return;
     if (layer.locked) {
-      if (d.last !== "locked") log("warn", `Il layer "${layer.name}" è bloccato: sbloccalo nella Gerarchia.`);
+      if (d.last !== "locked") log("warn", T("Il layer «{0}» è bloccato: sbloccalo nella Gerarchia.", layer.name));
       d.last = "locked";
       return;
     }
@@ -405,7 +417,7 @@ export function SceneView({ hidden }: { hidden: boolean }) {
       let nx = d.ox + (wx - d.wx);
       let ny = d.oy + (wy - d.wy);
       if (s.snap && !e.altKey) {
-        const step = (s.project?.settings.tileSize ?? 16) / 2;
+        const step = (s.project?.settings.tileSize ?? 16) / (getSettings().snapStep === "full" ? 1 : 2);
         nx = Math.round(nx / step) * step;
         ny = Math.round(ny / step) * step;
       } else {
@@ -485,12 +497,12 @@ export function SceneView({ hidden }: { hidden: boolean }) {
           {COLLISION_TYPES.filter((c) => c.id !== "none").map((c) => (
             <span key={c.id}>
               <i style={{ background: c.color }} />
-              {c.label}
+              {T(c.label)}
             </span>
           ))}
         </div>
       )}
-      <div className="scene-help">Rotella: zoom · Tasto destro o Spazio + trascina: sposta la vista · Alt: senza aggancio</div>
+      <div className="scene-help">{T("Rotella: zoom · Tasto destro o Spazio + trascina: sposta la vista · Alt: senza aggancio")}</div>
     </div>
   );
 }

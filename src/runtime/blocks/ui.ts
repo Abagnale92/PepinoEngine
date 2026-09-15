@@ -2,7 +2,7 @@ import { defineBlock, type BlockInstance } from "../core/block";
 import type { Entity } from "../core/entity";
 import type { Scene } from "../core/scene";
 import { clamp, hexColor } from "../math";
-import { interpolate, screenPos } from "./text";
+import { FONT_PROP, interpolate, screenPos } from "./text";
 
 // ------------------------------------------------------------------ Pulsante
 
@@ -35,12 +35,13 @@ defineBlock({
     "Pulsante di un menù. Si sceglie con le frecce, il mouse o il tocco e si conferma con Azione, Salto o clic. Può portare direttamente a una scena.",
   priority: 100,
   props: {
-    text: { type: "text", label: "Testo", default: "Gioca" },
+    text: { type: "text", label: "Testo", default: "Gioca", translatable: true },
     scene: { type: "scene", label: "Porta alla scena", default: "", help: "Facoltativo: per azioni diverse usa le Regole." },
     order: { type: "integer", label: "Ordine nel menù", default: 0 },
     width: { type: "number", label: "Larghezza", unit: "px", default: 96, min: 8 },
     height: { type: "number", label: "Altezza", unit: "px", default: 18, min: 6 },
     size: { type: "number", label: "Dimensione testo", unit: "px", default: 8, min: 4 },
+    font: FONT_PROP,
     color: { type: "color", label: "Colore", default: "#2c4a2c" },
     focusColor: { type: "color", label: "Colore selezionato", default: "#8cc480" },
     textColor: { type: "color", label: "Colore testo", default: "#ffffff" },
@@ -82,9 +83,10 @@ defineBlock({
     const b = buttonRect(self);
     r.rect(b.x, b.y, b.w, b.h, hexColor(focused ? p.focusColor : p.color));
     if (focused) r.strokeRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2, Math.max(0.5, 1 / r.pixelScale), hexColor("#ffffff", 0.9));
-    r.text(interpolate(p.text, self.game.vars), self.entity.worldX, b.y + (b.h - p.size * 1.3) / 2, {
+    r.text(interpolate(self.game.t(p.text), self.game.vars), self.entity.worldX, b.y + (b.h - p.size * 1.3) / 2, {
       size: p.size,
       align: "center",
+      font: p.font,
       color: focused ? "#0d180e" : p.textColor,
     });
   },

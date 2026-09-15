@@ -51,6 +51,13 @@ export class AudioSystem {
     this.buffers.set(id, await this.context().decodeAudioData(data));
   }
 
+  /** Suono calcolato dal sintetizzatore (brani ed effetti della scheda Musica). */
+  setSamples(id: string, samples: Float32Array, sampleRate: number): void {
+    const buf = this.context().createBuffer(1, Math.max(1, samples.length), sampleRate);
+    buf.getChannelData(0).set(samples);
+    this.buffers.set(id, buf);
+  }
+
   has(id: string): boolean {
     return this.buffers.has(id);
   }

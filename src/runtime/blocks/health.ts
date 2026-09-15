@@ -5,11 +5,21 @@ export interface DamageSource {
   y: number;
 }
 
+/** Come arriva un colpo (combo, boss…): spinta, se manda a terra, quanto stordisce. */
+export interface DamageOptions {
+  /** Spinta in tile/s al posto del «Contraccolpo» del blocco. */
+  push?: number;
+  /** Manda a terra (beat 'em up): il personaggio vola, cade, poi si rialza. */
+  knockdown?: boolean;
+  /** Secondi di stordimento senza comandi. */
+  stun?: number;
+}
+
 function syncVar(self: BlockInstance) {
   if (self.props.variable) self.game.vars[self.props.variable] = self.data.hp;
 }
 
-function damage(self: BlockInstance, amount: number, from?: DamageSource, force = false) {
+function damage(self: BlockInstance, amount: number, from?: DamageSource, force = false, opts: DamageOptions = {}) {
   const d = self.data;
   if (d.dead || amount <= 0 || (!force && d.invuln > 0)) return;
   const e = self.entity;
@@ -18,9 +28,10 @@ function damage(self: BlockInstance, amount: number, from?: DamageSource, force 
   syncVar(self);
   if (e.sprite) e.sprite.flash = 1;
   if (self.props.hurtSound) self.game.audio.play(self.props.hurtSound);
+  if (opts.stun) e.stunned = Math.max(e.stunned, opts.stun);
 
   const b = e.body;
-  const kb = self.props.knockback * self.scene.tileSize;
+  const kb = (opts.push ?? self.props.knockback) * self.scene.tileSize;
   if (b && kb > 0) {
     const platform = e.has("PlatformController");
     let dx = from ? e.worldX - from.x : -e.facingX;
@@ -35,15 +46,22 @@ function damage(self: BlockInstance, amount: number, from?: DamageSource, force 
       b.vx = dx * kb;
       b.vy = dy * kb;
     }
-    e.stunned = 0.18;
+    e.stunned = Math.max(e.stunned, 0.18);
   }
+  if (opts.knockdown && d.hp > 0) e.get("BeatEmUpController")?.actions.knockdown();
   self.emit("hurt", { amount });
 
   if (d.hp <= 0) {
     d.dead = true;
     self.emit("died");
-    if (self.props.onDeath === "destroy") e.destroy();
-    else if (self.props.onDeath === "restart") self.game.restartScene(0.5);
+    const bu = opts.knockdown ? e.get("BeatEmUpController") : undefined;
+    if (self.props.onDeath === "destroy") {
+      // Colpo di grazia nei beat 'em up: prima vola e resta a terra lampeggiando, poi sparisce.
+      if (bu) {
+        bu.actions.knockdown();
+        d.dying = 1;
+      } else e.destroy();
+    } else if (self.props.onDeath === "restart") self.game.restartScene(0.5);
   }
 }
 
@@ -89,7 +107,7 @@ defineBlock({
     damage: {
       label: "Infliggi danno",
       params: { amount: { type: "integer", label: "Danno", default: 1, min: 0 } },
-      run: (self, amount = 1, from?: DamageSource) => damage(self, Number(amount), from),
+      run: (self, amount = 1, from?: DamageSource, opts?: DamageOptions) => damage(self, Number(amount), from, false, opts),
     },
     heal: {
       label: "Cura",
@@ -115,6 +133,12 @@ defineBlock({
   update(self, dt) {
     const d = self.data;
     const s = self.entity.sprite;
+    if (d.dying > 0) {
+      d.dying -= dt;
+      if (s) s.opacity = d.dying < 0.5 && Math.floor(d.dying * 20) % 2 === 0 ? 0.2 : (d.baseOpacity ?? 1);
+      if (d.dying <= 0) self.entity.destroy();
+      return;
+    }
     if (d.invuln > 0) {
       d.invuln -= dt;
       const base = d.baseOpacity ?? 1;

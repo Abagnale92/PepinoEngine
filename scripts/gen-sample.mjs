@@ -240,6 +240,35 @@ function drawTiles() {
 
   [x, y] = T(18); // terra scura di sfondo
   speckle(x, y, P.dirtDk, [P.dirt], 10);
+
+  [x, y] = T(19); // marciapiede (beat 'em up)
+  tiles.rect(x, y, 16, 16, "#9a9ca8");
+  tiles.rect(x, y, 16, 1, "#b8bac4");
+  tiles.rect(x, y + 15, 16, 1, "#6d6f7c");
+  tiles.rect(x + 15, y, 1, 16, "#7d7f8c");
+  for (const [dx, dy] of [[3, 4], [9, 11], [12, 5], [5, 12]]) tiles.set(x + dx, y + dy, "#86889a");
+
+  [x, y] = T(20); // asfalto
+  tiles.rect(x, y, 16, 16, "#3b3d4a");
+  for (const [dx, dy, c] of [[2, 3, "#474a58"], [11, 6, "#30323d"], [6, 12, "#474a58"], [13, 13, "#30323d"], [4, 8, "#30323d"]]) tiles.set(x + dx, y + dy, c);
+
+  [x, y] = T(21); // finestra illuminata su muro di mattoni
+  tiles.rect(x, y, 16, 16, P.stone);
+  for (let r = 0; r < 4; r++) {
+    tiles.rect(x, y + r * 4, 16, 1, P.stoneHi);
+    tiles.rect(x, y + r * 4 + 3, 16, 1, P.stoneDk);
+  }
+  tiles.rect(x + 3, y + 3, 10, 10, "#3d444d");
+  tiles.rect(x + 4, y + 4, 8, 8, "#ffd66b");
+  tiles.rect(x + 4, y + 4, 3, 2, "#fff3c0");
+  tiles.rect(x + 7, y + 4, 1, 8, "#3d444d");
+  tiles.rect(x + 4, y + 7, 8, 1, "#3d444d");
+
+  [x, y] = T(22); // asfalto con la striscia di mezzeria
+  tiles.rect(x, y, 16, 16, "#3b3d4a");
+  tiles.set(x + 3, y + 12, "#30323d");
+  tiles.set(x + 12, y + 3, "#474a58");
+  tiles.rect(x + 3, y + 7, 9, 2, "#e8e2c8");
 }
 
 drawTiles();
@@ -247,9 +276,21 @@ tiles.save("tiles.png");
 
 // ---------------------------------------------------------------- Personaggi
 
-/** Pepino, il cetriolo. (l, t, r, b) = corpo; legs = [x, y del piede]. */
-function pickle(c, ox, oy, { l = 3, t = 4, r = 12, b = 19, legs = [[5, 23], [9, 23]], view = "front", arms = [], lines = false } = {}) {
+/**
+ * Pepino, il cetriolo. (l, t, r, b) = corpo; legs = [x, y del piede]; arms = braccia abbassate.
+ * hArms = braccia tese [x, y, lunghezza] con il pugno; hLegs = gambe tese [x, y, lunghezza] (calci).
+ */
+function pickle(
+  c,
+  ox,
+  oy,
+  { l = 3, t = 4, r = 12, b = 19, legs = [[5, 23], [9, 23]], view = "front", arms = [], lines = false, hArms = [], hLegs = [] } = {},
+) {
   for (const [lx, foot] of legs) c.rect(ox + lx, oy + b + 1, 2, Math.max(0, foot - b), P.pickleOut);
+  for (const [lx, ly, len] of hLegs) {
+    c.rect(ox + lx, oy + ly, len, 2, P.pickleOut);
+    c.rect(ox + lx + len - 1, oy + ly - 1, 1, 3, P.pickleOut);
+  }
   shape(c, ox, oy, roundRect(l, t, r, b), P.pickle, P.pickleOut, [l, t, r, b]);
   c.rect(ox + l + 2, oy + t + 2, 1, Math.max(0, b - t - 5), P.pickleHi);
   for (const [bx, by] of [[l + 5, t + 9], [l + 3, t + 12], [r - 2, t + 7], [r - 3, b - 3]]) {
@@ -274,10 +315,15 @@ function pickle(c, ox, oy, { l = 3, t = 4, r = 12, b = 19, legs = [[5, 23], [9, 
     c.rect(ox + l + e2 - 1, oy + ey + 5, 2, 1, P.pickleOut);
   }
   for (const [ax, ay] of arms) c.rect(ox + ax, oy + ay, 1, 3, P.pickleOut);
+  for (const [ax, ay, len] of hArms) {
+    c.rect(ox + ax, oy + ay, len, 1, P.pickleOut);
+    c.rect(ox + ax + len - 1, oy + ay - 1, 2, 3, P.pickleOut);
+  }
   if (lines) for (const [lx, ly, lw] of [[0, 11, 3], [1, 14, 2], [0, 17, 3]]) c.rect(ox + lx, oy + ly, lw, 1, P.pickleHi);
 }
 
-const hero = new Pix(8 * 16, 2 * 24);
+// 0-10: fermo, corsa, salto, caduta, dash, scale. 11-19: mosse del beat 'em up e reazioni ai colpi.
+const hero = new Pix(8 * 16, 3 * 24);
 [
   {},
   { t: 5 },
@@ -290,6 +336,15 @@ const hero = new Pix(8 * 16, 2 * 24);
   { l: 4, r: 15, t: 8, b: 19, legs: [[6, 21], [12, 21]], lines: true },
   { view: "back", legs: [[5, 23], [9, 21]], arms: [[2, 5], [13, 8]] },
   { view: "back", legs: [[5, 21], [9, 23]], arms: [[2, 8], [13, 5]] },
+  { l: 2, r: 11, t: 5, legs: [[4, 23], [9, 23]], arms: [[1, 9]] }, // 11 carica il pugno
+  { legs: [[4, 23], [9, 23]], hArms: [[12, 10, 3]] }, // 12 primo pugno
+  { l: 4, r: 13, legs: [[5, 23], [10, 22]], arms: [[3, 10]], hArms: [[13, 9, 2]] }, // 13 secondo pugno
+  { t: 4, b: 18, legs: [[5, 23]], arms: [[2, 8], [13, 8]], hLegs: [[9, 19, 3]] }, // 14 alza il ginocchio
+  { l: 1, r: 10, t: 5, b: 18, legs: [[3, 23]], arms: [[0, 7]], hLegs: [[10, 16, 5]] }, // 15 calcio
+  { l: 2, r: 11, t: 2, b: 15, legs: [[4, 19]], arms: [[1, 4], [12, 4]], hLegs: [[10, 13, 5]] }, // 16 calcio volante
+  { l: 1, r: 10, t: 5, legs: [[3, 23], [8, 22]], arms: [[0, 3], [11, 3]] }, // 17 colpito
+  { l: 0, r: 15, t: 16, b: 22, legs: [] }, // 18 a terra
+  { t: 9, b: 21, legs: [[5, 23], [9, 23]], arms: [[2, 12], [13, 12]] }, // 19 si rialza
 ].forEach((f, i) => pickle(hero, (i % 8) * 16, Math.floor(i / 8) * 24, f));
 hero.save("pepino.png");
 
@@ -426,6 +481,60 @@ for (let i = 0; i < 3; i++) {
 molla.rect(2, 8, 12, 2, "#57606a");
 molla.rect(2, 9, 12, 1, "#3d444d");
 molla.save("molla.png");
+
+// Lampione per la strada di notte: palo grigio e lanterna accesa (la luce la fa il blocco Luce).
+const lamp = new Pix(16, 48);
+lamp.rect(6, 0, 4, 2, "#5f6170");
+lamp.rect(4, 2, 8, 6, "#3d444d");
+lamp.rect(5, 3, 6, 4, "#ffe28a");
+lamp.rect(6, 4, 2, 2, "#fff6cf");
+lamp.rect(7, 8, 2, 37, "#5f6170");
+lamp.rect(7, 8, 1, 37, "#8d8f9c");
+lamp.rect(5, 45, 6, 3, "#3d444d");
+lamp.save("lampione.png");
+
+// Capo dei teppisti (boss del beat 'em up): un grosso slime viola con la corona. 8 fotogrammi 32×32.
+const bossImg = new Pix(4 * 32, 2 * 32);
+const BOSS = { body: "#8b5cf6", dark: "#4c1d95", hi: "#c4b5fd", crown: "#ffd23f", crownDk: "#b9831a", gem: "#e5484d" };
+[
+  { rx: 13, ry: 10, cy: 21 }, // 0 fermo
+  { rx: 13.5, ry: 9.5, cy: 21.5 }, // 1 fermo (respiro)
+  { rx: 12.5, ry: 10.5, cy: 20.5 }, // 2 cammina
+  { rx: 13.5, ry: 9.5, cy: 21.5 }, // 3 cammina
+  { rx: 15, ry: 8, cy: 23 }, // 4 si prepara (schiacciato)
+  { rx: 11, ry: 12.5, cy: 18.5 }, // 5 attacca / salta (allungato)
+  { rx: 14, ry: 9.5, cy: 21.5, lean: 2 }, // 6 carica
+  { rx: 14, ry: 9, cy: 22, tired: true }, // 7 stanco
+].forEach(({ rx, ry, cy, lean = 0, tired = false }, i) => {
+  const ox = (i % 4) * 32;
+  const oy = Math.floor(i / 4) * 32;
+  const cx = 16 + lean;
+  shape(bossImg, ox, oy, ellipse(cx, cy, rx, ry), BOSS.body, BOSS.dark, [0, 0, 31, 31]);
+  bossImg.rect(ox + cx - Math.round(rx * 0.55), oy + Math.round(cy - ry) + 3, 4, 1, BOSS.hi);
+  bossImg.set(ox + cx - Math.round(rx * 0.55) - 1, oy + Math.round(cy - ry) + 4, BOSS.hi);
+  // Corona
+  const top = Math.round(cy - ry) - 5;
+  bossImg.rect(ox + cx - 5, oy + top + 3, 10, 3, BOSS.crown);
+  for (const sx of [-5, -1, 3]) bossImg.rect(ox + cx + sx, oy + top, 2, 3, BOSS.crown);
+  bossImg.rect(ox + cx - 5, oy + top + 5, 10, 1, BOSS.crownDk);
+  bossImg.set(ox + cx, oy + top + 4, BOSS.gem);
+  // Occhi arrabbiati (o stanchi) e bocca
+  const ey = Math.round(cy - 2);
+  for (const ex of [cx - 5, cx + 2]) {
+    bossImg.rect(ox + ex, oy + ey, 3, 3, P.white);
+    bossImg.rect(ox + ex + 1, oy + ey + 1, 2, 2, P.ink);
+    if (tired) bossImg.rect(ox + ex, oy + ey, 3, 2, BOSS.dark);
+  }
+  if (!tired) {
+    bossImg.set(ox + cx - 6, oy + ey - 2, BOSS.dark);
+    bossImg.rect(ox + cx - 5, oy + ey - 1, 3, 1, BOSS.dark);
+    bossImg.set(ox + cx + 5, oy + ey - 2, BOSS.dark);
+    bossImg.rect(ox + cx + 2, oy + ey - 1, 3, 1, BOSS.dark);
+  }
+  bossImg.rect(ox + cx - 3, oy + ey + 5, 6, tired ? 2 : 1, P.ink);
+  if (!tired) for (const tx of [-2, 1]) bossImg.set(ox + cx + tx, oy + ey + 5, P.white);
+});
+bossImg.save("boss.png");
 
 // ---------------------------------------------------------------- Audio (WAV 16 bit mono)
 
@@ -704,7 +813,7 @@ function levelVillage() {
     if (!isPath(x, y) && obst[at(x, y)] < 0 && !(y === 10 && x < 5)) dec[at(x, y)] = rnd() < 0.7 ? 14 : 7;
   }
 
-  const coins = [[6, 10], [11, 10], [19, 10], [24, 10], [15, 4], [15, 16], [3, 3], [27, 17]];
+  const coins = [[6, 10], [11, 10], [19, 10], [24, 10], [15, 4], [15, 14], [3, 3], [27, 17]];
 
   return {
     id: "villaggio",
@@ -754,6 +863,7 @@ function levelVillage() {
       },
       ...coins.map(([x, y]) => inst("moneta", "Moneta", cx(x), mid(y))),
       inst("porta", "Porta delle colline", cx(27), feet(10), [{ type: "SceneExit", props: { scene: "livello1" } }]),
+      inst("porta", "Porta della città", cx(15), feet(17), [{ type: "SceneExit", props: { scene: "strada" } }]),
       {
         id: "nome_villaggio",
         name: "Nome del villaggio",
@@ -829,6 +939,215 @@ function levelVillage() {
   };
 }
 
+// ---- Strada: beat 'em up di notte, con lampioni (blocco Luce) e scintille (blocco Particelle)
+function levelStreet(exitScene = "villaggio") {
+  const W = 84;
+  const H = 12;
+  const back = new Array(W * H).fill(-1);
+  const floor = new Array(W * H).fill(-1);
+  const at = (x, y) => y * W + x;
+  for (let x = 0; x < W; x++) {
+    for (let y = 0; y <= 5; y++) back[at(x, y)] = 2;
+    for (const y of [6, 7]) floor[at(x, y)] = 19;
+    for (const y of [8, 10]) floor[at(x, y)] = 20;
+    floor[at(x, 9)] = x % 2 ? 22 : 20;
+    back[at(x, 11)] = 13;
+  }
+  // Finestre accese sui palazzi.
+  for (let x = 2; x < W - 1; x += 5) {
+    back[at(x, 1)] = back[at(x + 1, 1)] = 21;
+    if (x % 3 !== 0) back[at(x, 3)] = 21;
+    if (x % 2 === 0) back[at(x + 2, 3)] = 21;
+  }
+
+  const lamps = [6, 18, 30, 42, 54, 66, 78].map((x, i) => ({
+    id: `lampione_${i + 1}`,
+    name: `Lampione ${i + 1}`,
+    x: cx(x),
+    y: feet(6) - 2,
+    blocks: [
+      { type: "Sprite", props: { image: "lampione", flipWithFacing: false } },
+      { type: "Light", props: { radius: 4.5, color: "#ffd98a", intensity: 1.1, flicker: 0.08, offsetY: -43 } },
+    ],
+  }));
+  const thug = (x, y, group) => ({ ...inst("teppista", "Teppista", cx(x), feet(y)), tags: [group] });
+  const arena = (id, x) => ({
+    id,
+    name: `Inizio ${id}`,
+    x: cx(x),
+    y: feet(10),
+    blocks: [{ type: "Body", props: { width: 16, height: 80, group: "trigger", collidesWith: ["giocatore"], world: false } }],
+  });
+  const lockCamera = (arenaId, group) =>
+    rule(
+      `blocca_${arenaId}`,
+      `Entrando in ${arenaId} la camera si ferma finché ci sono nemici`,
+      { type: "contact", params: { target: "#giocatore", other: `@${arenaId}` } },
+      [{ type: "count", params: { target: `#${group}`, op: ">", value: "0" } }],
+      [{ type: "block.action", params: { target: "#giocatore", action: "CameraFollow.lock" } }],
+      { once: true },
+    );
+  const unlockCamera = (group, text) =>
+    rule(
+      `libera_${group}`,
+      `Sconfitto il ${group}: la camera riparte`,
+      { type: "always", params: {} },
+      [{ type: "count", params: { target: `#${group}`, op: "==", value: "0" } }],
+      [{ type: "block.action", params: { target: "#giocatore", action: "CameraFollow.unlock" } }, say(text, 2.5)],
+      { once: true },
+    );
+
+  return {
+    id: "strada",
+    name: "Strada dei teppisti · beat 'em up",
+    width: W,
+    height: H,
+    background: "#1b1d33",
+    ySort: true,
+    openBottom: false,
+    music: "musica",
+    ambient: "#565b86",
+    effect: "vignette",
+    effectStrength: 0.7,
+    layers: [makeLayer("strada", "Strada", W, H, floor, -20, false), makeLayer("palazzi", "Palazzi", W, H, back, -5, true)],
+    entities: [
+      {
+        id: "giocatore_strada",
+        name: "Pepino",
+        x: cx(3),
+        y: feet(8),
+        tags: ["giocatore"],
+        blocks: [
+          { type: "Sprite", props: { image: "pepino", shadow: true } },
+          { type: "Body", props: { width: 10, height: 8, group: "giocatore", collidesWith: ["nemici", "raccoglibili", "trigger"] } },
+          { type: "BeatEmUpController", props: { jumpSound: "salto" } },
+          { type: "Animator", props: {} },
+          { type: "CameraFollow", props: { mode: "beatemup", noBacktrack: true, keepInView: true, deadzoneW: 1, offsetY: 0, lookahead: 0 } },
+          { type: "Health", props: { max: 3, variable: "vita", onDeath: "restart", hurtSound: "colpo", knockback: 6 } },
+          { type: "Combo", props: { target: "nemico", sound: "dash", hitSound: "schiaccia" } },
+          { type: "SpriteFX", props: { onHurt: "hit", onAttack: "lunge", onDeath: "none" } },
+          {
+            type: "Particles",
+            props: { burstOn: "landed", burstCount: 6, speed: 1.5, spread: 160, lifetime: 0.3, sizeStart: 2, colorStart: "#c9c2b8", colorEnd: "#c9c2b800", offsetY: -1 },
+          },
+        ],
+      },
+      ...lamps,
+      arena("arena1", 12),
+      thug(17, 8, "gruppo1"),
+      thug(20, 10, "gruppo1"),
+      thug(21, 7, "gruppo1"),
+      arena("arena2", 33),
+      thug(37, 8, "gruppo2"),
+      thug(39, 10, "gruppo2"),
+      thug(41, 7, "gruppo2"),
+      thug(43, 9, "gruppo2"),
+      arena("arena3", 64),
+      inst("capo", "Capo dei teppisti", cx(74), feet(9)),
+      inst("porta", "Porta del villaggio", cx(81), feet(7), [{ type: "SceneExit", props: { scene: exitScene } }]),
+      {
+        id: "nome_strada",
+        name: "Nome della strada",
+        x: cx(5),
+        y: 52,
+        blocks: [{ type: "Text", props: { text: "Strada dei teppisti", size: 9, align: "center", screen: false } }],
+      },
+      ...hud(),
+    ],
+    rules: [
+      rule("strada_inizio", "Istruzioni all'ingresso", { type: "scene.start", params: {} }, [], [
+        say("Strada dei teppisti! ↑ ↓ cammini in profondità, Z salta, V colpisce.", 3.5),
+      ]),
+      lockCamera("arena1", "gruppo1"),
+      unlockCamera("gruppo1", "Avanti!"),
+      lockCamera("arena2", "gruppo2"),
+      unlockCamera("gruppo2", "Avanti, il capo ti aspetta in fondo alla strada!"),
+      lockCamera("arena3", "boss"),
+      unlockCamera("boss", "Hai sconfitto il Capo dei teppisti! La porta in fondo riporta al villaggio."),
+      rule("teppista_moneta", "Un teppista sconfitto lascia una moneta", { type: "event", params: { target: "#nemico", event: "died" } }, [], [
+        { type: "object.spawn", params: { prefab: "moneta", target: "self", offsetX: 0, offsetY: -0.5 } },
+      ]),
+      rule("colpito_strada", "Lo schermo trema quando Pepino si fa male", { type: "event", params: { target: "#giocatore", event: "hurt" } }, [], [
+        { type: "camera.shake", params: { intensity: 3, duration: 0.2 } },
+      ]),
+    ],
+  };
+}
+
+// ---- Fine livello (usata dai modelli di progetto)
+function levelEnd(restartScene) {
+  return {
+    id: "fine",
+    name: "Livello completato",
+    width: 20,
+    height: 12,
+    background: "#14261a",
+    ySort: false,
+    openBottom: false,
+    layers: [makeLayer("vuoto", "Vuoto", 20, 12, new Array(20 * 12).fill(-1), 0, false)],
+    entities: [
+      { id: "titolo_fine", name: "Titolo", x: 160, y: 46, blocks: [{ type: "Text", props: { text: "Livello completato!", size: 18, align: "center" } }] },
+      { id: "monete_fine", name: "Monete raccolte", x: 160, y: 80, blocks: [{ type: "Text", props: { text: "Monete: {monete}", size: 9, align: "center" } }] },
+      {
+        id: "ricomincia",
+        name: "Ricomincia",
+        x: 160,
+        y: 112,
+        blocks: [{ type: "Button", props: { text: "Ricomincia", scene: restartScene, order: 0, sound: "moneta" } }],
+      },
+    ],
+    rules: [
+      rule("azzera", "Ricominciando si riparte da zero", { type: "event", params: { target: "@ricomincia", event: "pressed" } }, [], [
+        { type: "var.set", params: { variable: "monete", value: "0" } },
+        { type: "var.set", params: { variable: "vita", value: "3" } },
+      ]),
+    ],
+  };
+}
+
+// Teppista: nemico del beat 'em up. Insegue, attacca da solo quando è vicino, sprizza scintille quando è colpito.
+const TEPPISTA = {
+  id: "teppista",
+  name: "Teppista",
+  tags: ["nemico"],
+  blocks: [
+    { type: "Sprite", props: { image: "slime", tint: "#c9a2ff", shadow: true } },
+    { type: "Body", props: { width: 12, height: 8, group: "nemici", collidesWith: ["giocatore"] } },
+    { type: "BeatEmUpController", props: { input: "ai", speed: 2.2, depthSpeed: 1.6, jumpHeight: 0 } },
+    { type: "Chaser", props: { target: "giocatore", seeRange: 9, loseRange: 16, lineOfSight: false, stopDistance: 0.7, giveUp: 5 } },
+    {
+      type: "Attack",
+      props: { mode: "auto", target: "giocatore", damage: 1, reach: 10, width: 14, height: 12, startup: 0.3, active: 0.1, recovery: 0.3, cooldown: 1.1, slashColor: "#ff8a8acc" },
+    },
+    { type: "Health", props: { max: 3, invulnerability: 0, knockback: 7 } },
+    { type: "Particles", props: { burstOn: "hurt", burstCount: 10, speed: 3.5, lifetime: 0.35, sizeStart: 2.5, additive: true, offsetY: -6 } },
+    { type: "SpriteFX", props: { onJump: "none", onHurt: "hit", onAppear: "pop", onDeath: "vanish" } },
+    { type: "Animator", props: {} },
+  ],
+};
+
+// Capo dei teppisti: boss con le fasi. Carica, salta e schiaccia, chiama altri teppisti; dopo ogni attacco è stanco.
+const CAPO = {
+  id: "capo",
+  name: "Capo dei teppisti",
+  tags: ["nemico", "boss"],
+  blocks: [
+    { type: "Sprite", props: { image: "boss", shadow: true } },
+    { type: "Body", props: { width: 22, height: 10, group: "nemici", collidesWith: ["giocatore"] } },
+    {
+      type: "Boss",
+      props: { title: "Capo dei teppisti", wakeRange: 6, speed: 1.6, damage: 1, summon: true, minion: "teppista", minions: 2, restTime: 1.4 },
+    },
+    { type: "Health", props: { max: 24, invulnerability: 0.12, knockback: 0, onDeath: "destroy" } },
+    { type: "SpriteFX", props: { idle: "breathe", onJump: "none", onHurt: "hit", onDeath: "vanish", strength: 1.2 } },
+    {
+      type: "Particles",
+      props: { burstOn: "slam", burstCount: 18, speed: 3, spread: 180, direction: -90, lifetime: 0.45, sizeStart: 3, colorStart: "#c9c2b8", colorEnd: "#c9c2b800", gravity: 6, offsetY: -2 },
+    },
+    { type: "Animator", props: {} },
+  ],
+};
+
 // ---- Menù iniziale
 function levelMenu() {
   const W = 20;
@@ -862,7 +1181,7 @@ function levelMenu() {
         x: 160,
         y: 20,
         blocks: [
-          { type: "Text", props: { text: "PEPINO", size: 30, align: "center" } },
+          { type: "Text", props: { text: "PEPINO", size: 30, align: "center", font: "pixel-bold", outline: true } },
           { type: "Fluttua", props: { height: 3, speed: 0.4 } },
         ],
       },
@@ -875,11 +1194,12 @@ function levelMenu() {
       },
       { id: "nuova", name: "Nuova partita", x: 160, y: 94, blocks: [{ type: "Button", props: { text: "Nuova partita", scene: "livello1", order: 0, sound: "moneta" } }] },
       { id: "continua", name: "Continua", x: 160, y: 118, blocks: [{ type: "Button", props: { text: "Continua", order: 1, sound: "moneta" } }] },
+      { id: "lingua", name: "Lingua", x: 160, y: 142, blocks: [{ type: "Button", props: { text: "Lingua: Italiano", order: 2, sound: "moneta" } }] },
       {
         id: "istruzioni",
         name: "Istruzioni menù",
         x: 160,
-        y: 138,
+        y: 165,
         blocks: [{ type: "Text", props: { text: "↑ ↓ scegli   ·   Z o Invio conferma", size: 6, ...dark } }],
       },
       {
@@ -917,9 +1237,59 @@ function levelMenu() {
       rule("continua", "Continua carica la partita salvata", { type: "event", params: { target: "@continua", event: "pressed" } }, [], [
         { type: "game.load", params: {} },
       ]),
+      rule("lingua", "Il pulsante Lingua passa dall'italiano all'inglese e viceversa", { type: "event", params: { target: "@lingua", event: "pressed" } }, [], [
+        { type: "lang.next", params: {} },
+      ]),
     ],
   };
 }
+
+// ---------------------------------------------------------------- Traduzione inglese (scheda Testi)
+// La chiave è il testo originale: se un testo cambia, il controllo del progetto segnala la traduzione mancante.
+
+const EN = {
+  PEPINO: "PEPINO",
+  "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
+  "Nuova partita": "New game",
+  Continua: "Continue",
+  "Lingua: Italiano": "Language: English",
+  "↑ ↓ scegli   ·   Z o Invio conferma": "↑ ↓ choose   ·   Z or Enter confirm",
+  "← →  muoviti     Z  salta (anche in aria)": "← →  move     Z  jump (in the air too)",
+  "X  dash     ↑ ↓  scale     F1  debug": "X  dash     ↑ ↓  ladders     F1  debug",
+  Vita: "Life",
+  "Monete {monete}": "Coins {monete}",
+  "Boing! Questa molla è un blocco scritto in Python: guardalo nella scheda Codice.": "Boing! This spring is a block written in Python: look at it in the Code tab.",
+  "Raccogli le monete e raggiungi la porta in fondo al livello!": "Collect the coins and reach the door at the end of the level!",
+  "Dieci monete! Continua così.": "Ten coins! Keep it up.",
+  C: "C",
+  Pepinopoli: "Pepinopolis",
+  "Benvenuto a Pepinopoli! La partita è stata salvata.": "Welcome to Pepinopolis! The game has been saved.",
+  "«Le porte collegano i mondi. Vicino a un cartello premi C per leggerlo.»": "“Doors connect the worlds. Next to a sign, press C to read it.”",
+  "Hai il mestolo! Premi V per colpire gli slime.": "You have the ladle! Press V to hit the slimes.",
+  "Pepinopoli è salva! Il nonno ti regala 10 monete.": "Pepinopolis is safe! Grandpa gives you 10 coins.",
+  "Strada dei teppisti": "Thugs' Street",
+  "Strada dei teppisti! ↑ ↓ cammini in profondità, Z salta, V colpisce.": "Thugs' Street! ↑ ↓ walk in depth, Z jumps, V hits.",
+  "Avanti!": "Go on!",
+  "Avanti, il capo ti aspetta in fondo alla strada!": "Go on, the boss is waiting at the end of the street!",
+  "Hai sconfitto il Capo dei teppisti! La porta in fondo riporta al villaggio.": "You beat the Thug Boss! The door at the end leads back to the village.",
+  "Capo dei teppisti": "Thug Boss",
+  "Nonno Cetriolo": "Grandpa Cucumber",
+  "Pepino! Gli slime sono scappati dal laghetto e ora inseguono chiunque passi.":
+    "Pepino! The slimes escaped from the pond and now they chase anyone who walks by.",
+  "Te la senti di dargli una lezione?": "Do you feel like teaching them a lesson?",
+  "Certo, ci penso io!": "Sure, leave it to me!",
+  "Magari più tardi...": "Maybe later...",
+  "Prendi il mio vecchio mestolo. Premi V per colpire.": "Take my old ladle. Press V to hit.",
+  Pepino: "Pepino",
+  "Grazie nonno, vado subito!": "Thanks Grandpa, I'm on my way!",
+  "Va bene, ma stai lontano dagli slime. Torna a parlarmi quando sei pronto.":
+    "All right, but stay away from the slimes. Come back and talk to me when you're ready.",
+  Pausa: "Paused",
+  "Premi Esc (o Start) per riprendere": "Press Esc (or Start) to resume",
+  "Livello completato!": "Level complete!",
+  "Monete: {monete}": "Coins: {monete}",
+  Ricomincia: "Play again",
+};
 
 // ---------------------------------------------------------------- Script (blocchi in codice)
 
@@ -991,6 +1361,7 @@ const project = {
     tileSize: TS,
     startScene: "menu",
     background: "#8fd3ff",
+    font: "pixel",
     collisionGroups: ["giocatore", "nemici", "raccoglibili", "trigger", "proiettili"],
   },
   input: {
@@ -1016,6 +1387,14 @@ const project = {
       animations: {
         idle: { frames: [0, 1], fps: 2, loop: true },
         run: { frames: [2, 3, 4, 5], fps: 10, loop: true },
+        walk: { frames: [2, 3, 4, 5], fps: 8, loop: true },
+        attack1: { frames: [11, 12, 12], fps: 12, loop: false },
+        attack2: { frames: [11, 13, 13], fps: 12, loop: false },
+        attack3: { frames: [14, 15, 15, 15, 15], fps: 12, loop: false },
+        airAttack: { frames: [16], fps: 1, loop: true },
+        hurt: { frames: [17], fps: 1, loop: true },
+        down: { frames: [18], fps: 1, loop: true },
+        getup: { frames: [19], fps: 1, loop: true },
         jump: { frames: [6], fps: 1, loop: true },
         fall: { frames: [7], fps: 1, loop: true },
         dash: { frames: [8], fps: 1, loop: true },
@@ -1073,6 +1452,26 @@ const project = {
     { id: "ritratti", type: "image", src: "assets/ritratti.png", frameWidth: 32, frameHeight: 32 },
     { id: "seme", type: "image", src: "assets/seme.png" },
     { id: "molla", type: "image", src: "assets/molla.png" },
+    { id: "lampione", type: "image", src: "assets/lampione.png" },
+    {
+      id: "boss",
+      type: "image",
+      src: "assets/boss.png",
+      frameWidth: 32,
+      frameHeight: 32,
+      animations: {
+        idle: { frames: [0, 1], fps: 3, loop: true },
+        walk: { frames: [2, 3], fps: 6, loop: true },
+        windup: { frames: [4], fps: 1, loop: true },
+        attack: { frames: [5], fps: 1, loop: true },
+        charge: { frames: [6, 3], fps: 10, loop: true },
+        jump: { frames: [5], fps: 1, loop: true },
+        slam: { frames: [4], fps: 1, loop: true },
+        shoot: { frames: [5, 0], fps: 8, loop: true },
+        summon: { frames: [4, 5], fps: 6, loop: true },
+        tired: { frames: [7], fps: 1, loop: true },
+      },
+    },
     {
       id: "sputasemi",
       type: "image",
@@ -1095,7 +1494,7 @@ const project = {
       image: "tiles",
       tileSize: TS,
       columns: COLS,
-      count: 19,
+      count: 23,
       tiles: {
         0: { collision: "solid" },
         1: { collision: "solid" },
@@ -1107,6 +1506,7 @@ const project = {
         12: { collision: "solid" },
         13: { collision: "solid" },
         15: { collision: "solid" },
+        21: { collision: "solid" },
       },
     },
   ],
@@ -1184,8 +1584,15 @@ const project = {
         { type: "Animator", props: {} },
       ],
     },
+    TEPPISTA,
+    CAPO,
   ],
-  scenes: [levelMenu(), levelPlatform(), levelVillage()],
+  scenes: [levelMenu(), levelPlatform(), levelVillage(), levelStreet()],
+  languages: [
+    { id: "it", name: "Italiano" },
+    { id: "en", name: "English" },
+  ],
+  translations: { en: EN },
   scripts: [
     { id: "fluttua", name: "Fluttua", language: "js", code: SCRIPT_FLUTTUA },
     { id: "molla", name: "Molla", language: "py", code: SCRIPT_MOLLA },
@@ -1222,4 +1629,60 @@ const project = {
 };
 
 writeFileSync(join(OUT, "project.json"), JSON.stringify(project, null, 2));
+
+// ---------------------------------------------------------------- Modelli per «Nuovo progetto»
+// Un gioco piccolo ma completo per genere. Usano gli asset della demo: l'editor li copia nel nuovo progetto.
+
+const TEMPLATES_DIR = join(ROOT, "samples", "templates");
+mkdirSync(TEMPLATES_DIR, { recursive: true });
+
+/** Tutte le porte della scena portano a `scene`. */
+const doorsTo = (s, scene) => ({
+  ...s,
+  entities: s.entities.map((e) =>
+    e.prefab === "porta" ? { ...e, blocks: e.blocks.map((b) => (b.type === "SceneExit" ? { ...b, props: { ...b.props, scene } } : b)) } : e,
+  ),
+});
+const without = (s, entityIds, ruleIds = []) => ({
+  ...s,
+  entities: s.entities.filter((e) => !entityIds.includes(e.id) && !entityIds.includes(e.name)),
+  rules: (s.rules ?? []).filter((r) => !ruleIds.includes(r.id)),
+});
+
+const templates = {
+  platform: {
+    name: "Il mio platform",
+    start: "livello1",
+    touch: { mode: "auto", buttons: ["jump", "dash", "action"] },
+    scenes: [doorsTo(without(levelPlatform(), ["molla"], ["boing"]), "fine"), levelEnd("livello1")],
+  },
+  topdown: {
+    name: "La mia avventura top-down",
+    start: "villaggio",
+    touch: { mode: "auto", buttons: ["attack", "action"] },
+    scenes: [doorsTo(without(levelVillage(), ["Porta della città"]), "fine"), levelEnd("villaggio")],
+    dialogues: project.dialogues,
+  },
+  beatemup: {
+    name: "Il mio beat 'em up",
+    start: "strada",
+    touch: { mode: "auto", buttons: ["attack", "jump"] },
+    scenes: [levelStreet("fine"), levelEnd("strada")],
+  },
+};
+
+for (const [id, t] of Object.entries(templates)) {
+  const { scripts: _scripts, ...base } = project;
+  const data = {
+    ...base,
+    name: t.name,
+    settings: { ...project.settings, startScene: t.start, touch: t.touch },
+    variables: { monete: 0, vita: 3, missione: 0 },
+    scenes: t.scenes,
+    dialogues: t.dialogues ?? [],
+    rules: [],
+  };
+  writeFileSync(join(TEMPLATES_DIR, `${id}.json`), JSON.stringify(data, null, 2));
+}
+console.log(`Modelli di progetto generati in ${TEMPLATES_DIR}`);
 console.log(`Progetto demo generato in ${OUT}`);

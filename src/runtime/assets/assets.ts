@@ -1,5 +1,7 @@
 import type { AudioSystem } from "../audio/audio";
-import type { ImageAsset, ProjectData } from "../project/format";
+import { renderSfx, renderSong, SAMPLE_RATE } from "../audio/synth";
+import type { FontAsset, ImageAsset, ProjectData } from "../project/format";
+import { fontFamilyName } from "../render/fonts";
 import type { Renderer, Texture } from "../render/renderer";
 
 export interface LoadedImage {
@@ -16,6 +18,8 @@ export interface LoadedImage {
 
 export class Assets {
   private images = new Map<string, LoadedImage>();
+  /** Caratteri importati già registrati nel browser. */
+  private fonts = new Map<string, { src: string; face: FontFace }>();
   errors: string[] = [];
 
   constructor(
@@ -35,7 +39,13 @@ export class Assets {
       list.map(async (a) => {
         try {
           if (a.type === "image") await this.loadImage(a);
-          else if (this.audio) await this.audio.load(a.id, this.resolve(a.src));
+          else if (a.type === "font") await this.loadFont(a);
+          else if (this.audio) {
+            // Brani ed effetti della scheda Musica non hanno un file: si calcolano qui.
+            if (a.song) this.audio.setSamples(a.id, renderSong(a.song), SAMPLE_RATE);
+            else if (a.sfx) this.audio.setSamples(a.id, renderSfx(a.sfx), SAMPLE_RATE);
+            else await this.audio.load(a.id, this.resolve(a.src));
+          }
         } catch (err) {
           this.errors.push(`${a.src}: ${(err as Error).message}`);
         }
@@ -45,7 +55,9 @@ export class Assets {
   }
 
   async loadImage(a: ImageAsset): Promise<LoadedImage> {
-    const res = await fetch(this.resolve(a.src));
+    const src = this.resolve(a.src);
+    // Un'immagine ridisegnata ha lo stesso nome: la revisione evita di ricevere quella vecchia dalla cache.
+    const res = await fetch(a.rev && !src.startsWith("data:") ? `${src}${src.includes("?") ? "&" : "?"}v=${a.rev}` : src);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const url = URL.createObjectURL(await res.blob());
     const img = new Image();
@@ -73,6 +85,22 @@ export class Assets {
     };
     this.images.set(a.id, loaded);
     return loaded;
+  }
+
+  /** Carica un carattere (.ttf, .otf, .woff, .woff2): i testi lo usano scegliendo l'id dell'asset. */
+  async loadFont(a: FontAsset): Promise<void> {
+    if (typeof FontFace === "undefined" || typeof document === "undefined") return;
+    const src = this.resolve(a.src);
+    const old = this.fonts.get(a.id);
+    if (old?.src === src) return;
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const family = fontFamilyName(a.id);
+    const face = await new FontFace(family, await res.arrayBuffer()).load();
+    if (old) document.fonts.delete(old.face);
+    document.fonts.add(face);
+    this.fonts.set(a.id, { src, face });
+    this.renderer.registerFont(a.id, family);
   }
 
   image(id: string): LoadedImage | undefined {

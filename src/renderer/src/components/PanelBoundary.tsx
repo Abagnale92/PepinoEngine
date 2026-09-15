@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { log } from "../store";
+import { T } from "../i18n";
 
 interface Props {
   name: string;
@@ -19,7 +20,7 @@ export class PanelBoundary extends Component<Props, { error: Error | null }> {
   }
 
   componentDidCatch(error: Error) {
-    log("error", `Il pannello «${this.props.name}» si è bloccato: ${error.message}`);
+    log("error", T("Il pannello «{0}» si è bloccato: {1}", T(this.props.name), error.message));
   }
 
   render() {
@@ -27,11 +28,9 @@ export class PanelBoundary extends Component<Props, { error: Error | null }> {
     if (!error) return this.props.children;
     return (
       <div className={`panel-crash${this.props.fill ? " fill" : ""}`} style={this.props.area ? { gridArea: this.props.area } : undefined}>
-        <b>Il pannello «{this.props.name}» si è bloccato.</b>
+        <b>{T("Il pannello «{0}» si è bloccato.", T(this.props.name))}</b>
         <p>{error.message}</p>
-        <button type="button" className="btn small" onClick={() => this.setState({ error: null })}>
-          Riprova
-        </button>
+        <button type="button" className="btn small" onClick={() => this.setState({ error: null })}>{T("Riprova")}</button>
       </div>
     );
   }

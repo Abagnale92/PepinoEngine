@@ -41,6 +41,8 @@ export async function exportProject(o: ExportOptions): Promise<ExportResult> {
   let copied = 0;
   const skipped: string[] = [];
   for (const a of o.data.assets) {
+    // Brani ed effetti della scheda Musica e immagini in memoria sono già dentro project.json.
+    if (!a.src || a.src.startsWith("data:")) continue;
     const src = resolve(o.projectDir, a.src);
     const dst = resolve(out, a.src);
     if (!isInside(o.projectDir, src) || !isInside(out, dst) || !existsSync(src)) {

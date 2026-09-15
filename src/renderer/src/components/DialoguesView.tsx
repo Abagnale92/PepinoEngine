@@ -5,6 +5,7 @@ import { assetUrl, dialogueUses, uniqueId } from "../projectOps";
 import { NumberField } from "./fields";
 import { Icon } from "./Icon";
 import { FrameThumb } from "./thumbs";
+import { T } from "../i18n";
 
 type EditDialogue = (fn: (d: DialogueData) => void, merge?: string) => void;
 
@@ -17,7 +18,7 @@ export function DialoguesView() {
 
   const add = () => {
     const id = uniqueId("dialogo", new Set(dialogues.map((d) => d.id)));
-    editProject((p) => void (p.dialogues ??= []).push({ id, name: "Nuovo dialogo", lines: [{ id: "b1", speaker: "", text: "Ciao!" }] }));
+    editProject((p) => void (p.dialogues ??= []).push({ id, name: T("Nuovo dialogo"), lines: [{ id: "b1", speaker: "", text: T("Ciao!") }] }));
     setSelId(id);
   };
   const edit: EditDialogue = (fn, merge) => {
@@ -38,8 +39,8 @@ export function DialoguesView() {
     <div className="dlg-view">
       <aside className="dlg-list">
         <div className="tree-h">
-          <span>Dialoghi · {dialogues.length}</span>
-          <button type="button" className="icon-btn" title="Nuovo dialogo" onClick={add}>
+          <span>{T("Dialoghi · ")}{dialogues.length}</span>
+          <button type="button" className="icon-btn" title={T("Nuovo dialogo")} onClick={add}>
             <Icon name="plus" size={13} />
           </button>
         </div>
@@ -50,21 +51,17 @@ export function DialoguesView() {
             <span className="badge">{d.lines.length}</span>
           </button>
         ))}
-        {dialogues.length === 0 && <p className="empty-hint">Nessun dialogo ancora.</p>}
+        {dialogues.length === 0 && <p className="empty-hint">{T("Nessun dialogo ancora.")}</p>}
       </aside>
       <section className="dlg-main">
         {sel ? (
           <DialogueEditor key={sel.id} d={sel} edit={edit} remove={remove} />
         ) : (
           <div className="rules-empty">
-            <h3>Nessun dialogo</h3>
-            <p>
-              I dialoghi sono conversazioni con battute, ritratti e scelte. Collegali a un personaggio con il blocco <b>Personaggio che parla</b>,
-              oppure avviali da una Regola.
-            </p>
+            <h3>{T("Nessun dialogo")}</h3>
+            <p>{T("I dialoghi sono conversazioni con battute, ritratti e scelte. Collegali a un personaggio con il blocco ")}<b>{T("Personaggio che parla")}</b>{T(", oppure avviali da una Regola.")}</p>
             <button type="button" className="btn primary" onClick={add}>
-              <Icon name="plus" size={13} /> Crea il primo dialogo
-            </button>
+              <Icon name="plus" size={13} />{T(" Crea il primo dialogo")}</button>
           </div>
         )}
       </section>
@@ -92,25 +89,20 @@ function DialogueEditor({ d, edit, remove }: { d: DialogueData; edit: EditDialog
       <div className="dlg-head">
         <Icon name="chat" />
         <input className="title-input" value={d.name} onChange={(e) => edit((x) => void (x.name = e.target.value), `dname:${d.id}`)} />
-        <span className="dim">
-          id <span className="mono">{d.id}</span> · usato da {uses} {uses === 1 ? "personaggio" : "personaggi"}
+        <span className="dim">{T("id ")}<span className="mono">{d.id}</span>{T(" · usato da ")}{uses} {uses === 1 ? T("personaggio") : T("personaggi")}
         </span>
         <div className="spacer" />
         <button type="button" className="btn small danger" onClick={remove}>
-          <Icon name="trash" size={13} /> Elimina
-        </button>
+          <Icon name="trash" size={13} />{T(" Elimina")}</button>
       </div>
-      <p className="dlg-help">
-        Le battute scorrono in ordine. Con le <b>scelte</b> decide il giocatore, e una scelta può impostare una variabile da usare poi nelle
-        Regole. Nei testi puoi scrivere <code>{"{monete}"}</code>.
+      <p className="dlg-help">{T("Le battute scorrono in ordine. Con le ")}<b>{T("scelte")}</b>{T(" decide il giocatore, e una scelta può impostare una variabile da usare poi nelle Regole. Nei testi puoi scrivere ")}<code>{"{monete}"}</code>.
       </p>
       <div className="dlg-lines">
         {d.lines.map((l, i) => (
           <LineCard key={l.id} d={d} line={l} index={i} edit={edit} />
         ))}
         <button type="button" className="rule-add" onClick={addLine}>
-          <Icon name="plus" size={12} /> battuta
-        </button>
+          <Icon name="plus" size={12} />{T(" battuta")}</button>
       </div>
     </div>
   );
@@ -118,9 +110,9 @@ function DialogueEditor({ d, edit, remove }: { d: DialogueData; edit: EditDialog
 
 function gotoOptions(d: DialogueData) {
   return [
-    { value: "", label: "continua con la battuta dopo" },
-    { value: DIALOGUE_END, label: "termina il dialogo" },
-    ...d.lines.map((l, i) => ({ value: l.id, label: `vai alla battuta ${i + 1}` })),
+    { value: "", label: T("continua con la battuta dopo") },
+    { value: DIALOGUE_END, label: T("termina il dialogo") },
+    ...d.lines.map((l, i) => ({ value: l.id, label: T("vai alla battuta {0}", i + 1) })),
   ];
 }
 
@@ -152,7 +144,7 @@ function LineCard({ d, line, index, edit }: { d: DialogueData; line: DialogueLin
         <input
           className="dlg-speaker"
           list="dlg-speakers"
-          placeholder="Chi parla"
+          placeholder={T("Chi parla")}
           value={line.speaker ?? ""}
           onChange={(e) => upd((l) => void (l.speaker = e.target.value), `sp:${key}`)}
         />
@@ -166,7 +158,7 @@ function LineCard({ d, line, index, edit }: { d: DialogueData; line: DialogueLin
             })
           }
         >
-          <option value="">— nessun ritratto —</option>
+          <option value="">{T("— nessun ritratto —")}</option>
           {images.map((a) => (
             <option key={a.id} value={a.id}>
               {a.id}
@@ -175,35 +167,35 @@ function LineCard({ d, line, index, edit }: { d: DialogueData; line: DialogueLin
         </select>
         {portrait && (
           <>
-            <div className="dlg-frame" title="Fotogramma del ritratto">
+            <div className="dlg-frame" title={T("Fotogramma del ritratto")}>
               <NumberField integer min={0} value={line.portraitFrame ?? 0} onChange={(v) => upd((l) => void (l.portraitFrame = Math.max(0, v)), `pf:${key}`)} />
             </div>
             <div className="dlg-thumb checker">
-              <FrameThumb url={assetUrl(baseUrl, portrait.src)} sw={portrait.frameWidth} sh={portrait.frameHeight} frame={line.portraitFrame ?? 0} size={32} />
+              <FrameThumb url={assetUrl(baseUrl, portrait.src, portrait.rev)} sw={portrait.frameWidth} sh={portrait.frameHeight} frame={line.portraitFrame ?? 0} size={32} />
             </div>
           </>
         )}
         <div className="spacer" />
-        <button type="button" className="icon-btn" disabled={index === 0} onClick={() => move(-1)} title="Sposta su">
+        <button type="button" className="icon-btn" disabled={index === 0} onClick={() => move(-1)} title={T("Sposta su")}>
           ↑
         </button>
-        <button type="button" className="icon-btn" disabled={index === d.lines.length - 1} onClick={() => move(1)} title="Sposta giù">
+        <button type="button" className="icon-btn" disabled={index === d.lines.length - 1} onClick={() => move(1)} title={T("Sposta giù")}>
           ↓
         </button>
         <button
           type="button"
           className="icon-btn"
-          title="Elimina la battuta"
+          title={T("Elimina la battuta")}
           disabled={d.lines.length === 1}
           onClick={() => edit((x) => void (x.lines = x.lines.filter((q) => q.id !== line.id)))}
         >
           <Icon name="trash" size={13} />
         </button>
       </div>
-      <textarea className="dlg-text" rows={2} placeholder="Cosa dice…" value={line.text} onChange={(e) => upd((l) => void (l.text = e.target.value), `tx:${key}`)} />
+      <textarea className="dlg-text" rows={2} placeholder={T("Cosa dice…")} value={line.text} onChange={(e) => upd((l) => void (l.text = e.target.value), `tx:${key}`)} />
       {choices.length === 0 && (
         <div className="dlg-after">
-          <span className="dim">Dopo questa battuta:</span>
+          <span className="dim">{T("Dopo questa battuta:")}</span>
           <select value={line.goto ?? ""} onChange={(e) => upd((l) => void (l.goto = e.target.value || undefined))}>
             {opts.map((o) => (
               <option key={o.value} value={o.value}>
@@ -216,7 +208,7 @@ function LineCard({ d, line, index, edit }: { d: DialogueData; line: DialogueLin
       {choices.map((c, j) => (
         <div className="dlg-choice" key={j}>
           <span className="rule-bullet choice" />
-          <input placeholder="Testo della scelta" value={c.text} onChange={(e) => upd((l) => void (l.choices![j].text = e.target.value), `ch:${key}:${j}`)} />
+          <input placeholder={T("Testo della scelta")} value={c.text} onChange={(e) => upd((l) => void (l.choices![j].text = e.target.value), `ch:${key}:${j}`)} />
           <span className="dim">→</span>
           <select value={c.goto ?? ""} onChange={(e) => upd((l) => void (l.choices![j].goto = e.target.value || undefined))}>
             {opts.map((o) => (
@@ -225,19 +217,19 @@ function LineCard({ d, line, index, edit }: { d: DialogueData; line: DialogueLin
               </option>
             ))}
           </select>
-          <span className="dim">imposta</span>
+          <span className="dim">{T("imposta")}</span>
           <input
             list="pepino-vars"
-            placeholder="variabile"
+            placeholder={T("variabile")}
             value={c.setVar ?? ""}
             onChange={(e) => upd((l) => void (l.choices![j].setVar = e.target.value || undefined), `cv:${key}:${j}`)}
           />
           <span className="dim">=</span>
-          <input placeholder="valore" value={c.setValue ?? ""} onChange={(e) => upd((l) => void (l.choices![j].setValue = e.target.value), `cx:${key}:${j}`)} />
+          <input placeholder={T("valore")} value={c.setValue ?? ""} onChange={(e) => upd((l) => void (l.choices![j].setValue = e.target.value), `cx:${key}:${j}`)} />
           <button
             type="button"
             className="icon-btn"
-            title="Rimuovi la scelta"
+            title={T("Rimuovi la scelta")}
             onClick={() =>
               upd((l) => {
                 l.choices!.splice(j, 1);
@@ -250,8 +242,7 @@ function LineCard({ d, line, index, edit }: { d: DialogueData; line: DialogueLin
         </div>
       ))}
       <button type="button" className="rule-add" onClick={() => upd((l) => void (l.choices ??= []).push({ text: "", goto: "" }))}>
-        <Icon name="plus" size={12} /> scelta
-      </button>
+        <Icon name="plus" size={12} />{T(" scelta")}</button>
     </div>
   );
 }

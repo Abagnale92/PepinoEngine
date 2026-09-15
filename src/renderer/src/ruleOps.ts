@@ -11,6 +11,7 @@ import {
   type SceneData,
 } from "@runtime";
 import { effectiveBlocks, findEntity, flattenEntities, statesFor } from "./projectOps";
+import { T } from "./i18n";
 
 /** Contesto di una regola nell'editor: serve a sapere cosa sono "questo oggetto" e "l'altro". */
 export interface RuleCtxInfo {
@@ -94,9 +95,9 @@ export function stateChoices(blocks: BlockData[]): Choice[] {
 export function describeRef(ref: unknown, rc: RuleCtxInfo): string {
   const r = String(ref ?? "");
   if (!r) return "";
-  if (r === "self") return "questo oggetto";
-  if (r === "other") return "l'altro oggetto";
-  if (r === "*") return "qualsiasi oggetto";
+  if (r === "self") return T("questo oggetto");
+  if (r === "other") return T("l'altro oggetto");
+  if (r === "*") return T("qualsiasi oggetto");
   if (r.startsWith("#")) return r;
   if (r.startsWith("@")) {
     const id = r.slice(1);
@@ -130,7 +131,7 @@ export function argSchemas(def: RuleItemDef, item: RuleItem): Record<string, Pro
   return (isCond ? bd?.conditions[name]?.params : bd?.actions[name]?.params) ?? {};
 }
 
-const REQUIRED = new Set(["object", "event", "condition", "blockAction", "block", "prefab", "scene", "variable", "input", "dialogue"]);
+const REQUIRED = new Set(["object", "event", "condition", "blockAction", "block", "prefab", "scene", "variable", "input", "dialogue", "language"]);
 
 /** Testo di un parametro dentro la frase della regola; `missing` = da completare. */
 export function formatToken(
@@ -144,8 +145,8 @@ export function formatToken(
   const s = String(value ?? "");
   const ok = (text: string) => ({ text, missing: false });
   const miss = (text: string) => ({ text, missing: true });
-  if (s === "" && schema.optional) return ok(schema.type === "object" ? "nessuno" : "qualsiasi");
-  if (s === "" && REQUIRED.has(schema.type)) return miss(`${schema.label.toLowerCase()}?`);
+  if (s === "" && schema.optional) return ok(schema.type === "object" ? T("nessuno") : T("qualsiasi"));
+  if (s === "" && REQUIRED.has(schema.type)) return miss(`${T(schema.label).toLowerCase()}?`);
   const argsText = () => {
     const args = argSchemas(def, item);
     const given = (item.params.args ?? {}) as Record<string, unknown>;
@@ -157,9 +158,9 @@ export function formatToken(
     case "object":
       return ok(describeRef(s, rc));
     case "input":
-      return ok(INPUT_LABELS[s] ?? s);
+      return ok(T(INPUT_LABELS[s] ?? s));
     case "compare":
-      return ok(COMPARE_OPTIONS.find((o) => o.value === s)?.label ?? s);
+      return ok(T(COMPARE_OPTIONS.find((o) => o.value === s)?.label ?? s));
     case "scene": {
       const sc = rc.project.scenes.find((x) => x.id === s);
       return sc ? ok(sc.name) : miss(s);
@@ -172,11 +173,19 @@ export function formatToken(
       const dl = rc.project.dialogues?.find((x) => x.id === s);
       return dl ? ok(dl.name) : miss(s);
     }
+    case "cutscene": {
+      const cs = rc.project.cutscenes?.find((x) => x.id === s);
+      return cs ? ok(cs.name) : miss(s || `${T(schema.label).toLowerCase()}?`);
+    }
+    case "language": {
+      const l = rc.project.languages?.find((x) => x.id === s);
+      return l ? ok(l.name) : miss(s);
+    }
     case "audio":
-      return ok(s || "nessuna");
+      return ok(s || T("nessuna"));
     case "event": {
       const c = eventChoices(blocksForRef(item.params.target, rc)).find((x) => x.value === s);
-      return c ? ok(c.label) : miss(s);
+      return c ? ok(T(c.label)) : miss(s);
     }
     case "condition":
     case "blockAction": {
@@ -184,20 +193,20 @@ export function formatToken(
       const c = list.find((x) => x.value === s);
       if (!c) return miss(s);
       const a = argsText();
-      return ok(a ? `${c.label} (${a})` : c.label);
+      return ok(a ? `${T(c.label)} (${a})` : T(c.label));
     }
     case "block": {
       const d = getBlockDef(s);
-      return d ? ok(d.label) : miss(s);
+      return d ? ok(T(d.label)) : miss(s);
     }
     case "state": {
       const c = stateChoices(blocksForRef(item.params.target, rc)).find((x) => x.value === s);
-      return ok(c?.label ?? s);
+      return ok(T(c?.label ?? s));
     }
     case "boolean":
-      return ok(value ? "sì" : "no");
+      return ok(value ? T("sì") : T("no"));
     case "select":
-      return ok(schema.options?.find((o) => o.value === s)?.label ?? s);
+      return ok(T(schema.options?.find((o) => o.value === s)?.label ?? s));
     case "number":
     case "integer":
       return ok(String(Math.round(Number(value ?? 0) * 1000) / 1000));

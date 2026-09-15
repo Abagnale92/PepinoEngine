@@ -1,20 +1,36 @@
 import { useEffect, useRef, useState } from "react";
-import { Game, type VariableValue } from "@runtime";
+import { DEFAULT_TOUCH, Game, mountTouchControls, type VariableValue } from "@runtime";
 import { getState, log } from "../store";
+import { getSettings } from "../settings";
 import { togglePlay } from "../commands";
 import { Icon } from "./Icon";
+import { T } from "../i18n";
+
+/** Lingua scelta nell'anteprima: resta tra un «Prova» e l'altro. */
+let previewLanguage = "";
 
 /** Anteprima: lo stesso runtime della build WebGL, con i controlli di debug accanto. */
 export function PlayView() {
+  const languages = getState().project?.languages ?? [];
+  const [language, setLanguage] = useState(languages.some((l) => l.id === previewLanguage) ? previewLanguage : (languages[0]?.id ?? ""));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
   const [vars, setVars] = useState<Record<string, VariableValue>>({});
   const [paused, setPaused] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(() => getSettings().previewSpeed);
   const [overlay, setOverlay] = useState(false);
   const [fps, setFps] = useState(0);
   const [info, setInfo] = useState({ scene: "", entities: 0 });
   const [error, setError] = useState("");
+  const [touch, setTouch] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  // Controlli touch sopra l'anteprima: per provarli con il mouse (o su un PC con lo schermo touch).
+  useEffect(() => {
+    const game = gameRef.current;
+    if (!touch || !game || !stageRef.current) return;
+    return mountTouchControls(stageRef.current, game.input, { ...DEFAULT_TOUCH, ...getState().project?.settings.touch });
+  }, [touch]);
 
   useEffect(() => {
     const s = getState();
@@ -24,13 +40,18 @@ export function PlayView() {
       game = new Game(canvasRef.current, structuredClone(s.project), {
         baseUrl: s.baseUrl,
         startScene: s.sceneId,
-        onLog: (level, message) => log(level, message),
+        onLog: (level, message) => log(level, T(message)),
+        language: language || undefined,
       });
+      // Per il debug dalla console del browser (come window.game nel gioco esportato).
+      (window as unknown as { pepinoGame?: Game }).pepinoGame = game;
     } catch (e) {
       setError((e as Error).message);
       return;
     }
     gameRef.current = game;
+    game.debug.overlay = getSettings().previewCollisions;
+    game.debug.timeScale = getSettings().previewSpeed;
     game
       .start()
       .then(() => canvasRef.current?.focus())
@@ -57,7 +78,7 @@ export function PlayView() {
     <div className="play">
       <div className="play-bar">
         <span className="live-dot" />
-        <b>Anteprima</b>
+        <b>{T("Anteprima")}</b>
         <span className="dim">{info.scene}</span>
         <div className="spacer" />
         <button
@@ -71,11 +92,10 @@ export function PlayView() {
           }}
         >
           <Icon name={paused ? "play" : "pause"} size={13} />
-          {paused ? "Riprendi" : "Pausa"}
+          {paused ? T("Riprendi") : T("Pausa")}
         </button>
-        <button type="button" className="btn small" disabled={!paused} onClick={() => g() && (g()!.debug.step = true)} title="Avanza di un solo fotogramma">
-          <Icon name="step" size={13} /> Un frame
-        </button>
+        <button type="button" className="btn small" disabled={!paused} onClick={() => g() && (g()!.debug.step = true)} title={T("Avanza di un solo fotogramma")}>
+          <Icon name="step" size={13} />{T(" Un frame")}</button>
         <select
           className="speed"
           value={speed}
@@ -86,8 +106,7 @@ export function PlayView() {
           }}
         >
           {[0.25, 0.5, 1, 2].map((v) => (
-            <option key={v} value={v}>
-              velocità ×{v}
+            <option key={v} value={v}>{T("velocità ×")}{v}
             </option>
           ))}
         </select>
@@ -100,44 +119,59 @@ export function PlayView() {
             game.debug.overlay = !game.debug.overlay;
             setOverlay(game.debug.overlay);
           }}
-          title="Mostra collisioni e corpi (F1)"
+          title={T("Mostra collisioni e corpi (F1)")}
         >
-          <Icon name="collision" size={13} /> Collisioni
-        </button>
+          <Icon name="collision" size={13} />{T(" Collisioni")}</button>
+        {languages.length > 1 && (
+          <select
+            className="speed"
+            value={language}
+            title={T("Lingua del gioco")}
+            onChange={(e) => {
+              previewLanguage = e.target.value;
+              setLanguage(e.target.value);
+              g()?.setLanguage(e.target.value);
+            }}
+          >
+            {languages.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <button type="button" className={`btn small${touch ? " on" : ""}`} onClick={() => setTouch(!touch)} title={T("Mostra joystick e pulsanti touch")}>{T("Touch")}</button>
         <button type="button" className="btn small" onClick={() => g()?.restartScene(0.2)}>
-          <Icon name="restart" size={13} /> Riavvia scena
-        </button>
-        <button type="button" className="btn small danger" onClick={togglePlay} title="Torna all'editor (F5)">
-          <Icon name="stop" size={13} /> Ferma
-        </button>
+          <Icon name="restart" size={13} />{T(" Riavvia scena")}</button>
+        <button type="button" className="btn small danger" onClick={togglePlay} title={T("Torna all'editor (F5)")}>
+          <Icon name="stop" size={13} />{T(" Ferma")}</button>
       </div>
       <div className="play-main">
-        <div className="play-stage">
+        <div className="play-stage" ref={stageRef} style={{ position: "relative" }}>
           <canvas ref={canvasRef} className="play-canvas" tabIndex={0} />
           {error && <div className="play-error">{error}</div>}
         </div>
         <aside className="debug-side">
-          <div className="debug-h">Debug</div>
+          <div className="debug-h">{T("Debug")}</div>
           <div className="debug-stat">
-            <span>FPS</span>
+            <span>{T("FPS")}</span>
             <b className={fps < 50 ? "warn" : ""}>{fps}</b>
           </div>
           <div className="debug-stat">
-            <span>Oggetti in scena</span>
+            <span>{T("Oggetti in scena")}</span>
             <b>{info.entities}</b>
           </div>
-          <div className="debug-h">Variabili</div>
+          <div className="debug-h">{T("Variabili")}</div>
           {Object.entries(vars).map(([k, v]) => (
             <div className="debug-stat" key={k}>
               <span>{k}</span>
               <b>{String(v)}</b>
             </div>
           ))}
-          <div className="debug-h">Comandi</div>
+          <div className="debug-h">{T("Comandi")}</div>
           <p className="debug-keys">
-            <kbd>←</kbd> <kbd>→</kbd> muovi · <kbd>Z</kbd> salta · <kbd>X</kbd> dash · <kbd>↑</kbd> <kbd>↓</kbd> scale · <kbd>F1</kbd> collisioni
-          </p>
-          <p className="dim small">I messaggi del gioco finiscono nella Console.</p>
+            <kbd>←</kbd> <kbd>→</kbd>{T(" muovi · ")}<kbd>Z</kbd>{T(" salta · ")}<kbd>X</kbd>{T(" dash · ")}<kbd>↑</kbd> <kbd>↓</kbd>{T(" scale · ")}<kbd>F1</kbd>{T(" collisioni")}</p>
+          <p className="dim small">{T("I messaggi del gioco finiscono nella Console.")}</p>
         </aside>
       </div>
     </div>

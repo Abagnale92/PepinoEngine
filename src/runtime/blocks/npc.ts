@@ -32,7 +32,7 @@ defineBlock({
     range: { type: "number", label: "Distanza per parlare", unit: "tile", default: 1.5, min: 0.25, step: 0.25 },
     target: { type: "tag", label: "Chi può parlargli", default: "giocatore" },
     command: { type: "input", label: "Comando", default: "action" },
-    prompt: { type: "string", label: "Fumetto", default: "C", help: "Testo sopra la testa quando il giocatore è vicino. Vuoto = nessun fumetto." },
+    prompt: { type: "string", label: "Fumetto", default: "C", translatable: true, help: "Testo sopra la testa quando il giocatore è vicino. Vuoto = nessun fumetto." },
     face: { type: "boolean", label: "Si gira verso chi gli parla", default: true },
   },
   events: [
@@ -58,6 +58,6 @@ defineBlock({
     const bubble = hexColor("#fbfbf0");
     r.rect(x - w / 2, top, w, 10, bubble);
     r.rect(x - 1, top + 10, 2, 2, bubble);
-    r.text(p.prompt, x, top + 1, { size: 7, align: "center", color: "#1d3b1f" });
+    r.text(self.game.t(p.prompt), x, top + 1, { size: 7, align: "center", color: "#1d3b1f" });
   },
 });

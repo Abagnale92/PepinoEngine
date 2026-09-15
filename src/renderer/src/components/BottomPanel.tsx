@@ -7,12 +7,15 @@ import type { LogTarget } from "../store";
 import { api } from "../api";
 import { Icon } from "./Icon";
 import { FrameThumb, loadImage } from "./thumbs";
+import { FontPreview } from "./FontPreview";
+import { startNewDrawing } from "../pixel/store";
+import { N, T, getEditorLang } from "../i18n";
 
 const TABS: [BottomTab, string, string][] = [
-  ["tiles", "Tileset", "grid"],
-  ["prefabs", "Modelli", "link"],
-  ["assets", "Asset", "image"],
-  ["console", "Console", "bug"],
+  ["tiles", N("Tileset"), "grid"],
+  ["prefabs", N("Modelli"), "link"],
+  ["assets", N("Asset"), "image"],
+  ["console", N("Console"), "bug"],
 ];
 
 export function BottomPanel() {
@@ -25,7 +28,7 @@ export function BottomPanel() {
         {TABS.map(([id, label, icon]) => (
           <button type="button" key={id} className={`tab${tab === id ? " on" : ""}`} onClick={() => setState({ bottomTab: id })}>
             <Icon name={icon} size={13} />
-            {label}
+            {T(label)}
             {id === "console" && errors > 0 && <span className="count">{errors}</span>}
           </button>
         ))}
@@ -114,7 +117,7 @@ function TilesetTab() {
   const tool = useEditor((s) => s.tool);
   const layer = scene?.layers.find((l) => l.id === layerId);
   const tileset = project.tilesets.find((t) => t.id === (layer?.tileset ?? project.tilesets[0]?.id));
-  if (!tileset || !scene) return <p className="empty-hint">Il progetto non ha tileset.</p>;
+  if (!tileset || !scene) return <p className="empty-hint">{T("Il progetto non ha tileset.")}</p>;
   const img = project.assets.find((a) => a.id === tileset.image);
   const coll: CollisionType = tileset.tiles[tile]?.collision ?? "none";
 
@@ -128,47 +131,41 @@ function TilesetTab() {
   return (
     <div className="tiles-tab">
       <div className="tiles-side">
-        <label className="mini-label">Dipingi sul layer</label>
+        <label className="mini-label">{T("Dipingi sul layer")}</label>
         <select value={layerId} onChange={(e) => setState({ layerId: e.target.value })}>
           {[...scene.layers]
             .sort((a, b) => b.z - a.z)
             .map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
-                {l.collides ? " (collide)" : ""}
+                {l.collides ? T(" (collide)") : ""}
               </option>
             ))}
         </select>
         <div className="seg">
           <button type="button" className={`btn small${tool === "paint" ? " on" : ""}`} onClick={() => setState({ tool: "paint" })}>
-            <Icon name="paint" size={13} /> Pennello
-          </button>
+            <Icon name="paint" size={13} />{T(" Pennello")}</button>
           <button type="button" className={`btn small${tool === "erase" ? " on" : ""}`} onClick={() => setState({ tool: "erase" })}>
-            <Icon name="erase" size={13} /> Gomma
-          </button>
+            <Icon name="erase" size={13} />{T(" Gomma")}</button>
         </div>
         {layer && !layer.collides && (
-          <p className="empty-hint">Questo layer è solo decorativo: i suoi tile non bloccano nessuno.</p>
+          <p className="empty-hint">{T("Questo layer è solo decorativo: i suoi tile non bloccano nessuno.")}</p>
         )}
       </div>
       <div className="palette-wrap">
-        {img && <TilePalette url={assetUrl(baseUrl, img.src)} tileset={tileset} selected={tile} onSelect={(i) => setState({ tile: i, tool: "paint" })} />}
+        {img && <TilePalette url={assetUrl(baseUrl, img.src, img.type === "image" ? img.rev : undefined)}tileset={tileset} selected={tile} onSelect={(i) => setState({ tile: i, tool: "paint" })} />}
       </div>
       <div className="tiles-info">
-        <div className="mini-label">
-          Tile n° {tile} · cosa fa quando lo tocchi
-        </div>
+        <div className="mini-label">{T("Tile n° ")}{tile}{T(" · cosa fa quando lo tocchi")}</div>
         <div className="coll-options">
           {COLLISION_TYPES.map((c) => (
             <button type="button" key={c.id} className={`coll-opt${coll === c.id ? " on" : ""}`} onClick={() => setCollision(c.id)}>
               <i style={{ background: c.id === "none" ? "transparent" : c.color }} />
-              {c.label}
+              {T(c.label)}
             </button>
           ))}
         </div>
-        <p className="empty-hint">
-          Il colore sotto ogni tile dice cosa fa. Nella scena attiva <b>Collisioni</b> (C) per vederlo sui livelli.
-        </p>
+        <p className="empty-hint">{T("Il colore sotto ogni tile dice cosa fa. Nella scena attiva ")}<b>{T("Collisioni")}</b>{T(" (C) per vederlo sui livelli.")}</p>
       </div>
     </div>
   );
@@ -182,7 +179,7 @@ function PrefabsTab() {
   const selection = useEditor((s) => s.selection);
   const newPrefab = () => {
     const id = uniqueId("modello", new Set(project.prefabs.map((p) => p.id)));
-    editProject((p) => void p.prefabs.push({ id, name: "Nuovo modello", tags: [], blocks: [{ type: "Sprite", props: {} }] }));
+    editProject((p) => void p.prefabs.push({ id, name: T("Nuovo modello"), tags: [], blocks: [{ type: "Sprite", props: {} }] }));
     setState({ selection: { kind: "prefab", id } });
   };
   return (
@@ -200,23 +197,23 @@ function PrefabsTab() {
               e.dataTransfer.effectAllowed = "copy";
             }}
             onClick={() => setState({ selection: { kind: "prefab", id: pf.id } })}
-            title="Trascina nella scena per piazzarlo"
+            title={T("Trascina nella scena per piazzarlo")}
           >
             <div className="card-thumb checker">
               {a ? (
-                <FrameThumb url={assetUrl(baseUrl, a.src)} sw={a.frameWidth} sh={a.frameHeight} frame={sp.frame} size={44} />
+                <FrameThumb url={assetUrl(baseUrl, a.src, a.rev)} sw={a.frameWidth} sh={a.frameHeight} frame={sp.frame} size={44} />
               ) : (
                 <Icon name="cube" size={24} />
               )}
             </div>
             <span className="card-name">{pf.name}</span>
-            <span className="card-sub">{prefabUses(project, pf.id)} in scena</span>
+            <span className="card-sub">{prefabUses(project, pf.id)}{T(" in scena")}</span>
           </div>
         );
       })}
       <button type="button" className="card add" onClick={newPrefab}>
         <Icon name="plus" size={20} />
-        <span className="card-name">Nuovo modello</span>
+        <span className="card-name">{T("Nuovo modello")}</span>
       </button>
     </div>
   );
@@ -243,20 +240,36 @@ function AssetsTab() {
         >
           <div className="card-thumb checker">
             {a.type === "image" ? (
-              <FrameThumb url={assetUrl(baseUrl, a.src)} sw={a.frameWidth} sh={a.frameHeight} frame={0} size={44} />
+              <FrameThumb url={assetUrl(baseUrl, a.src, a.rev)} sw={a.frameWidth} sh={a.frameHeight} frame={0} size={44} />
+            ) : a.type === "font" ? (
+              <FontPreview font={a.id} text="Aa" size={20} />
             ) : (
               <Icon name="sound" size={24} />
             )}
           </div>
           <span className="card-name">{a.id}</span>
           <span className="card-sub">
-            {a.type === "image" ? (a.animations ? `${Object.keys(a.animations).length} animazioni` : "immagine") : "audio"}
+            {a.type === "image"
+              ? a.animations
+                ? T("{0} animazioni", Object.keys(a.animations).length)
+                : T("immagine")
+              : a.type === "font"
+                ? T("carattere")
+                : a.song
+                  ? T("brano")
+                  : a.sfx
+                    ? T("effetto")
+                    : T("audio")}
           </span>
         </div>
       ))}
-      <button type="button" className="card add" onClick={importAssets} title={api.desktop ? "" : "Disponibile nell'app desktop"}>
+      <button type="button" className="card add" onClick={importAssets} title={api.desktop ? "" : T("Disponibile nell'app desktop")}>
         <Icon name="plus" size={20} />
-        <span className="card-name">Importa…</span>
+        <span className="card-name">{T("Importa…")}</span>
+      </button>
+      <button type="button" className="card add" onClick={startNewDrawing}>
+        <Icon name="paint" size={20} />
+        <span className="card-name">{T("Disegna…")}</span>
       </button>
     </div>
   );
@@ -269,6 +282,10 @@ function goTo(t?: LogTarget) {
   if (!t) return;
   if (t.scriptId) {
     setState({ centerTab: "code", codeScriptId: t.scriptId });
+    return;
+  }
+  if (t.language) {
+    setState({ centerTab: "texts" });
     return;
   }
   if (t.prefabId && !t.sceneId) {
@@ -291,14 +308,11 @@ function ConsoleTab() {
   return (
     <div className="console">
       <div className="console-bar">
-        <span className="dim">{logs.length} messaggi</span>
+        <span className="dim">{logs.length}{T(" messaggi")}</span>
         <div className="spacer" />
-        <button type="button" className="btn small" onClick={() => checkProject()} title="Cerca riferimenti rotti e regole incomplete">
-          <Icon name="bug" size={13} /> Controlla progetto
-        </button>
-        <button type="button" className="btn small ghost" onClick={() => setState({ logs: [] })}>
-          Pulisci
-        </button>
+        <button type="button" className="btn small" onClick={() => checkProject()} title={T("Cerca riferimenti rotti e regole incomplete")}>
+          <Icon name="bug" size={13} />{T(" Controlla progetto")}</button>
+        <button type="button" className="btn small ghost" onClick={() => setState({ logs: [] })}>{T("Pulisci")}</button>
       </div>
       <div className="console-list">
         {logs.map((l) => (
@@ -306,14 +320,14 @@ function ConsoleTab() {
             key={l.id}
             className={`log ${l.level}${l.target ? " link" : ""}`}
             onClick={() => goTo(l.target)}
-            title={l.target ? "Clic per andare lì" : undefined}
+            title={l.target ? T("Clic per andare lì") : undefined}
           >
-            <span className="log-time mono">{new Date(l.time).toLocaleTimeString("it-IT")}</span>
-            <span className="log-level">{l.level === "error" ? "errore" : l.level === "warn" ? "avviso" : "info"}</span>
-            <span className="log-msg">{l.message}</span>
+            <span className="log-time mono">{new Date(l.time).toLocaleTimeString(getEditorLang() === "it" ? "it-IT" : "en-GB")}</span>
+            <span className="log-level">{l.level === "error" ? T("errore") : l.level === "warn" ? T("avviso") : T("info")}</span>
+            <span className="log-msg">{T(l.message)}</span>
           </div>
         ))}
-        {logs.length === 0 && <p className="empty-hint">Qui compaiono i messaggi dell'editor e del gioco in anteprima.</p>}
+        {logs.length === 0 && <p className="empty-hint">{T("Qui compaiono i messaggi dell'editor e del gioco in anteprima.")}</p>}
         <div ref={end} />
       </div>
     </div>

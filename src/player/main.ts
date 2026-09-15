@@ -1,4 +1,4 @@
-import { Game, type ProjectData } from "@runtime";
+import { DEFAULT_TOUCH, Game, mountTouchControls, wantsTouch, type ProjectData } from "@runtime";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const loading = document.getElementById("loading")!;
@@ -24,6 +24,9 @@ async function boot() {
     await game.start((p) => (bar.style.width = `${Math.round(p * 100)}%`));
     loading.remove();
     canvas.focus();
+    // Telefoni e tablet: joystick e pulsanti sullo schermo (?touch nell'indirizzo per provarli da PC).
+    const touch = { ...DEFAULT_TOUCH, ...project.settings.touch };
+    if (params.has("touch") || wantsTouch(touch)) mountTouchControls(document.body, game.input, touch);
   } catch (err) {
     loading.textContent = `Impossibile avviare il gioco: ${(err as Error).message}`;
     console.error(err);

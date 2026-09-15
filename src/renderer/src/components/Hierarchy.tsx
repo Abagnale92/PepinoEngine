@@ -2,6 +2,7 @@ import { currentScene, editProject, setState, useEditor } from "../store";
 import { entityKind, flattenEntities, sceneOf, type EntityKind } from "../projectOps";
 import { addEmptyEntity, addLayer, addScene, switchScene } from "../commands";
 import { Icon } from "./Icon";
+import { T } from "../i18n";
 
 const KIND_ICON: Record<EntityKind, string> = {
   player: "person",
@@ -30,31 +31,29 @@ export function Hierarchy() {
   return (
     <aside className="panel hierarchy">
       <div className="panel-h">
-        <Icon name="layers" size={13} />
-        Gerarchia
-      </div>
+        <Icon name="layers" size={13} />{T("Gerarchia")}</div>
       <div className="panel-body">
         <div className="scene-picker">
-          <select value={scene.id} onChange={(e) => switchScene(e.target.value)} title="Scena aperta">
+          <select value={scene.id} onChange={(e) => switchScene(e.target.value)} title={T("Scena aperta")}>
             {project.scenes.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
-                {s.id === project.settings.startScene ? "  (iniziale)" : ""}
+                {s.id === project.settings.startScene ? T("  (iniziale)") : ""}
               </option>
             ))}
           </select>
-          <button type="button" className="icon-btn" title="Nuova scena" onClick={addScene}>
+          <button type="button" className="icon-btn" title={T("Nuova scena")} onClick={addScene}>
             <Icon name="plus" size={14} />
           </button>
         </div>
         <button type="button" className={`tree-row settings${selection === null ? " on" : ""}`} onClick={() => setState({ selection: null })}>
           <Icon name="settings" size={13} />
-          <span className="tree-name">Impostazioni scena e progetto</span>
+          <span className="tree-name">{T("Impostazioni scena e progetto")}</span>
         </button>
 
         <div className="tree-h">
-          <span>Layer</span>
-          <button type="button" className="icon-btn" title="Nuovo layer" onClick={addLayer}>
+          <span>{T("Layer")}</span>
+          <button type="button" className="icon-btn" title={T("Nuovo layer")} onClick={addLayer}>
             <Icon name="plus" size={13} />
           </button>
         </div>
@@ -65,12 +64,12 @@ export function Hierarchy() {
               key={l.id}
               className={`tree-row layer${selection?.kind === "layer" && selection.id === l.id ? " on" : ""}${l.id === layerId ? " active" : ""}${l.visible === false ? " hidden-layer" : ""}`}
               onClick={() => setState({ layerId: l.id, selection: { kind: "layer", id: l.id } })}
-              title={l.id === layerId ? "Il pennello dipinge su questo layer" : "Clic per dipingere su questo layer"}
+              title={l.id === layerId ? T("Il pennello dipinge su questo layer") : T("Clic per dipingere su questo layer")}
             >
               <button
                 type="button"
                 className="icon-btn"
-                title={l.visible === false ? "Mostra" : "Nascondi"}
+                title={l.visible === false ? T("Mostra") : T("Nascondi")}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleLayer(l.id, "visible");
@@ -81,7 +80,7 @@ export function Hierarchy() {
               <button
                 type="button"
                 className={`icon-btn${l.locked ? " warn" : ""}`}
-                title={l.locked ? "Sblocca" : "Blocca"}
+                title={l.locked ? T("Sblocca") : T("Blocca")}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleLayer(l.id, "locked");
@@ -91,17 +90,15 @@ export function Hierarchy() {
               </button>
               <span className="tree-name">{l.name}</span>
               {l.collides && (
-                <span className="badge coll" title="I tile di questo layer contano per le collisioni">
-                  collide
-                </span>
+                <span className="badge coll" title={T("I tile di questo layer contano per le collisioni")}>{T("collide")}</span>
               )}
               {l.id === layerId && <Icon name="paint" size={12} className="active-mark" />}
             </div>
           ))}
 
         <div className="tree-h">
-          <span>Oggetti · {items.length}</span>
-          <button type="button" className="icon-btn" title="Nuovo oggetto vuoto" onClick={addEmptyEntity}>
+          <span>{T("Oggetti · ")}{items.length}</span>
+          <button type="button" className="icon-btn" title={T("Nuovo oggetto vuoto")} onClick={addEmptyEntity}>
             <Icon name="plus" size={13} />
           </button>
         </div>
@@ -119,14 +116,12 @@ export function Hierarchy() {
               </span>
               <span className="tree-name">{data.name}</span>
               {data.prefab && (
-                <span className="badge" title="Istanza di un modello">
-                  modello
-                </span>
+                <span className="badge" title={T("Istanza di un modello")}>{T("modello")}</span>
               )}
             </div>
           );
         })}
-        {items.length === 0 && <p className="empty-hint">Scena vuota. Trascina un modello dal pannello Modelli.</p>}
+        {items.length === 0 && <p className="empty-hint">{T("Scena vuota. Trascina un modello dal pannello Modelli.")}</p>}
       </div>
     </aside>
   );

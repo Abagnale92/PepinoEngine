@@ -12,12 +12,15 @@ import { compilePython, getBlockDef, PythonError, type ProjectData, type ScriptD
 import { editProject, getState, log, setState, useEditor } from "../store";
 import { flattenEntities, uniqueId } from "../projectOps";
 import { Icon } from "./Icon";
+import { T } from "../i18n";
+import { useSettings } from "../settings";
 
 // ------------------------------------------------------------------ Aspetto dell'editor
 
-const theme = EditorView.theme(
+const makeTheme = (fontSize: number) =>
+  EditorView.theme(
   {
-    "&": { height: "100%", color: "var(--text)", backgroundColor: "var(--input)", fontSize: "12.5px" },
+    "&": { height: "100%", color: "var(--text)", backgroundColor: "var(--input)", fontSize: `${fontSize}px` },
     ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "1.6" },
     ".cm-content": { caretColor: "var(--accent)", paddingBottom: "40vh" },
     ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--accent)", borderLeftWidth: "2px" },
@@ -85,7 +88,7 @@ function lintJs(view: EditorView): Diagnostic[] {
     });
     const line = pos >= 0 ? view.state.doc.lineAt(pos) : view.state.doc.line(1);
     const from = pos >= 0 ? pos : line.from;
-    return [{ from, to: Math.max(from, line.to), severity: "error", message: `Errore di sintassi: ${(e as Error).message}` }];
+    return [{ from, to: Math.max(from, line.to), severity: "error", message: T("Errore di sintassi: {0}", (e as Error).message) }];
   }
 }
 
@@ -108,6 +111,7 @@ function CodeEditor({
   const view = useRef<EditorView | null>(null);
   const change = useRef(onChange);
   change.current = onChange;
+  const fontSize = useSettings((s) => s.codeFontSize);
 
   useEffect(() => {
     const py = script.language === "py";
@@ -123,7 +127,7 @@ function CodeEditor({
           py ? python() : javascript(),
           linter(py ? lintPython : lintJs, { delay: 300 }),
           lintGutter(),
-          theme,
+          makeTheme(fontSize),
           syntaxHighlighting(highlight),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) change.current(u.state.doc.toString());
@@ -146,7 +150,7 @@ function CodeEditor({
     };
     // Si ricrea solo cambiando script: il testo lo segue l'effetto qui sotto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [script.id, script.language]);
+  }, [script.id, script.language, fontSize]);
 
   // Il testo cambia da fuori (Annulla dell'editor, progetto riaperto): allinea senza perdere il cursore se possibile.
   useEffect(() => {
@@ -295,7 +299,7 @@ export function CodeView() {
   const add = (language: "js" | "py") => {
     const id = uniqueId(language === "py" ? "script_py" : "script_js", new Set(scripts.map((s) => s.id)));
     const code = language === "py" ? pyTemplate(uniqueBlockName("Lampeggia")) : jsTemplate(uniqueBlockName("Oscilla"));
-    const name = language === "py" ? "Nuovo script Python" : "Nuovo script JavaScript";
+    const name = language === "py" ? T("Nuovo script Python") : T("Nuovo script JavaScript");
     editProject((p) => void (p.scripts ??= []).push({ id, name, language, code }));
     setState({ codeScriptId: id });
   };
@@ -320,75 +324,64 @@ export function CodeView() {
     if (!sel) return;
     editProject((p) => void (p.scripts = (p.scripts ?? []).filter((s) => s.id !== sel.id)));
     setState({ codeScriptId: "" });
-    if (uses > 0) log("warn", `Eliminato lo script «${sel.name}»: ${uses} oggetti usavano i suoi blocchi. Annulla (Ctrl+Z) per recuperarlo.`);
+    if (uses > 0) log("warn", T("Eliminato lo script «{0}»: {1} oggetti usavano i suoi blocchi. Annulla (Ctrl+Z) per recuperarlo.", sel.name, uses));
   };
 
   return (
     <div className={`code-view${narrow ? " narrow" : ""}`} ref={root}>
       <aside className="code-list">
         <div className="tree-h">
-          <span>Script · {scripts.length}</span>
+          <span>{T("Script · ")}{scripts.length}</span>
         </div>
         <div className="code-new">
-          <button type="button" className="btn small" onClick={() => add("js")} title="Nuovo script in JavaScript">
-            <Icon name="plus" size={12} /> JavaScript
-          </button>
-          <button type="button" className="btn small" onClick={() => add("py")} title="Nuovo script in Python">
-            <Icon name="plus" size={12} /> Python
-          </button>
+          <button type="button" className="btn small" onClick={() => add("js")} title={T("Nuovo script in JavaScript")}>
+            <Icon name="plus" size={12} />{T(" JavaScript")}</button>
+          <button type="button" className="btn small" onClick={() => add("py")} title={T("Nuovo script in Python")}>
+            <Icon name="plus" size={12} />{T(" Python")}</button>
         </div>
         {scripts.map((s) => {
           const r = results.find((x) => x.id === s.id);
           return (
             <button type="button" key={s.id} className={`tree-row${sel?.id === s.id ? " on" : ""}`} onClick={() => setState({ codeScriptId: s.id })}>
-              <span className={`lang-badge ${s.language}`}>{s.language === "py" ? "PY" : "JS"}</span>
+              <span className={`lang-badge ${s.language}`}>{s.language === "py" ? T("PY") : T("JS")}</span>
               <span className="tree-name">{s.name}</span>
               {r?.error && <span className="dot-err" title={r.error.message} />}
             </button>
           );
         })}
-        {scripts.length === 0 && <p className="empty-hint">Nessuno script. Con uno script crei blocchi nuovi, scritti a mano.</p>}
+        {scripts.length === 0 && <p className="empty-hint">{T("Nessuno script. Con uno script crei blocchi nuovi, scritti a mano.")}</p>}
       </aside>
 
       <section className="code-main">
         {sel ? (
           <>
             <div className="code-head">
-              <span className={`lang-badge ${sel.language}`}>{sel.language === "py" ? "Python" : "JavaScript"}</span>
+              <span className={`lang-badge ${sel.language}`}>{sel.language === "py" ? T("Python") : T("JavaScript")}</span>
               <input className="title-input" value={sel.name} onChange={(e) => rename(e.target.value)} />
-              <span className="dim">
-                usato da {uses} {uses === 1 ? "oggetto" : "oggetti"}
+              <span className="dim">{T("usato da ")}{uses} {uses === 1 ? T("oggetto") : T("oggetti")}
               </span>
               <div className="spacer" />
               {sel.language === "py" && (
                 <button type="button" className={`btn small${side === "js" ? " on" : ""}`} onClick={() => setSide(side === "js" ? null : "js")}>
-                  <Icon name="code" size={13} /> JavaScript generato
-                </button>
+                  <Icon name="code" size={13} />{T(" JavaScript generato")}</button>
               )}
               <button type="button" className={`btn small${side === "guide" ? " on" : ""}`} onClick={() => setSide(side === "guide" ? null : "guide")}>
-                <Icon name="book" size={13} /> Guida
-              </button>
+                <Icon name="book" size={13} />{T(" Guida")}</button>
               <button type="button" className="btn small danger" onClick={remove}>
-                <Icon name="trash" size={13} /> Elimina
-              </button>
+                <Icon name="trash" size={13} />{T(" Elimina")}</button>
             </div>
             <CodeEditor key={sel.id} script={sel} onChange={setCode} handle={handle} />
             <Status result={result} onJump={(line) => handle.current?.jump(line)} />
           </>
         ) : (
           <div className="rules-empty">
-            <h3>Blocchi in codice</h3>
-            <p>
-              Quando i blocchi pronti non bastano, scrivine uno tuo in <b>JavaScript</b> o in <b>Python</b>. Il nuovo blocco compare
-              nell'Inspector come tutti gli altri, e le sue azioni e condizioni si usano nelle Regole.
-            </p>
+            <h3>{T("Blocchi in codice")}</h3>
+            <p>{T("Quando i blocchi pronti non bastano, scrivine uno tuo in ")}<b>{T("JavaScript")}</b>{T(" o in ")}<b>{T("Python")}</b>{T(". Il nuovo blocco compare nell'Inspector come tutti gli altri, e le sue azioni e condizioni si usano nelle Regole.")}</p>
             <div className="row-btns">
               <button type="button" className="btn primary" onClick={() => add("js")}>
-                <Icon name="plus" size={13} /> Script JavaScript
-              </button>
+                <Icon name="plus" size={13} />{T(" Script JavaScript")}</button>
               <button type="button" className="btn primary" onClick={() => add("py")}>
-                <Icon name="plus" size={13} /> Script Python
-              </button>
+                <Icon name="plus" size={13} />{T(" Script Python")}</button>
             </div>
           </div>
         )}
@@ -397,7 +390,7 @@ export function CodeView() {
       {sel && side && (
         <aside className="code-side">
           {narrow && (
-            <button type="button" className="icon-btn code-side-close" title="Chiudi" onClick={() => setSide(null)}>
+            <button type="button" className="icon-btn code-side-close" title={T("Chiudi")} onClick={() => setSide(null)}>
               <Icon name="close" size={13} />
             </button>
           )}
@@ -409,7 +402,7 @@ export function CodeView() {
 }
 
 function Status({ result, onJump }: { result?: ScriptResult; onJump: (line: number) => void }) {
-  if (!result) return <div className="code-status dim">Controllo in corso…</div>;
+  if (!result) return <div className="code-status dim">{T("Controllo in corso…")}</div>;
   const err = result.error;
   if (err) {
     return (
@@ -417,14 +410,13 @@ function Status({ result, onJump }: { result?: ScriptResult; onJump: (line: numb
         <Icon name="bug" size={13} />
         <span>
           {err.line ? (
-            <button type="button" className="linkish" onClick={() => onJump(err.line!)}>
-              Riga {err.line}
+            <button type="button" className="linkish" onClick={() => onJump(err.line!)}>{T("Riga ")}{err.line}
             </button>
           ) : (
-            "Errore"
+            T("Errore")
           )}
-          : {err.message}
-          {result.stale && <span className="dim"> · nel frattempo resta in uso l'ultima versione che funzionava</span>}
+          : {T(err.message)}
+          {result.stale && <span className="dim">{T(" · nel frattempo resta in uso l'ultima versione che funzionava")}</span>}
         </span>
       </div>
     );
@@ -435,11 +427,11 @@ function Status({ result, onJump }: { result?: ScriptResult; onJump: (line: numb
       <Icon name="cube" size={13} />
       {labels.length ? (
         <span>
-          {labels.length === 1 ? "Blocco pronto" : "Blocchi pronti"}: <b>{labels.join(", ")}</b>
-          <span className="dim"> · Inspector → Aggiungi blocco → Personalizzati</span>
+          {labels.length === 1 ? T("Blocco pronto") : T("Blocchi pronti")}: <b>{labels.join(", ")}</b>
+          <span className="dim">{T(" · Inspector → Aggiungi blocco → Personalizzati")}</span>
         </span>
       ) : (
-        <span className="dim">Lo script non definisce blocchi.</span>
+        <span className="dim">{T("Lo script non definisce blocchi.")}</span>
       )}
     </div>
   );
@@ -455,8 +447,8 @@ function GeneratedJs({ code }: { code: string }) {
   }, [code]);
   return (
     <>
-      <h4>JavaScript generato</h4>
-      <p>È il codice che gira davvero nel gioco (anche nella build WebGL, senza Python). Sola lettura.</p>
+      <h4>{T("JavaScript generato")}</h4>
+      <p>{T("È il codice che gira davvero nel gioco (anche nella build WebGL, senza Python). Sola lettura.")}</p>
       <pre className="gen-js">{out}</pre>
     </>
   );
@@ -466,47 +458,40 @@ function Guide({ language }: { language: "js" | "py" }) {
   const py = language === "py";
   return (
     <>
-      <h4>Come funziona</h4>
+      <h4>{T("Come funziona")}</h4>
       {py ? (
-        <p>
-          Scrivi le variabili <code>name</code>, <code>label</code>, <code>props</code>… e le funzioni <code>init(self)</code>,{" "}
-          <code>update(self, dt)</code>. Pepino le traduce in JavaScript, così il gioco esportato non ha bisogno di Python.
-        </p>
+        <p>{T("Scrivi le variabili ")}<code>name</code>, <code>label</code>, <code>props</code>{T("… e le funzioni ")}<code>init(self)</code>,{" "}
+          <code>update(self, dt)</code>{T(". Pepino le traduce in JavaScript, così il gioco esportato non ha bisogno di Python.")}</p>
       ) : (
-        <p>
-          Uno script definisce uno o più blocchi con <code>Pepino.defineBlock({"{ … }"})</code>. Ogni modifica si applica da sola dopo un
-          attimo.
-        </p>
+        <p>{T("Uno script definisce uno o più blocchi con ")}<code>Pepino.defineBlock({"{ … }"})</code>{T(". Ogni modifica si applica da sola dopo un attimo.")}</p>
       )}
 
-      <h4>Funzioni del blocco</h4>
+      <h4>{T("Funzioni del blocco")}</h4>
       <dl>
         <dt>init(self)</dt>
-        <dd>all'avvio della scena</dd>
+        <dd>{T("all'avvio della scena")}</dd>
         <dt>update(self, dt)</dt>
-        <dd>ogni fotogramma; dt = secondi passati</dd>
+        <dd>{T("ogni fotogramma; dt = secondi passati")}</dd>
         <dt>physics(self, dt)</dt>
-        <dd>passo di fisica, dopo update</dd>
+        <dd>{T("passo di fisica, dopo update")}</dd>
         <dt>late(self, dt)</dt>
-        <dd>dopo fisica e contatti</dd>
+        <dd>{T("dopo fisica e contatti")}</dd>
         <dt>destroy(self)</dt>
-        <dd>quando l'oggetto sparisce</dd>
+        <dd>{T("quando l'oggetto sparisce")}</dd>
       </dl>
 
-      <h4>Cosa c'è in self</h4>
+      <h4>{T("Cosa c'è in self")}</h4>
       <dl>
         <dt>self.props</dt>
-        <dd>i valori scelti nell'Inspector</dd>
+        <dd>{T("i valori scelti nell'Inspector")}</dd>
         <dt>self.data</dt>
-        <dd>memoria del blocco (timer, contatori…)</dd>
+        <dd>{T("memoria del blocco (timer, contatori…)")}</dd>
         <dt>self.entity</dt>
-        <dd>
-          l'oggetto: <code>x</code>, <code>y</code>, <code>visible</code>, <code>state</code>, <code>facingX</code>, <code>tags</code>,{" "}
+        <dd>{T("l'oggetto: ")}<code>x</code>, <code>y</code>, <code>visible</code>, <code>state</code>, <code>facingX</code>, <code>tags</code>,{" "}
           <code>get("Blocco")</code>, <code>destroy()</code>
         </dd>
         <dt>self.body</dt>
-        <dd>
-          il Corpo, se c'è: <code>vx</code>, <code>vy</code>, <code>onGround</code>, <code>touching("etichetta")</code>
+        <dd>{T("il Corpo, se c'è: ")}<code>vx</code>, <code>vy</code>, <code>onGround</code>, <code>touching("etichetta")</code>
         </dd>
         <dt>self.scene</dt>
         <dd>
@@ -515,28 +500,24 @@ function Guide({ language }: { language: "js" | "py" }) {
         </dd>
         <dt>self.game</dt>
         <dd>
-          <code>vars</code> (variabili), <code>audio.play("suono")</code>, <code>input.isDown("jump")</code>, <code>goToScene("id")</code>
+          <code>vars</code>{T(" (variabili), ")}<code>audio.play("suono")</code>, <code>input.isDown("jump")</code>, <code>goToScene("id")</code>
         </dd>
         <dt>self.emit("evento")</dt>
-        <dd>le Regole lo vedono in «Quando»</dd>
+        <dd>{T("le Regole lo vedono in «Quando»")}</dd>
       </dl>
 
-      <h4>Proprietà</h4>
-      <p>
-        Tipi: number, integer, boolean, string, text, select, color, image, audio, scene, tag, group, groups, variable, prefab, dialogue,
-        input.
-      </p>
+      <h4>{T("Proprietà")}</h4>
+      <p>{T("Tipi: number, integer, boolean, string, text, select, color, image, audio, scene, tag, group, groups, variable, prefab, dialogue, input.")}</p>
       <pre>
         {py
           ? `props = {\n    "speed": {"type": "number", "label": "Velocità",\n              "unit": "tile/s", "default": 4},\n}`
           : `props: {\n  speed: { type: "number", label: "Velocità",\n           unit: "tile/s", default: 4 },\n},`}
       </pre>
 
-      <h4>Azioni e condizioni per le Regole</h4>
+      <h4>{T("Azioni e condizioni per le Regole")}</h4>
       {py ? (
         <>
-          <p>
-            Ogni voce collega una funzione con lo stesso nome. Con parametri, al posto del testo usa <code>{'{"label": …, "params": {…}}'}</code>.
+          <p>{T("Ogni voce collega una funzione con lo stesso nome. Con parametri, al posto del testo usa ")}<code>{'{"label": …, "params": {…}}'}</code>.
           </p>
           <pre>{`actions = {"salta": "Salta subito"}\nconditions = {"stanco": "È stanco"}\n\ndef salta(self):\n    ...\n\ndef stanco(self):\n    return self.data.fatica > 3`}</pre>
         </>
@@ -544,35 +525,29 @@ function Guide({ language }: { language: "js" | "py" }) {
         <pre>{`actions: {\n  salta: { label: "Salta subito",\n          run: (self) => { ... } },\n},\nconditions: {\n  stanco: { label: "È stanco",\n            test: (self) => self.data.fatica > 3 },\n},`}</pre>
       )}
 
-      <h4>Aiuti</h4>
+      <h4>{T("Aiuti")}</h4>
       {py ? (
         <p>
-          <code>print(…)</code> scrive nella Console. Ci sono <code>import math</code>, <code>import random</code>, <code>len</code>,{" "}
+          <code>print(…)</code>{T(" scrive nella Console. Ci sono ")}<code>import math</code>, <code>import random</code>, <code>len</code>,{" "}
           <code>range</code>, <code>min</code>, <code>max</code>, <code>abs</code>, <code>round</code>, <code>int</code>, <code>str</code>.
         </p>
       ) : (
         <p>
-          <code>Pepino.log(…)</code> scrive nella Console. Poi <code>Pepino.clamp</code>, <code>Pepino.lerp</code>,{" "}
+          <code>Pepino.log(…)</code>{T(" scrive nella Console. Poi ")}<code>Pepino.clamp</code>, <code>Pepino.lerp</code>,{" "}
           <code>Pepino.approach</code>, <code>Pepino.lineOfSight</code>, <code>Pepino.findPath</code>.
         </p>
       )}
 
       {py && (
         <>
-          <h4>Il Python di Pepino</h4>
-          <p>
-            Ci sono <code>if/elif/else</code>, <code>for</code>, <code>while</code>, <code>def</code>, liste, dizionari, f-string e slice. Non
-            ci sono classi, <code>try</code>, <code>with</code>, <code>lambda</code>, comprehension e <code>global</code>: per ricordare
-            valori usa <code>self.data</code>. I dizionari si leggono anche con il punto: <code>self.data.timer</code>.
+          <h4>{T("Il Python di Pepino")}</h4>
+          <p>{T("Ci sono ")}<code>if/elif/else</code>, <code>for</code>, <code>while</code>, <code>def</code>{T(", liste, dizionari, f-string e slice. Non ci sono classi, ")}<code>try</code>, <code>with</code>, <code>lambda</code>{T(", comprehension e ")}<code>global</code>{T(": per ricordare valori usa ")}<code>self.data</code>{T(". I dizionari si leggono anche con il punto: ")}<code>self.data.timer</code>.
           </p>
         </>
       )}
 
-      <h4>Se qualcosa va storto</h4>
-      <p>
-        Gli errori di scrittura sono sottolineati mentre scrivi. Se un blocco sbaglia a gioco avviato, si ferma solo quel blocco e la Console
-        dice script e riga.
-      </p>
+      <h4>{T("Se qualcosa va storto")}</h4>
+      <p>{T("Gli errori di scrittura sono sottolineati mentre scrivi. Se un blocco sbaglia a gioco avviato, si ferma solo quel blocco e la Console dice script e riga.")}</p>
     </>
   );
 }

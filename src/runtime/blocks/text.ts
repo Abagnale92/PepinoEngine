@@ -21,13 +21,23 @@ export function screenPos(self: BlockInstance, screen: boolean): { x: number; y:
 function draw(self: BlockInstance, r: Renderer) {
   const p = self.props;
   const { x, y } = screenPos(self, p.screen);
-  r.text(interpolate(p.text, self.game.vars), x, y, {
+  r.text(interpolate(self.game.t(p.text), self.game.vars), x, y, {
     size: p.size,
     color: p.color,
     align: p.align,
     shadow: p.shadow,
+    outline: p.outline,
+    font: p.font,
   });
 }
+
+/** Campo "Carattere" dei blocchi con testo: vuoto = il carattere scelto per tutto il gioco. */
+export const FONT_PROP = {
+  type: "font",
+  label: "Carattere",
+  default: "",
+  help: "Vuoto = il carattere del gioco (Inspector della scena → Progetto).",
+} as const;
 
 defineBlock({
   name: "Text",
@@ -36,8 +46,9 @@ defineBlock({
   description: "Scrive un testo. Metti il nome di una variabile tra graffe per mostrarne il valore, es. Monete: {monete}.",
   priority: 100,
   props: {
-    text: { type: "text", label: "Testo", default: "Testo" },
-    size: { type: "number", label: "Dimensione", unit: "px", default: 10, min: 4 },
+    text: { type: "text", label: "Testo", default: "Testo", translatable: true },
+    font: FONT_PROP,
+    size:{ type: "number", label: "Dimensione", unit: "px", default: 10, min: 4 },
     color: { type: "color", label: "Colore", default: "#ffffff" },
     align: {
       type: "select",
@@ -56,11 +67,17 @@ defineBlock({
       help: "La posizione è in pixel dello schermo di gioco, non del mondo.",
     },
     shadow: { type: "boolean", label: "Ombra", default: true },
+    outline: {
+      type: "boolean",
+      label: "Contorno",
+      default: false,
+      help: "Bordo scuro intorno alle lettere: si legge su qualsiasi sfondo.",
+    },
   },
   actions: {
     setText: {
       label: "Cambia testo",
-      params: { text: { type: "text", label: "Nuovo testo", default: "" } },
+      params: { text: { type: "text", label: "Nuovo testo", default: "", translatable: true } },
       run: (self, text: string) => (self.props.text = String(text ?? "")),
     },
   },

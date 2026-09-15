@@ -11,9 +11,17 @@ import type { Renderer } from "../render/renderer";
 import { COLLISION_TYPES } from "../project/format";
 import { RuleSystem } from "../rules/rules";
 import { describeScriptError } from "../scripting/errors";
+import { parseColor } from "../math";
 import type { BlockInstance } from "./block";
 
-type HookName = "init" | "update" | "physics" | "late" | "render" | "renderScreen" | "renderDebug";
+type HookName = "init" | "update" | "physics" | "late" | "render" | "renderScreen" | "renderDebug" | "renderLight";
+
+/** Qualcosa che vive nella scena senza essere un oggetto (es. le particelle di un nemico sconfitto). */
+export interface SceneEffect {
+  /** Restituisce false quando ha finito. */
+  update(dt: number): boolean;
+  render(r: Renderer): void;
+}
 
 const HOOK_LABEL: Record<HookName, string> = {
   init: "all'avvio",
@@ -23,6 +31,7 @@ const HOOK_LABEL: Record<HookName, string> = {
   render: "nel disegno",
   renderScreen: "nel disegno dell'HUD",
   renderDebug: "nel disegno di debug",
+  renderLight: "nel disegno delle luci",
 };
 
 const OPPOSITE: Record<Side, Side> = { top: "bottom", bottom: "top", left: "right", right: "left" };
@@ -70,6 +79,9 @@ export class Scene {
   time = 0;
   /** Pulsante del menù selezionato (indice nell'ordine dei pulsanti). */
   uiFocus = 0;
+  /** Colore della luce ambiente: se c'è, la scena è al buio e la illuminano i blocchi Luce. */
+  ambient?: string;
+  effects: SceneEffect[] = [];
   private removals = new Set<Entity>();
   private spawnCounter = 0;
   private reported = new Set<string>();
@@ -103,6 +115,7 @@ export class Scene {
   ) {
     const s = game.project.settings;
     this.tileSize = s.tileSize;
+    this.ambient = data.ambient || undefined;
     this.widthPx = data.width * s.tileSize;
     this.heightPx = data.height * s.tileSize;
     this.grid = buildCollisionGrid(game.project, data);
@@ -185,6 +198,7 @@ export class Scene {
       if (e.destroyed) continue;
       for (const b of e.blocks) if (b.enabled && b.def.late) this.callHook(b, "late", dt);
     }
+    if (this.effects.length) this.effects = this.effects.filter((fx) => fx.update(dt));
     this.rules.process(dt);
     this.camera.update(dt);
     this.flush();
@@ -260,6 +274,18 @@ export class Scene {
         r.setView(x0, y0, cam.zoom);
         for (const b of d.entity!.blocks) if (b.enabled && b.def.render) this.callHook(b, "render", r);
       }
+    }
+    r.setView(x0, y0, cam.zoom);
+    for (const fx of this.effects) fx.render(r);
+    if (this.ambient) {
+      // Luci 2D: la scena viene moltiplicata per una mappa di luce (ambiente + blocchi Luce).
+      r.beginLights(parseColor(this.ambient, [0, 0, 0, 1]));
+      r.setView(x0, y0, cam.zoom);
+      for (const e of this.entities) {
+        if (e.destroyed || !e.visible) continue;
+        for (const b of e.blocks) if (b.enabled && b.def.renderLight) this.callHook(b, "renderLight", r);
+      }
+      r.endLights();
     }
     if (debug) {
       r.setView(x0, y0, cam.zoom);

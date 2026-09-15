@@ -160,10 +160,13 @@ export function entityKind(project: ProjectData, e: EntityData): EntityKind {
   return "object";
 }
 
-export function assetUrl(baseUrl: string, src: string): string {
+export function assetUrl(baseUrl: string, src: string, rev?: number): string {
+  let url = src;
   try {
-    return new URL(src, baseUrl).href;
+    url = new URL(src, baseUrl).href;
   } catch {
-    return src;
+    // Indirizzo non valido: si usa com'è.
   }
+  // Dopo un salvataggio dal Disegno il file ha lo stesso nome: la revisione evita l'immagine vecchia in cache.
+  return rev && !url.startsWith("data:") ? `${url}${url.includes("?") ? "&" : "?"}v=${rev}` : url;
 }

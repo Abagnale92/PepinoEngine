@@ -12,7 +12,7 @@ export type Selection =
 
 export type Tool = "select" | "paint" | "erase";
 export type BottomTab = "tiles" | "prefabs" | "assets" | "console";
-export type CenterTab = "scene" | "rules" | "dialogues" | "code";
+export type CenterTab = "scene" | "rules" | "dialogues" | "texts" | "code" | "paint" | "music" | "cutscenes";
 export type RulesScope = "scene" | "global";
 
 /** A cosa si riferisce un messaggio della Console: con un clic l'editor ci porta lì. */
@@ -22,6 +22,8 @@ export interface LogTarget {
   prefabId?: string;
   ruleId?: string;
   scriptId?: string;
+  /** Lingua con testi da tradurre. */
+  language?: string;
 }
 
 export interface LogEntry {
@@ -59,6 +61,8 @@ export interface EditorState {
   blocksVersion: number;
   /** Script aperto nella scheda Codice. */
   codeScriptId: string;
+  /** Finestra delle Impostazioni aperta. */
+  settingsOpen: boolean;
 }
 
 let state: EditorState = {
@@ -84,6 +88,7 @@ let state: EditorState = {
   scriptResults: [],
   blocksVersion: 0,
   codeScriptId: "",
+  settingsOpen: false,
 };
 
 const listeners = new Set<() => void>();

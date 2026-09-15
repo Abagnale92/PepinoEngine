@@ -1,3 +1,5 @@
+import type { SfxData, SongData } from "../audio/synth";
+
 /**
  * Formato del progetto Pepino (project.json).
  * Tutto è testo JSON, così i progetti funzionano con Git e si leggono a occhio.
@@ -33,15 +35,31 @@ export interface ImageAsset {
   frameWidth?: number;
   frameHeight?: number;
   animations?: Record<string, AnimationData>;
+  /** Cresce a ogni salvataggio dal Disegno: così editor e anteprima ricaricano l'immagine. */
+  rev?: number;
+  /** File con livelli e fotogrammi del Disegno, per riaprirlo e continuare a modificarlo. */
+  pixel?: string;
 }
 
 export interface AudioAsset {
   id: string;
   type: "audio";
+  /** File del suono; vuoto per brani ed effetti creati nella scheda Musica. */
+  src: string;
+  /** Brano creato nella scheda Musica: il gioco lo calcola all'avvio. */
+  song?: SongData;
+  /** Effetto sonoro creato nella scheda Musica. */
+  sfx?: SfxData;
+}
+
+/** Carattere importato (.ttf, .otf, .woff, .woff2). */
+export interface FontAsset {
+  id: string;
+  type: "font";
   src: string;
 }
 
-export type AssetData = ImageAsset | AudioAsset;
+export type AssetData = ImageAsset | AudioAsset | FontAsset;
 
 export interface TilesetData {
   id: string;
@@ -153,6 +171,20 @@ export interface DialogueData {
   lines: DialogueLine[];
 }
 
+/**
+ * Filmato: una sequenza di passi (azioni delle Regole) eseguiti uno dopo l'altro. Chi dura (spostamenti,
+ * dialoghi, dissolvenze) si aspetta prima di andare avanti; intanto il giocatore non comanda il personaggio.
+ */
+export interface CutsceneData {
+  id: string;
+  name: string;
+  steps: RuleItem[];
+  /** Il giocatore può saltarlo con Esc / Start (vale anche se manca). */
+  skippable?: boolean;
+  /** Barre nere sopra e sotto mentre scorre (vale anche se manca). */
+  bars?: boolean;
+}
+
 /** Uno script del progetto: definisce blocchi personalizzati in JavaScript o in Python ridotto. */
 export interface ScriptData {
   id: string;
@@ -174,6 +206,12 @@ export interface SceneData {
   /** Se vero, sotto la scena non c'è pavimento: si può cadere fuori. */
   openBottom?: boolean;
   music?: string;
+  /** Colore della luce ambiente: se c'è, la scena è al buio e la illuminano i blocchi Luce. */
+  ambient?: string;
+  /** Effetto a tutto schermo: "vignette", "crt", "gameboy", "grayscale", "sepia". */
+  effect?: string;
+  /** Intensità dell'effetto, 0..1. */
+  effectStrength?: number;
   layers: TileLayerData[];
   entities: EntityData[];
 }
@@ -184,8 +222,21 @@ export interface ProjectSettings {
   tileSize: number;
   startScene: string;
   background: string;
+  /** Carattere di messaggi, dialoghi, pausa e dei testi che non ne scelgono uno: "pixel", "sans"… o l'id di un asset. */
+  font?: string;
   collisionGroups: string[];
+  /** Controlli touch sullo schermo (joystick e pulsanti) nel gioco esportato. */
+  touch?: TouchSettings;
 }
+
+export interface TouchSettings {
+  /** "auto" = solo su telefoni e tablet. */
+  mode: "auto" | "always" | "off";
+  /** Comandi da mostrare come pulsanti (al massimo 4). */
+  buttons: string[];
+}
+
+export const DEFAULT_TOUCH: TouchSettings = { mode: "auto", buttons: ["jump", "attack", "action", "dash"] };
 
 export type VariableValue = number | string | boolean;
 
@@ -203,8 +254,30 @@ export interface ProjectData {
   /** Regole globali: valgono in tutte le scene. */
   rules?: RuleData[];
   dialogues?: DialogueData[];
+  /** Filmati, avviati dalla Regola «Avvia un filmato». */
+  cutscenes?: CutsceneData[];
   scripts?: ScriptData[];
+  /** Lingue del gioco: la prima è quella in cui sono scritti i testi. */
+  languages?: LanguageInfo[];
+  /** Traduzioni: lingua → testo originale → testo tradotto. */
+  translations?: Record<string, Record<string, string>>;
 }
+
+export interface LanguageInfo {
+  /** Codice breve: it, en, es… (serve anche a scegliere da solo la lingua del browser). */
+  id: string;
+  name: string;
+}
+
+export const LANGUAGE_PRESETS: LanguageInfo[] = [
+  { id: "it", name: "Italiano" },
+  { id: "en", name: "English" },
+  { id: "es", name: "Español" },
+  { id: "fr", name: "Français" },
+  { id: "de", name: "Deutsch" },
+  { id: "pt", name: "Português" },
+  { id: "ja", name: "日本語" },
+];
 
 export const DEFAULT_INPUT: Record<string, string[]> = {
   left: ["Key:ArrowLeft", "Key:KeyA", "Pad:DPadLeft", "Pad:LeftStickLeft"],

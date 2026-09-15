@@ -10,6 +10,9 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let win: BrowserWindow | null = null;
+/** Lingua dell'editor, per le finestre di sistema (apri, salva, esporta). */
+let lang: "it" | "en" = "it";
+const tr = (it: string, en: string) => (lang === "en" ? en : it);
 let projectPath = "";
 let projectDir = "";
 let lastExport = "";
@@ -23,6 +26,10 @@ const MIME: Record<string, string> = {
   ".wav": "audio/wav",
   ".mp3": "audio/mpeg",
   ".ogg": "audio/ogg",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
   ".json": "application/json",
 };
 
@@ -54,11 +61,11 @@ function createWindow() {
   win.webContents.on("will-prevent-unload", (e) => {
     const choice = dialog.showMessageBoxSync(win!, {
       type: "question",
-      buttons: ["Esci senza salvare", "Annulla"],
+      buttons: [tr("Esci senza salvare", "Quit without saving"), tr("Annulla", "Cancel")],
       defaultId: 1,
       cancelId: 1,
-      message: "Ci sono modifiche non salvate.",
-      detail: "Se chiudi adesso andranno perse.",
+      message: tr("Ci sono modifiche non salvate.", "There are unsaved changes."),
+      detail: tr("Se chiudi adesso andranno perse.", "If you close now they will be lost."),
     });
     if (choice === 0) e.preventDefault();
   });
@@ -88,10 +95,14 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.on("app:lang", (_e, l: string) => {
+    lang = l === "en" ? "en" : "it";
+  });
+
   ipcMain.handle("project:open", async () => {
     const r = await dialog.showOpenDialog(win!, {
-      title: "Apri un progetto Pepino",
-      filters: [{ name: "Progetto Pepino", extensions: ["json"] }],
+      title: tr("Apri un progetto Pepino", "Open a Pepino project"),
+      filters: [{ name: tr("Progetto Pepino", "Pepino project"), extensions: ["json"] }],
       properties: ["openFile"],
     });
     if (r.canceled || !r.filePaths[0]) return null;
@@ -99,6 +110,33 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("project:sample", () => openAt(join(app.getAppPath(), "samples", "demo", "project.json")));
+
+  // Nuovo progetto da un modello di genere: project.json del modello + gli asset che usa, in una cartella vuota.
+  ipcMain.handle("project:new", async (_e, templateId: string) => {
+    if (!/^[a-z]+$/.test(String(templateId))) throw new Error("Modello di progetto non valido.");
+    const samples = join(app.getAppPath(), "samples");
+    const src = join(samples, "templates", `${templateId}.json`);
+    if (!existsSync(src)) throw new Error(`Il modello "${templateId}" non esiste. Esegui "npm run samples".`);
+    const r = await dialog.showOpenDialog(win!, {
+      title: tr("Scegli una cartella vuota per il nuovo progetto", "Choose an empty folder for the new project"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    const dir = r.filePaths[0];
+    const dest = join(dir, "project.json");
+    if (existsSync(dest)) throw new Error("In questa cartella c'è già un progetto Pepino: scegline una vuota.");
+    const data = JSON.parse(await readFile(src, "utf8")) as { assets?: { src: string }[] };
+    const assetsDir = join(samples, "demo");
+    for (const a of data.assets ?? []) {
+      const from = resolve(assetsDir, a.src);
+      const to = resolve(dir, a.src);
+      if (!isInside(assetsDir, from) || !isInside(dir, to) || !existsSync(from)) continue;
+      await mkdir(dirname(to), { recursive: true });
+      await copyFile(from, to);
+    }
+    await writeFile(dest, JSON.stringify(data, null, 2), "utf8");
+    return openAt(dest);
+  });
 
   ipcMain.handle("project:save", async (_e, data: { name: string }) => {
     if (!projectPath) return { ok: false, message: "Nessun progetto aperto." };
@@ -110,7 +148,7 @@ app.whenReady().then(() => {
   ipcMain.handle("project:export", async (_e, data: { name: string; assets: { src: string }[] }) => {
     if (!projectDir) return { error: "Apri o salva un progetto prima di esportare." };
     const r = await dialog.showOpenDialog(win!, {
-      title: "Dove salvo la build WebGL?",
+      title: tr("Dove salvo la build WebGL?", "Where should the WebGL build be saved?"),
       properties: ["openDirectory", "createDirectory"],
     });
     if (r.canceled || !r.filePaths[0]) return null;
@@ -126,14 +164,19 @@ app.whenReady().then(() => {
   ipcMain.handle("assets:import", async () => {
     if (!projectDir) return null;
     const r = await dialog.showOpenDialog(win!, {
-      title: "Importa immagini e suoni",
-      filters: [{ name: "Immagini e audio", extensions: ["png", "jpg", "jpeg", "gif", "webp", "wav", "mp3", "ogg"] }],
+      title: tr("Importa immagini, suoni e caratteri", "Import images, sounds and fonts"),
+      filters: [
+        {
+          name: tr("Immagini, audio e caratteri", "Images, audio and fonts"),
+          extensions: ["png", "jpg", "jpeg", "gif", "webp", "wav", "mp3", "ogg", "ttf", "otf", "woff", "woff2"],
+        },
+      ],
       properties: ["openFile", "multiSelections"],
     });
     if (r.canceled) return null;
     const dir = join(projectDir, "assets");
     await mkdir(dir, { recursive: true });
-    const out: { id: string; type: "image" | "audio"; src: string }[] = [];
+    const out: { id: string; type: "image" | "audio" | "font"; src: string }[] = [];
     for (const src of r.filePaths) {
       const ext = extname(src).toLowerCase();
       let name = basename(src);
@@ -145,11 +188,23 @@ app.whenReady().then(() => {
       if (resolve(dst) !== resolve(src)) await copyFile(src, dst);
       out.push({
         id: basename(name, ext).toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-        type: [".wav", ".mp3", ".ogg"].includes(ext) ? "audio" : "image",
+        type: [".wav", ".mp3", ".ogg"].includes(ext) ? "audio" : [".ttf", ".otf", ".woff", ".woff2"].includes(ext) ? "font" : "image",
         src: `assets/${name}`,
       });
     }
     return out;
+  });
+
+  // Immagini e disegni salvati dal Disegno: si scrive solo dentro la cartella assets del progetto.
+  ipcMain.handle("assets:write", async (_e, rel: string, base64: string) => {
+    if (!projectDir) throw new Error(tr("Salva il progetto prima di salvare le immagini.", "Save the project before saving images."));
+    const target = resolve(projectDir, String(rel));
+    if (!isInside(join(projectDir, "assets"), target) || !/\.(png|json)$/i.test(target)) {
+      throw new Error(tr("Percorso non consentito", "Path not allowed"));
+    }
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, Buffer.from(String(base64), "base64"));
+    return true;
   });
 
   // Apre solo cartelle che l'editor conosce: l'ultima build o il progetto aperto.

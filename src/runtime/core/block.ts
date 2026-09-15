@@ -18,6 +18,7 @@ export type PropType =
   | "select"
   | "image"
   | "audio"
+  | "font"
   | "scene"
   | "tag"
   | "group"
@@ -36,7 +37,9 @@ export type PropType =
   | "blockAction"
   | "block"
   | "state"
-  | "dialogue";
+  | "dialogue"
+  | "cutscene"
+  | "language";
 
 export interface PropOption {
   value: string;
@@ -58,6 +61,8 @@ export interface PropSchema {
   group?: string;
   /** Il campo può restare vuoto (il controllo del progetto non lo segnala). */
   optional?: boolean;
+  /** Testo che il giocatore vede: compare nella scheda Testi per essere tradotto. */
+  translatable?: boolean;
 }
 
 export interface NamedInfo {
@@ -96,6 +101,8 @@ interface Hooks {
   renderScreen?: (self: Self, r: Renderer) => void;
   /** Disegno di debug (F1): zone che colpiscono, percorsi, raggi di vista. */
   renderDebug?: (self: Self, r: Renderer) => void;
+  /** Luci 2D: disegna la luce (si somma alle altre) quando la scena ha la luce ambiente. */
+  renderLight?: (self: Self, r: Renderer) => void;
   destroy?: (self: Self) => void;
 }
 
@@ -161,6 +168,7 @@ export function defineBlock(spec: BlockSpec): BlockDef {
     update: spec.update,
     physics: spec.physics,
     late: spec.late,
+    renderLight: spec.renderLight,
     render: spec.render,
     renderScreen: spec.renderScreen,
     renderDebug: spec.renderDebug,
@@ -215,6 +223,7 @@ export const CUSTOM_PROP_TYPES = new Set<string>([
   "dialogue",
   "input",
   "stateMap",
+  "language",
 ]);
 
 /** Valori finali delle proprietà: quelli salvati, altrimenti i predefiniti dello schema. */

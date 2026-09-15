@@ -69,8 +69,9 @@ defineBlock({
     if (d.unseen > p.giveUp) return lose(self);
 
     const stop = p.stopDistance * ts;
-    const topdown = e.get("TopDownController");
-    if (!topdown) {
+    // Top-down e beat 'em up si muovono su un piano: stessa strategia di inseguimento.
+    const planar = e.get("TopDownController") ?? e.get("BeatEmUpController");
+    if (!planar) {
       // Platform: avanti o indietro verso il bersaglio, salto se c'è un muro o se sta più in alto.
       const dx = to.x - from.x;
       it.x = Math.abs(dx) > Math.max(2, stop) ? Math.sign(dx) : 0;
@@ -88,7 +89,7 @@ defineBlock({
     if (d.repath <= 0 || !d.path) {
       d.repath = 0.4;
       d.path = findPath(grid, Math.floor(from.x / ts), Math.floor(from.y / ts), Math.floor(to.x / ts), Math.floor(to.y / ts), {
-        diagonal: topdown.props.directions === "8",
+        diagonal: planar.props.directions !== "4",
       });
     }
     let wx = to.x;

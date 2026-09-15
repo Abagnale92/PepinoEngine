@@ -2,6 +2,8 @@ import { getBlockDef, resolveProps, type PropSchema } from "../core/block";
 import { mergeBlocks } from "../core/scene";
 import { getRuleItemDef, splitRuleKey, type RuleItemDef } from "../rules/rules";
 import { compilePython, PythonError } from "../scripting/python";
+import { collectTexts, missingTranslations } from "./texts";
+import { isBuiltinFont } from "../render/fonts";
 import { DEFAULT_INPUT, DIALOGUE_END, type BlockData, type EntityData, type ProjectData, type RuleData, type RuleItem, type SceneData } from "./format";
 
 /**
@@ -21,9 +23,11 @@ export interface ProjectIssue {
   prefabId?: string;
   ruleId?: string;
   scriptId?: string;
+  /** Lingua con testi da tradurre (clic → scheda Testi). */
+  language?: string;
 }
 
-type Ids = Pick<ProjectIssue, "sceneId" | "entityId" | "prefabId" | "ruleId" | "scriptId">;
+type Ids = Pick<ProjectIssue, "sceneId" | "entityId" | "prefabId" | "ruleId" | "scriptId" | "language">;
 
 const q = (s: string) => `«${s}»`;
 
@@ -46,6 +50,7 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
   const prefabs = new Map(p.prefabs.map((x) => [x.id, x]));
   const inputs = new Set([...Object.keys(DEFAULT_INPUT), ...Object.keys(p.input ?? {})]);
   const dialogues = new Map((p.dialogues ?? []).map((d) => [d.id, d]));
+  const cutscenes = new Set((p.cutscenes ?? []).map((c) => c.id));
   const allTags = new Set<string>();
   for (const pf of p.prefabs) pf.tags?.forEach((t) => allTags.add(t));
   for (const s of p.scenes) for (const e of flatten(s.entities)) e.tags?.forEach((t) => allTags.add(t));
@@ -64,13 +69,16 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
   duplicates(p.prefabs.map((x) => x.id), "modelli", "Modelli");
   duplicates(p.tilesets.map((t) => t.id), "tileset", "Tileset");
   if (!sceneIds.has(p.settings.startScene)) add("error", "Progetto", `La scena iniziale ${q(p.settings.startScene)} non esiste.`);
+  const font = p.settings.font;
+  if (font && !isBuiltinFont(font) && assets.get(font)?.type !== "font") add("error", "Progetto", `Il carattere ${q(font)} non esiste.`);
   if (!(p.settings.tileSize > 0)) add("error", "Progetto", "La dimensione dei tile deve essere maggiore di zero.");
   const res = p.settings.resolution;
   if (!(res?.width > 0 && res?.height > 0)) add("error", "Progetto", "La risoluzione deve essere maggiore di zero.");
 
   for (const a of p.assets) {
     const where = `Asset ${q(a.id)}`;
-    if (!a.src) add("error", where, "Manca il percorso del file.");
+    // Brani ed effetti della scheda Musica non hanno un file: il gioco li calcola.
+    if (!a.src && !(a.type === "audio" && (a.song || a.sfx))) add("error", where, "Manca il percorso del file.");
     if (a.type === "image") {
       for (const [name, an] of Object.entries(a.animations ?? {})) {
         if (!an.frames?.length) add("warn", `${where} › Animazione ${q(name)}`, "Non ha fotogrammi.");
@@ -103,6 +111,24 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
         new Function("Pepino", s.code ?? "");
       } catch (err) {
         add("error", sw, `Errore di sintassi: ${(err as Error).message}`, ids);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------- lingue
+  const languages = new Set((p.languages ?? []).map((l) => l.id));
+  duplicates((p.languages ?? []).map((l) => l.id), "lingue", "Lingue");
+  if ((p.languages?.length ?? 0) > 1) {
+    const texts = collectTexts(p);
+    for (const l of p.languages!.slice(1)) {
+      const n = missingTranslations(p, l.id, texts).length;
+      if (n) {
+        add(
+          "warn",
+          `Lingua ${q(l.name)}`,
+          `${n} ${n === 1 ? "testo non è ancora tradotto" : "testi non sono ancora tradotti"}: nel gioco resteranno nella lingua originale.`,
+          { language: l.id },
+        );
       }
     }
   }
@@ -155,16 +181,45 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
 
     const flat = flatten(s.entities);
     duplicates(flat.map((e) => e.id), "oggetti", sw, { sceneId: s.id });
+    let beatEmUp = false;
     for (const e of flat) {
       const where = `${sw} › ${e.name}`;
       const ids = { sceneId: s.id, entityId: e.id };
       const prefab = e.prefab ? prefabs.get(e.prefab) : undefined;
       if (e.prefab && !prefab) add("error", where, `Usa il modello ${q(e.prefab)} che non esiste.`, ids);
-      checkBlocks(prefab ? mergeBlocks(prefab.blocks, e.blocks) : e.blocks, where, ids);
+      const blocks = prefab ? mergeBlocks(prefab.blocks, e.blocks) : e.blocks;
+      checkBlocks(blocks, where, ids);
+      if (blocks.some((b) => b.type === "BeatEmUpController" && b.enabled !== false)) beatEmUp = true;
+    }
+    if (beatEmUp && !s.ySort) {
+      add("warn", sw, "C'è un Controller Beat 'em up: attiva «Ordina per Y», così chi sta più in basso sulla strada è disegnato davanti.", {
+        sceneId: s.id,
+      });
     }
     (s.rules ?? []).forEach((r, i) => checkRule(r, i, s));
   }
   (p.rules ?? []).forEach((r, i) => checkRule(r, i, undefined));
+
+  // Filmati: i passi sono azioni delle Regole, senza evento («questo oggetto» è quello della regola che li avvia).
+  duplicates((p.cutscenes ?? []).map((c) => c.id), "filmati", "Filmati");
+  for (const c of p.cutscenes ?? []) {
+    const where = `Filmato ${q(c.name)}`;
+    if (!c.steps?.length) add("warn", where, "Il filmato non ha passi.");
+    for (const item of c.steps ?? []) {
+      const def = getRuleItemDef(item.type);
+      if (!def) {
+        add("error", where, `azione sconosciuta ${q(item.type)}.`);
+        continue;
+      }
+      if (def.kind !== "action") {
+        add("error", where, `${q(def.label)} non si può usare come azione.`);
+        continue;
+      }
+      for (const [name, schema] of Object.entries(def.params)) {
+        checkRuleParam(name, schema, item, def, `${where} › ${def.label}`, {}, undefined, undefined, undefined);
+      }
+    }
+  }
   return issues;
 
   // ---------------------------------------------------------- blocchi
@@ -225,6 +280,9 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
         break;
       case "boolean":
         if (typeof v !== "boolean") add("warn", where, "Deve essere sì o no.", ids);
+        break;
+      case "font":
+        if (s && !isBuiltinFont(s) && assets.get(s)?.type !== "font") add("error", where, `Il carattere ${q(s)} non esiste.`, ids);
         break;
       case "image":
       case "audio":
@@ -373,6 +431,11 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
           if (!schema.optional) err("Scegli il dialogo.");
         } else if (!dialogues.has(s)) err(`Il dialogo ${q(s)} non esiste.`);
         return;
+      case "cutscene":
+        if (!s) {
+          if (!schema.optional) err("Scegli il filmato.");
+        } else if (!cutscenes.has(s)) err(`Il filmato ${q(s)} non esiste.`);
+        return;
       case "block":
         if (!s) err("Scegli il blocco.");
         else if (!getBlockDef(s)) err(`Blocco sconosciuto ${q(s)}.`);
@@ -394,6 +457,10 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
         return;
       case "input":
         if (!inputs.has(s)) err(`Il comando ${q(s)} non esiste.`);
+        return;
+      case "language":
+        if (!s) err("Scegli la lingua.");
+        else if (!languages.has(s)) err(`La lingua ${q(s)} non è tra le lingue del gioco (scheda Testi).`);
         return;
       case "number":
       case "integer":

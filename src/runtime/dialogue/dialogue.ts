@@ -34,6 +34,8 @@ export class DialogueRunner {
     private dialogues: () => DialogueData[],
     private vars: () => Record<string, VariableValue>,
     private onEnd: (id: string, speaker?: Entity) => void,
+    /** Traduzione dei testi nella lingua scelta dal giocatore. */
+    private translate: (text: string) => string = (s) => s,
   ) {}
 
   get active(): boolean {
@@ -63,7 +65,7 @@ export class DialogueRunner {
   private enter(index: number) {
     const c = this.current!;
     c.index = index;
-    c.text = interpolate(c.data.lines[index].text ?? "", this.vars());
+    c.text = interpolate(this.translate(c.data.lines[index].text ?? ""), this.vars());
     c.shown = 0;
     c.choice = 0;
     c.wait = 0.12;

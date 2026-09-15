@@ -2,6 +2,8 @@ import { validateProject, type BlockData, type EntityData } from "@runtime";
 import { api } from "./api";
 import { currentScene, editProject, getState, loadProject, log, setState, viewInfo } from "./store";
 import { collectIds, effectiveBlocks, findEntity, prefabUses, removeEntity, sceneOf, uniqueId } from "./projectOps";
+import { T, Twhere } from "./i18n";
+import { getSettings } from "./settings";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -10,7 +12,22 @@ export async function openSample(): Promise<void> {
     const p = await api.openSample();
     if (p) {
       loadProject(p);
-      log("info", `Aperto il progetto "${p.data.name}"`);
+      log("info", T("Aperto il progetto «{0}»", p.data.name));
+    }
+  } catch (e) {
+    log("error", message(e));
+  }
+}
+
+export async function newProject(template: string): Promise<void> {
+  try {
+    const p = await api.newProject(template);
+    if (p) {
+      loadProject(p);
+      log(
+        "info",
+        api.desktop ? T("Creato il progetto «{0}» in {1}", p.data.name, p.path) : T("Aperto il modello «{0}» (nel browser non si salva)", p.data.name),
+      );
     }
   } catch (e) {
     log("error", message(e));
@@ -22,7 +39,7 @@ export async function openProjectDialog(): Promise<void> {
     const p = await api.openProject();
     if (p) {
       loadProject(p);
-      log("info", `Aperto il progetto "${p.data.name}"`);
+      log("info", T("Aperto il progetto «{0}»", p.data.name));
     }
   } catch (e) {
     log("error", message(e));
@@ -36,10 +53,10 @@ export async function saveProject(): Promise<boolean> {
     const res = await api.saveProject(s.project);
     if (res.ok) {
       setState({ dirty: false });
-      log("info", "Progetto salvato");
+      log("info", T("Progetto salvato"));
       return true;
     }
-    log("warn", res.message ?? "Salvataggio non riuscito");
+    log("warn", T(res.message ?? "Salvataggio non riuscito"));
   } catch (e) {
     log("error", message(e));
   }
@@ -52,17 +69,21 @@ export function checkProject(report = true): number {
   if (!p) return 0;
   const issues = validateProject(p);
   for (const i of issues) {
-    log(i.level, `${i.where}: ${i.message}`, {
+    log(i.level, `${Twhere(i.where)}: ${T(i.message)}`, {
       sceneId: i.sceneId,
       entityId: i.entityId,
       prefabId: i.prefabId,
       ruleId: i.ruleId,
       scriptId: i.scriptId,
+      language: i.language,
     });
   }
   const errors = issues.filter((i) => i.level === "error").length;
   if (report) {
-    log("info", issues.length ? `Controllo completato: ${errors} errori, ${issues.length - errors} avvisi.` : "Controllo completato: nessun problema.");
+    log(
+      "info",
+      issues.length ? T("Controllo completato: {0} errori, {1} avvisi.", errors, issues.length - errors) : T("Controllo completato: nessun problema."),
+    );
   }
   return errors;
 }
@@ -70,10 +91,10 @@ export function checkProject(report = true): number {
 export function togglePlay(): void {
   const s = getState();
   if (!s.project) return;
-  if (!s.playing) {
+  if (!s.playing && getSettings().checkBeforePlay) {
     const errors = checkProject(false);
     if (errors > 0) {
-      log("warn", `Il progetto ha ${errors} errori: l'anteprima parte lo stesso, ma qualcosa potrebbe non funzionare.`);
+      log("warn", T("Il progetto ha {0} errori: l'anteprima parte lo stesso, ma qualcosa potrebbe non funzionare.", errors));
       setState({ bottomTab: "console" });
     }
   }
@@ -87,10 +108,10 @@ export async function exportWeb(): Promise<void> {
   try {
     const res = await api.exportWeb(getState().project!);
     if (!res) return;
-    if (res.error) log("error", res.error);
+    if (res.error) log("error", T(res.error));
     else if (res.dir) {
-      for (const src of res.skipped ?? []) log("warn", `Asset non copiato nella build (file mancante o fuori dal progetto): ${src}`);
-      log("info", `Build WebGL pronta in ${res.dir}. Caricala su itch.io o aprila con un server web.`);
+      for (const src of res.skipped ?? []) log("warn", T("Asset non copiato nella build (file mancante o fuori dal progetto): {0}", src));
+      log("info", T("Build WebGL pronta in {0}. Caricala su itch.io o aprila con un server web.", res.dir));
       api.reveal(res.dir);
     }
   } catch (e) {
@@ -100,7 +121,7 @@ export async function exportWeb(): Promise<void> {
 
 export async function importAssets(): Promise<void> {
   if (!api.desktop) {
-    log("warn", "L'importazione di file è disponibile nell'app desktop.");
+    log("warn", T("L'importazione di file è disponibile nell'app desktop."));
     return;
   }
   try {
@@ -111,10 +132,10 @@ export async function importAssets(): Promise<void> {
       for (const a of list) {
         const id = uniqueId(a.id, ids);
         ids.add(id);
-        p.assets.push(a.type === "image" ? { id, type: "image", src: a.src } : { id, type: "audio", src: a.src });
+        p.assets.push({ id, type: a.type, src: a.src });
       }
     });
-    log("info", `Importati ${list.length} file`);
+    log("info", T("Importati {0} file", list.length));
   } catch (e) {
     log("error", message(e));
   }
@@ -139,7 +160,7 @@ export function addScene(): void {
   editProject((d) => {
     d.scenes.push({
       id,
-      name: `Nuova scena ${d.scenes.length + 1}`,
+      name: T("Nuova scena {0}", d.scenes.length + 1),
       width: w,
       height: h,
       background: d.settings.background,
@@ -202,7 +223,7 @@ export function addEntityAt(x: number, y: number, name: string, blocks: BlockDat
 
 export function addEmptyEntity(): void {
   const ts = getState().project?.settings.tileSize ?? 16;
-  addEntityAt(Math.round(viewInfo.cx / ts) * ts, Math.round(viewInfo.cy / ts) * ts, "Oggetto", []);
+  addEntityAt(Math.round(viewInfo.cx / ts) * ts, Math.round(viewInfo.cy / ts) * ts, T("Oggetto"), []);
 }
 
 export function deleteSelection(): void {
@@ -214,7 +235,7 @@ export function deleteSelection(): void {
     editProject((p) => removeEntity(sceneOf(p, scene.id)!.entities, sel.id));
     setState({ selection: null });
   } else if (sel.kind === "layer") {
-    if (scene.layers.length <= 1) return log("warn", "Una scena deve avere almeno un layer.");
+    if (scene.layers.length <= 1) return log("warn", T("Una scena deve avere almeno un layer."));
     editProject((p) => {
       const sc = sceneOf(p, scene.id)!;
       sc.layers = sc.layers.filter((l) => l.id !== sel.id);
@@ -222,7 +243,7 @@ export function deleteSelection(): void {
     setState({ selection: null });
   } else if (sel.kind === "prefab") {
     const uses = prefabUses(s.project, sel.id);
-    if (uses > 0) return log("warn", `Il modello è usato da ${uses} oggetti: scollegali prima di eliminarlo.`);
+    if (uses > 0) return log("warn", T("Il modello è usato da {0} oggetti: scollegali prima di eliminarlo.", uses));
     editProject((p) => {
       p.prefabs = p.prefabs.filter((x) => x.id !== sel.id);
     });
@@ -266,7 +287,7 @@ export function createPrefabFromEntity(id: string): void {
     ent.blocks = [];
     delete ent.tags;
   });
-  log("info", `Creato il modello "${e.name}": trascinalo dal pannello Modelli per piazzarne altri.`);
+  log("info", T("Creato il modello «{0}»: trascinalo dal pannello Modelli per piazzarne altri.", e.name));
 }
 
 /** L'oggetto smette di seguire il modello e ne copia i blocchi. */

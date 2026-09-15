@@ -1,5 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { DEFAULT_INPUT, INPUT_LABELS, type NamedInfo, type ProjectData, type PropSchema } from "@runtime";
+import {
+  BUILTIN_FONTS,
+  DEFAULT_FONT_ID,
+  DEFAULT_INPUT,
+  INPUT_LABELS,
+  isBuiltinFont,
+  type NamedInfo,
+  type ProjectData,
+  type PropSchema,
+} from "@runtime";
+import { T } from "../i18n";
+import { FontPreview } from "./FontPreview";
 
 export interface FieldCtx {
   project: ProjectData;
@@ -24,11 +35,11 @@ export function Field({
 }) {
   return (
     <div className="field">
-      <label title={help ? `${label}: ${help}` : label}>
+      <label title={help ? `${T(label)}: ${T(help)}` : T(label)}>
         {modified && (
-          <button type="button" className="mod-dot" title="Diverso dal modello: clic per ripristinare" onClick={onReset} />
+          <button type="button" className="mod-dot" title={T("Diverso dal modello: clic per ripristinare")} onClick={onReset} />
         )}
-        <span className="field-label">{label}</span>
+        <span className="field-label">{T(label)}</span>
         {help && <span className="help">?</span>}
       </label>
       <div className="field-ctl">{children}</div>
@@ -71,7 +82,7 @@ export function NumberField({
         }}
         onBlur={() => setDraft(null)}
       />
-      {unit && <span className="unit">{unit}</span>}
+      {unit && <span className="unit">{T(unit)}</span>}
     </div>
   );
 }
@@ -129,7 +140,7 @@ export function TagsInput({ value, onChange }: { value: string[]; onChange: (tag
   return (
     <CommitInput
       value={value.join(", ")}
-      placeholder="es. giocatore, nemico"
+      placeholder={T("es. giocatore, nemico")}
       onCommit={(v) =>
         onChange(
           v
@@ -184,7 +195,7 @@ export function PropField({
         <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
           {schema.options?.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {T(o.label)}
             </option>
           ))}
         </select>
@@ -195,20 +206,44 @@ export function PropField({
       const v = String(value ?? "");
       return (
         <select value={v} onChange={(e) => onChange(e.target.value)}>
-          <option value="">— nessuno —</option>
+          <option value="">{T("— nessuno —")}</option>
           {list.map((a) => (
             <option key={a.id} value={a.id}>
               {a.id}
             </option>
           ))}
-          {v && !list.some((a) => a.id === v) && <option value={v}>{v} (mancante)</option>}
+          {v && !list.some((a) => a.id === v) && <option value={v}>{v}{T(" (mancante)")}</option>}
         </select>
+      );
+    }
+    case "font": {
+      const fonts = p.assets.filter((a) => a.type === "font");
+      const v = String(value ?? "");
+      const known = !v || isBuiltinFont(v) || fonts.some((a) => a.id === v);
+      return (
+        <div className="font-field" style={{ display: "grid", gap: 4, minWidth: 0 }}>
+          <select value={v} onChange={(e) => onChange(e.target.value)}>
+            {schema.default === "" && <option value="">{T("— carattere del gioco —")}</option>}
+            {BUILTIN_FONTS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {T(f.label)}
+              </option>
+            ))}
+            {fonts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.id}
+              </option>
+            ))}
+            {!known && <option value={v}>{v}{T(" (mancante)")}</option>}
+          </select>
+          <FontPreview font={v || p.settings.font || DEFAULT_FONT_ID} />
+        </div>
       );
     }
     case "scene":
       return (
         <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
-          <option value="">— scegli —</option>
+          <option value="">{T("— scegli —")}</option>
           {p.scenes.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -251,7 +286,7 @@ export function PropField({
     case "prefab":
       return (
         <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
-          <option value="">— nessuno —</option>
+          <option value="">{T("— nessuno —")}</option>
           {p.prefabs.map((x) => (
             <option key={x.id} value={x.id}>
               {x.name}
@@ -262,10 +297,32 @@ export function PropField({
     case "dialogue":
       return (
         <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
-          <option value="">{schema.optional ? "— qualsiasi —" : "— scegli —"}</option>
+          <option value="">{schema.optional ? T("— qualsiasi —") : T("— scegli —")}</option>
           {(p.dialogues ?? []).map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
+            </option>
+          ))}
+        </select>
+      );
+    case "cutscene":
+      return (
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{schema.optional ? T("— qualsiasi —") : T("— scegli —")}</option>
+          {(p.cutscenes ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      );
+    case "language":
+      return (
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{T("— scegli —")}</option>
+          {(p.languages ?? []).map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
             </option>
           ))}
         </select>
@@ -275,7 +332,7 @@ export function PropField({
         <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
           {[...new Set([...Object.keys(DEFAULT_INPUT), ...Object.keys(p.input ?? {})])].map((k) => (
             <option key={k} value={k}>
-              {INPUT_LABELS[k] ?? k}
+              {T(INPUT_LABELS[k] ?? k)}
             </option>
           ))}
         </select>
@@ -294,7 +351,7 @@ export function PropField({
     case "stateMap":
       return <StateMapField value={(value ?? {}) as Record<string, string>} onChange={onChange} ctx={ctx} />;
     default:
-      return <span className="dim">Tipo non supportato</span>;
+      return <span className="dim">{T("Tipo non supportato")}</span>;
   }
 }
 
@@ -308,10 +365,10 @@ function StateMapField({
   ctx: FieldCtx;
 }) {
   if (ctx.states.length === 0) {
-    return <p className="empty-hint">Aggiungi un controller (Platform o Top-down): i suoi stati compariranno qui.</p>;
+    return <p className="empty-hint">{T("Aggiungi un controller (Platform o Top-down): i suoi stati compariranno qui.")}</p>;
   }
   if (ctx.animations.length === 0) {
-    return <p className="empty-hint">L'immagine dello Sprite non ha animazioni: aggiungile dal pannello Asset.</p>;
+    return <p className="empty-hint">{T("L'immagine dello Sprite non ha animazioni: aggiungile dal pannello Asset.")}</p>;
   }
   return (
     <div className="state-map">
@@ -319,7 +376,7 @@ function StateMapField({
         const auto = ctx.animations.includes(s.id);
         return (
           <div className="state-row" key={s.id}>
-            <span>{s.label}</span>
+            <span>{T(s.label)}</span>
             <select
               value={value[s.id] ?? ""}
               onChange={(e) => {
@@ -329,7 +386,7 @@ function StateMapField({
                 onChange(next);
               }}
             >
-              <option value="">{auto ? `automatica (${s.id})` : "— nessuna —"}</option>
+              <option value="">{auto ? T("automatica ({0})", s.id) : T("— nessuna —")}</option>
               {ctx.animations.map((a) => (
                 <option key={a} value={a}>
                   {a}

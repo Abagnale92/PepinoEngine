@@ -52,12 +52,16 @@ export class Input {
   private prev = new Set<string>();
   private pressedNow = new Set<string>();
   private virtual = new Map<string, boolean>();
+  /** Pulsanti touch premuti dall'ultimo passo: un tocco velocissimo non va perso. */
+  private virtualQueue = new Set<string>();
   private boundKeys = new Set<string>();
   /** Mouse o tocco, in pixel CSS relativi al canvas. `pressed` e `moved` valgono per un solo passo. */
   readonly pointer = { x: -1, y: -1, down: false, pressed: false, moved: false };
   private pointerPressQ = false;
   private pointerMoveQ = false;
   private pointerEl?: HTMLElement;
+  /** Azioni che per ora non contano (comandi bloccati durante un filmato). */
+  masked: Set<string> | null = null;
 
   constructor(private bindings: Record<string, string[]>) {
     for (const list of Object.values(bindings)) {
@@ -117,7 +121,7 @@ export class Input {
     this.pointer.moved = this.pointerMoveQ;
     for (const [action, list] of Object.entries(this.bindings)) {
       let isDown = !!this.virtual.get(action);
-      let queued = false;
+      let queued = this.virtualQueue.has(action);
       for (const b of list) {
         const sep = b.indexOf(":");
         const kind = b.slice(0, sep);
@@ -138,17 +142,18 @@ export class Input {
   endStep(): void {
     this.prev = new Set(this.down);
     this.keyQueue.clear();
+    this.virtualQueue.clear();
     this.pointerPressQ = false;
     this.pointerMoveQ = false;
   }
 
   isDown(action: string): boolean {
-    return this.down.has(action);
+    return this.down.has(action) && !this.masked?.has(action);
   }
 
   /** Vero solo nel passo in cui l'azione è stata premuta. */
   pressed(action: string): boolean {
-    return this.pressedNow.has(action);
+    return this.pressedNow.has(action) && !this.masked?.has(action);
   }
 
   axis(negative: string, positive: string): number {
@@ -162,6 +167,7 @@ export class Input {
 
   /** Per i controlli touch sullo schermo. */
   setVirtual(action: string, down: boolean): void {
+    if (down && !this.virtual.get(action)) this.virtualQueue.add(action);
     this.virtual.set(action, down);
   }
 
