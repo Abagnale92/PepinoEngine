@@ -3,6 +3,7 @@ const PATHS: Record<string, string> = {
   paint: "M10.5 2.5l3 3-6.5 6.5-3-3zM4 12l-1.5 1.5",
   erase: "M6 13.5h8M2.5 9.5l6-6 4.5 4.5-5.5 5.5H6z",
   grid: "M2 2h12v12H2zM6 2v12M10 2v12M2 6h12M2 10h12",
+  flag: "M3 15V2M3 2.5h10l-2 3 2 3H3M6 2.5v6M9 2.5v6M3 5.5h8",
   collision: "M2 2h12v12H2zM2 8l6-6M2 14L14 2M8 14l6-6",
   snap: "M4 2v6a4 4 0 008 0V2M4 5.5h2.5M9.5 5.5H12",
   undo: "M5.5 3L2.5 6l3 3M2.5 6h7a3.5 3.5 0 010 7H6",

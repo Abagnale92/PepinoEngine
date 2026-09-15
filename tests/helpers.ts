@@ -1,4 +1,5 @@
 import {
+  LOCKED_ACTIONS,
   Scene,
   Translator,
   registerBuiltinBlocks,
@@ -24,6 +25,8 @@ export class FakeInput {
   private held = new Set<string>();
   private justPressed = new Set<string>();
   readonly pointer = { x: -1, y: -1, down: false, pressed: false, moved: false };
+  /** Come nel gioco vero: con i comandi bloccati queste azioni sembrano rilasciate. */
+  masked: ReadonlySet<string> | null = null;
 
   hold(action: string) {
     if (!this.held.has(action)) this.justPressed.add(action);
@@ -33,10 +36,10 @@ export class FakeInput {
     this.held.delete(action);
   }
   isDown(a: string) {
-    return this.held.has(a);
+    return this.held.has(a) && !this.masked?.has(a);
   }
   pressed(a: string) {
-    return this.justPressed.has(a);
+    return this.justPressed.has(a) && !this.masked?.has(a);
   }
   axis(neg: string, pos: string) {
     return (this.isDown(pos) ? 1 : 0) - (this.isDown(neg) ? 1 : 0);
@@ -185,7 +188,9 @@ export function makeWorld(project: ProjectData) {
   game.scene = scene;
   const step = (n = 1) => {
     for (let i = 0; i < n; i++) {
+      input.masked = game.lockControls ? LOCKED_ACTIONS : null;
       scene.update(DT);
+      input.masked = null;
       input.endStep();
     }
   };

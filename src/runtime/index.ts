@@ -7,7 +7,7 @@ export { Entity } from "./core/entity";
 export type { Intent, SpriteState, Direction } from "./core/entity";
 export { Scene, mergeBlocks } from "./core/scene";
 export { Camera } from "./core/camera";
-export { Game } from "./core/game";
+export { Game, LOCKED_ACTIONS } from "./core/game";
 export type { GameOptions, LogLevel, DebugState } from "./core/game";
 export { Renderer } from "./render/renderer";
 export type { Texture, TextStyle, BlendMode } from "./render/renderer";

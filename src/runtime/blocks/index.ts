@@ -22,6 +22,7 @@ import "./combo";
 import "./boss";
 import "./shmup";
 import "./towerdefense";
+import "./racing";
 
 /** Garantisce che i blocchi di serie siano caricati (l'import sopra fa il lavoro). */
 export function registerBuiltinBlocks(): void {}

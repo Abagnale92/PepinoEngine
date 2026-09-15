@@ -1,0 +1,5390 @@
+{
+  "format": "pepino",
+  "version": 1,
+  "name": "Il mio gioco di corse",
+  "settings": {
+    "resolution": {
+      "width": 320,
+      "height": 180
+    },
+    "pixelPerfect": true,
+    "tileSize": 16,
+    "startScene": "circuito",
+    "background": "#8fd3ff",
+    "font": "pixel",
+    "collisionGroups": [
+      "giocatore",
+      "nemici",
+      "raccoglibili",
+      "trigger",
+      "proiettili"
+    ],
+    "touch": {
+      "mode": "auto",
+      "buttons": []
+    }
+  },
+  "input": {
+    "left": [
+      "Key:ArrowLeft",
+      "Key:KeyA",
+      "Pad:DPadLeft",
+      "Pad:LeftStickLeft"
+    ],
+    "right": [
+      "Key:ArrowRight",
+      "Key:KeyD",
+      "Pad:DPadRight",
+      "Pad:LeftStickRight"
+    ],
+    "up": [
+      "Key:ArrowUp",
+      "Key:KeyW",
+      "Pad:DPadUp",
+      "Pad:LeftStickUp"
+    ],
+    "down": [
+      "Key:ArrowDown",
+      "Key:KeyS",
+      "Pad:DPadDown",
+      "Pad:LeftStickDown"
+    ],
+    "jump": [
+      "Key:Space",
+      "Key:KeyZ",
+      "Pad:A"
+    ],
+    "dash": [
+      "Key:ShiftLeft",
+      "Key:KeyX",
+      "Pad:RB",
+      "Pad:B"
+    ],
+    "action": [
+      "Key:KeyC",
+      "Key:Enter",
+      "Pad:X"
+    ],
+    "attack": [
+      "Key:KeyV",
+      "Key:KeyJ",
+      "Pad:Y"
+    ],
+    "pause": [
+      "Key:Escape",
+      "Pad:Start"
+    ]
+  },
+  "variables": {
+    "giro": 1,
+    "posizione": 4,
+    "tempo": 0,
+    "migliore": 0,
+    "monete": 0,
+    "vita": 3
+  },
+  "assets": [
+    {
+      "id": "tiles",
+      "type": "image",
+      "src": "assets/tiles.png"
+    },
+    {
+      "id": "pepino",
+      "type": "image",
+      "src": "assets/pepino.png",
+      "frameWidth": 16,
+      "frameHeight": 24,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 2,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 10,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "attack1": {
+          "frames": [
+            11,
+            12,
+            12
+          ],
+          "fps": 12,
+          "loop": false
+        },
+        "attack2": {
+          "frames": [
+            11,
+            13,
+            13
+          ],
+          "fps": 12,
+          "loop": false
+        },
+        "attack3": {
+          "frames": [
+            14,
+            15,
+            15,
+            15,
+            15
+          ],
+          "fps": 12,
+          "loop": false
+        },
+        "airAttack": {
+          "frames": [
+            16
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "hurt": {
+          "frames": [
+            17
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "down": {
+          "frames": [
+            18
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "getup": {
+          "frames": [
+            19
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "jump": {
+          "frames": [
+            6
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            7
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "dash": {
+          "frames": [
+            8
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "climb": {
+          "frames": [
+            9,
+            10
+          ],
+          "fps": 6,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "pepino_td",
+      "type": "image",
+      "src": "assets/pepino_td.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "idle_down": {
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk_down": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "idle_up": {
+          "frames": [
+            2
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk_up": {
+          "frames": [
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "idle_side": {
+          "frames": [
+            4
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk_side": {
+          "frames": [
+            4,
+            5
+          ],
+          "fps": 6,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "slime",
+      "type": "image",
+      "src": "assets/slime.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 5,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "coin",
+      "type": "image",
+      "src": "assets/coin.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "door",
+      "type": "image",
+      "src": "assets/door.png"
+    },
+    {
+      "id": "cartello",
+      "type": "image",
+      "src": "assets/sign.png"
+    },
+    {
+      "id": "nonno",
+      "type": "image",
+      "src": "assets/nonno.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "fps": 4,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "ritratti",
+      "type": "image",
+      "src": "assets/ritratti.png",
+      "frameWidth": 32,
+      "frameHeight": 32
+    },
+    {
+      "id": "seme",
+      "type": "image",
+      "src": "assets/seme.png"
+    },
+    {
+      "id": "molla",
+      "type": "image",
+      "src": "assets/molla.png"
+    },
+    {
+      "id": "lampione",
+      "type": "image",
+      "src": "assets/lampione.png"
+    },
+    {
+      "id": "boss",
+      "type": "image",
+      "src": "assets/boss.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "windup": {
+          "frames": [
+            4
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "attack": {
+          "frames": [
+            5
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "charge": {
+          "frames": [
+            6,
+            3
+          ],
+          "fps": 10,
+          "loop": true
+        },
+        "jump": {
+          "frames": [
+            5
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "slam": {
+          "frames": [
+            4
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "shoot": {
+          "frames": [
+            5,
+            0
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "summon": {
+          "frames": [
+            4,
+            5
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "tired": {
+          "frames": [
+            7
+          ],
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "sputasemi",
+      "type": "image",
+      "src": "assets/sputasemi.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 2,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "salto",
+      "type": "audio",
+      "src": "assets/jump.wav"
+    },
+    {
+      "id": "moneta",
+      "type": "audio",
+      "src": "assets/coin.wav"
+    },
+    {
+      "id": "colpo",
+      "type": "audio",
+      "src": "assets/hurt.wav"
+    },
+    {
+      "id": "schiaccia",
+      "type": "audio",
+      "src": "assets/stomp.wav"
+    },
+    {
+      "id": "dash",
+      "type": "audio",
+      "src": "assets/dash.wav"
+    },
+    {
+      "id": "musica",
+      "type": "audio",
+      "src": "assets/music.wav"
+    },
+    {
+      "id": "auto_verde",
+      "type": "image",
+      "src": "assets/auto_verde.png"
+    },
+    {
+      "id": "auto_rossa",
+      "type": "image",
+      "src": "assets/auto_rossa.png"
+    },
+    {
+      "id": "auto_blu",
+      "type": "image",
+      "src": "assets/auto_blu.png"
+    },
+    {
+      "id": "auto_gialla",
+      "type": "image",
+      "src": "assets/auto_gialla.png"
+    },
+    {
+      "id": "linea_arrivo",
+      "type": "image",
+      "src": "assets/linea_arrivo.png"
+    },
+    {
+      "id": "semaforo",
+      "type": "audio",
+      "src": "",
+      "sfx": {
+        "wave": "square",
+        "freq": 520,
+        "freqEnd": 520,
+        "attack": 0,
+        "sustain": 0.12,
+        "decay": 0.06,
+        "volume": 0.3,
+        "vibrato": 0,
+        "vibratoSpeed": 10,
+        "jump": 1,
+        "jumpAt": 0.05,
+        "crush": 0
+      }
+    },
+    {
+      "id": "partenza",
+      "type": "audio",
+      "src": "",
+      "sfx": {
+        "wave": "square",
+        "freq": 1040,
+        "freqEnd": 1040,
+        "attack": 0,
+        "sustain": 0.3,
+        "decay": 0.15,
+        "volume": 0.3,
+        "vibrato": 0,
+        "vibratoSpeed": 10,
+        "jump": 1,
+        "jumpAt": 0.05,
+        "crush": 0
+      }
+    },
+    {
+      "id": "giro_fatto",
+      "type": "audio",
+      "src": "",
+      "sfx": {
+        "wave": "square",
+        "freq": 660,
+        "freqEnd": 990,
+        "attack": 0,
+        "sustain": 0.08,
+        "decay": 0.12,
+        "volume": 0.3,
+        "vibrato": 0,
+        "vibratoSpeed": 10,
+        "jump": 1,
+        "jumpAt": 0.05,
+        "crush": 0
+      }
+    }
+  ],
+  "tilesets": [
+    {
+      "id": "tiles",
+      "name": "Natura",
+      "image": "tiles",
+      "tileSize": 16,
+      "columns": 8,
+      "count": 23,
+      "tiles": {
+        "0": {
+          "collision": "solid"
+        },
+        "1": {
+          "collision": "solid"
+        },
+        "2": {
+          "collision": "solid"
+        },
+        "3": {
+          "collision": "oneway"
+        },
+        "4": {
+          "collision": "ladder"
+        },
+        "5": {
+          "collision": "hazard"
+        },
+        "11": {
+          "collision": "solid"
+        },
+        "12": {
+          "collision": "solid"
+        },
+        "13": {
+          "collision": "solid"
+        },
+        "15": {
+          "collision": "solid"
+        },
+        "21": {
+          "collision": "solid"
+        }
+      }
+    }
+  ],
+  "prefabs": [
+    {
+      "id": "slime",
+      "name": "Slime",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 9,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "PlatformController",
+          "props": {
+            "input": "ai",
+            "speed": 1.5,
+            "airJumps": 0,
+            "dash": false
+          }
+        },
+        {
+          "type": "Patrol",
+          "props": {}
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 1,
+            "knockback": 0,
+            "invulnerability": 0
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompSound": "schiaccia"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "slime_td",
+      "name": "Slime vagante",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 8,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "TopDownController",
+          "props": {
+            "input": "ai",
+            "speed": 1.8,
+            "directions": "4"
+          }
+        },
+        {
+          "type": "Patrol",
+          "props": {
+            "axis": "vertical",
+            "turnAtEdges": false
+          }
+        },
+        {
+          "type": "Chaser",
+          "props": {
+            "target": "giocatore",
+            "seeRange": 4.5,
+            "loseRange": 7
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 2,
+            "invulnerability": 0.4,
+            "knockback": 7
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompable": false
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "moneta",
+      "name": "Moneta",
+      "tags": [
+        "moneta"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "coin",
+            "origin": "center",
+            "flipWithFacing": false
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 8,
+            "height": 8,
+            "group": "raccoglibili",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "Collectible",
+          "props": {
+            "variable": "monete",
+            "sound": "moneta"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "porta",
+      "name": "Porta",
+      "tags": [
+        "uscita"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "door",
+            "flipWithFacing": false
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 10,
+            "height": 20,
+            "group": "trigger",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "SceneExit",
+          "props": {
+            "scene": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "seme",
+      "name": "Seme",
+      "tags": [
+        "proiettile"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "seme",
+            "origin": "center"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 6,
+            "height": 6,
+            "group": "proiettili",
+            "collidesWith": [],
+            "world": true
+          }
+        },
+        {
+          "type": "Projectile",
+          "props": {
+            "target": "giocatore",
+            "damage": 1,
+            "lifetime": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "sputasemi",
+      "name": "Sputasemi",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "sputasemi"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 13,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 1,
+            "invulnerability": 0,
+            "knockback": 0
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompSound": "schiaccia"
+          }
+        },
+        {
+          "type": "Shooter",
+          "props": {
+            "projectile": "seme",
+            "mode": "auto",
+            "aim": "target",
+            "range": 7,
+            "interval": 2.2,
+            "speed": 5,
+            "offsetX": 4,
+            "offsetY": -8
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "teppista",
+      "name": "Teppista",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime",
+            "tint": "#c9a2ff",
+            "shadow": true
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 8,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "BeatEmUpController",
+          "props": {
+            "input": "ai",
+            "speed": 2.2,
+            "depthSpeed": 1.6,
+            "jumpHeight": 0
+          }
+        },
+        {
+          "type": "Chaser",
+          "props": {
+            "target": "giocatore",
+            "seeRange": 9,
+            "loseRange": 16,
+            "lineOfSight": false,
+            "stopDistance": 0.7,
+            "giveUp": 5
+          }
+        },
+        {
+          "type": "Attack",
+          "props": {
+            "mode": "auto",
+            "target": "giocatore",
+            "damage": 1,
+            "reach": 10,
+            "width": 14,
+            "height": 12,
+            "startup": 0.3,
+            "active": 0.1,
+            "recovery": 0.3,
+            "cooldown": 1.1,
+            "slashColor": "#ff8a8acc"
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 3,
+            "invulnerability": 0,
+            "knockback": 7
+          }
+        },
+        {
+          "type": "Particles",
+          "props": {
+            "burstOn": "hurt",
+            "burstCount": 10,
+            "speed": 3.5,
+            "lifetime": 0.35,
+            "sizeStart": 2.5,
+            "additive": true,
+            "offsetY": -6
+          }
+        },
+        {
+          "type": "SpriteFX",
+          "props": {
+            "onJump": "none",
+            "onHurt": "hit",
+            "onAppear": "pop",
+            "onDeath": "vanish"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "capo",
+      "name": "Capo dei teppisti",
+      "tags": [
+        "nemico",
+        "boss"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "boss",
+            "shadow": true
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 22,
+            "height": 10,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "Boss",
+          "props": {
+            "title": "Capo dei teppisti",
+            "wakeRange": 6,
+            "speed": 1.6,
+            "damage": 1,
+            "summon": true,
+            "minion": "teppista",
+            "minions": 2,
+            "restTime": 1.4
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 24,
+            "invulnerability": 0.12,
+            "knockback": 0,
+            "onDeath": "destroy"
+          }
+        },
+        {
+          "type": "SpriteFX",
+          "props": {
+            "idle": "breathe",
+            "onJump": "none",
+            "onHurt": "hit",
+            "onDeath": "vanish",
+            "strength": 1.2
+          }
+        },
+        {
+          "type": "Particles",
+          "props": {
+            "burstOn": "slam",
+            "burstCount": 18,
+            "speed": 3,
+            "spread": 180,
+            "direction": -90,
+            "lifetime": 0.45,
+            "sizeStart": 3,
+            "colorStart": "#c9c2b8",
+            "colorEnd": "#c9c2b800",
+            "gravity": 6,
+            "offsetY": -2
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "circuito",
+      "name": "Circuito dei cetrioli",
+      "width": 40,
+      "height": 24,
+      "background": "#6cc24a",
+      "ySort": false,
+      "openBottom": false,
+      "music": "musica",
+      "layers": [
+        {
+          "id": "prato",
+          "name": "Prato",
+          "tileset": "tiles",
+          "width": 40,
+          "height": 24,
+          "data": [
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            19,
+            19,
+            19,
+            9,
+            8,
+            8,
+            9,
+            9,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            8,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            19,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            19,
+            19,
+            9,
+            8,
+            8,
+            9,
+            9,
+            9,
+            8,
+            8,
+            9,
+            9,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            8,
+            19,
+            9,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            19,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            19,
+            8,
+            9,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            8,
+            9,
+            19,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            9,
+            8,
+            19,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            9,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            9,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            9,
+            9,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            19,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            19,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            9,
+            8,
+            19,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            9,
+            8,
+            9,
+            8,
+            8,
+            8,
+            19,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            9,
+            9,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            9,
+            19,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            8,
+            9,
+            19,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            19,
+            8,
+            9,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            9,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            19,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            9,
+            8,
+            19,
+            19,
+            9,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            19,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            9,
+            8,
+            8,
+            8,
+            19,
+            19,
+            19,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            19,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "z": -20,
+          "collides": false,
+          "visible": true,
+          "locked": false,
+          "parallax": 1
+        },
+        {
+          "id": "pista",
+          "name": "Pista",
+          "tileset": "tiles",
+          "width": 40,
+          "height": 24,
+          "data": [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            20,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+          ],
+          "z": -15,
+          "collides": false,
+          "visible": true,
+          "locked": false,
+          "parallax": 1
+        },
+        {
+          "id": "muri",
+          "name": "Muretti e alberi",
+          "tileset": "tiles",
+          "width": 40,
+          "height": 24,
+          "data": [
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            15,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            12,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            15,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ],
+          "z": -5,
+          "collides": true,
+          "visible": true,
+          "locked": false,
+          "parallax": 1
+        }
+      ],
+      "entities": [
+        {
+          "id": "arrivo",
+          "name": "Linea d'arrivo",
+          "x": 328,
+          "y": 80,
+          "z": -12,
+          "blocks": [
+            {
+              "type": "Sprite",
+              "props": {
+                "image": "linea_arrivo",
+                "origin": "center",
+                "flipWithFacing": false
+              }
+            },
+            {
+              "type": "Checkpoint",
+              "props": {
+                "order": 0,
+                "width": 1,
+                "height": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "traguardo_1",
+          "name": "Traguardo 1",
+          "x": 560,
+          "y": 192,
+          "z": -12,
+          "blocks": [
+            {
+              "type": "Checkpoint",
+              "props": {
+                "order": 1,
+                "width": 6,
+                "height": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "traguardo_2",
+          "name": "Traguardo 2",
+          "x": 320,
+          "y": 304,
+          "z": -12,
+          "blocks": [
+            {
+              "type": "Checkpoint",
+              "props": {
+                "order": 2,
+                "width": 1,
+                "height": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "traguardo_3",
+          "name": "Traguardo 3",
+          "x": 80,
+          "y": 192,
+          "z": -12,
+          "blocks": [
+            {
+              "type": "Checkpoint",
+              "props": {
+                "order": 3,
+                "width": 6,
+                "height": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_1",
+          "name": "Auto rossa · punto 1",
+          "x": 500,
+          "y": 60,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_2",
+          "name": "Auto rossa · punto 2",
+          "x": 580,
+          "y": 140,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_3",
+          "name": "Auto rossa · punto 3",
+          "x": 580,
+          "y": 244,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_4",
+          "name": "Auto rossa · punto 4",
+          "x": 500,
+          "y": 324,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_5",
+          "name": "Auto rossa · punto 5",
+          "x": 140,
+          "y": 324,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_6",
+          "name": "Auto rossa · punto 6",
+          "x": 60,
+          "y": 244,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_7",
+          "name": "Auto rossa · punto 7",
+          "x": 60,
+          "y": 140,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 7
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa_punto_8",
+          "name": "Auto rossa · punto 8",
+          "x": 140,
+          "y": 60,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_rossa",
+                "order": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_1",
+          "name": "Auto blu · punto 1",
+          "x": 500,
+          "y": 100,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_2",
+          "name": "Auto blu · punto 2",
+          "x": 540,
+          "y": 140,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_3",
+          "name": "Auto blu · punto 3",
+          "x": 540,
+          "y": 244,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_4",
+          "name": "Auto blu · punto 4",
+          "x": 500,
+          "y": 284,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_5",
+          "name": "Auto blu · punto 5",
+          "x": 140,
+          "y": 284,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_6",
+          "name": "Auto blu · punto 6",
+          "x": 100,
+          "y": 244,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_7",
+          "name": "Auto blu · punto 7",
+          "x": 100,
+          "y": 140,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 7
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu_punto_8",
+          "name": "Auto blu · punto 8",
+          "x": 140,
+          "y": 100,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_blu",
+                "order": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_1",
+          "name": "Auto gialla · punto 1",
+          "x": 500,
+          "y": 80,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_2",
+          "name": "Auto gialla · punto 2",
+          "x": 560,
+          "y": 140,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_3",
+          "name": "Auto gialla · punto 3",
+          "x": 560,
+          "y": 244,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_4",
+          "name": "Auto gialla · punto 4",
+          "x": 500,
+          "y": 304,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_5",
+          "name": "Auto gialla · punto 5",
+          "x": 140,
+          "y": 304,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_6",
+          "name": "Auto gialla · punto 6",
+          "x": 80,
+          "y": 244,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_7",
+          "name": "Auto gialla · punto 7",
+          "x": 80,
+          "y": 140,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 7
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla_punto_8",
+          "name": "Auto gialla · punto 8",
+          "x": 140,
+          "y": 80,
+          "blocks": [
+            {
+              "type": "Waypoint",
+              "props": {
+                "path": "giro_auto_gialla",
+                "order": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_rossa",
+          "name": "Auto rossa",
+          "x": 296,
+          "y": 60,
+          "tags": [
+            "rivale"
+          ],
+          "blocks": [
+            {
+              "type": "Sprite",
+              "props": {
+                "image": "auto_rossa",
+                "origin": "center",
+                "flipWithFacing": false
+              }
+            },
+            {
+              "type": "PathFollower",
+              "props": {
+                "path": "giro_auto_rossa",
+                "speed": 7.8,
+                "atEnd": "loop",
+                "autoStart": false,
+                "rotate": true
+              }
+            },
+            {
+              "type": "LapCounter",
+              "props": {
+                "laps": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_blu",
+          "name": "Auto blu",
+          "x": 276,
+          "y": 100,
+          "tags": [
+            "rivale"
+          ],
+          "blocks": [
+            {
+              "type": "Sprite",
+              "props": {
+                "image": "auto_blu",
+                "origin": "center",
+                "flipWithFacing": false
+              }
+            },
+            {
+              "type": "PathFollower",
+              "props": {
+                "path": "giro_auto_blu",
+                "speed": 7.5,
+                "atEnd": "loop",
+                "autoStart": false,
+                "rotate": true
+              }
+            },
+            {
+              "type": "LapCounter",
+              "props": {
+                "laps": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_gialla",
+          "name": "Auto gialla",
+          "x": 256,
+          "y": 80,
+          "tags": [
+            "rivale"
+          ],
+          "blocks": [
+            {
+              "type": "Sprite",
+              "props": {
+                "image": "auto_gialla",
+                "origin": "center",
+                "flipWithFacing": false
+              }
+            },
+            {
+              "type": "PathFollower",
+              "props": {
+                "path": "giro_auto_gialla",
+                "speed": 7,
+                "atEnd": "loop",
+                "autoStart": false,
+                "rotate": true
+              }
+            },
+            {
+              "type": "LapCounter",
+              "props": {
+                "laps": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "auto_giocatore",
+          "name": "Auto di Pepino",
+          "x": 236,
+          "y": 60,
+          "tags": [
+            "giocatore"
+          ],
+          "blocks": [
+            {
+              "type": "Sprite",
+              "props": {
+                "image": "auto_verde",
+                "origin": "center",
+                "flipWithFacing": false
+              }
+            },
+            {
+              "type": "Body",
+              "props": {
+                "width": 11,
+                "height": 11,
+                "group": "giocatore",
+                "collidesWith": []
+              }
+            },
+            {
+              "type": "CarController",
+              "props": {
+                "trackLayer": "pista",
+                "maxSpeed": 9,
+                "startAngle": 0
+              }
+            },
+            {
+              "type": "LapCounter",
+              "props": {
+                "laps": 3,
+                "lapVariable": "giro",
+                "timeVariable": "tempo",
+                "bestVariable": "migliore",
+                "positionVariable": "posizione"
+              }
+            },
+            {
+              "type": "CameraFollow",
+              "props": {
+                "mode": "topdown",
+                "deadzoneW": 0.5,
+                "deadzoneH": 0.5,
+                "offsetY": 0,
+                "lookahead": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_giro",
+          "name": "HUD · Giro",
+          "x": 8,
+          "y": 4,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Giro {giro}/3",
+                "size": 8,
+                "align": "left"
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_posizione",
+          "name": "HUD · Posizione",
+          "x": 160,
+          "y": 4,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Posizione {posizione}/4",
+                "size": 8,
+                "align": "center"
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_tempo",
+          "name": "HUD · Tempo",
+          "x": 250,
+          "y": 4,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Tempo {tempo}",
+                "size": 8,
+                "align": "left"
+              }
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "gara_via",
+          "comment": "Conto alla rovescia, poi via!",
+          "when": {
+            "type": "scene.start",
+            "params": {}
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "controls.lock",
+              "params": {
+                "mode": "lock"
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "↑ acceleri · ↓ freni · ← → sterzi. Resta sull'asfalto!",
+                "duration": 2,
+                "pause": false
+              }
+            },
+            {
+              "type": "wait",
+              "params": {
+                "seconds": 2
+              }
+            },
+            {
+              "type": "audio.play",
+              "params": {
+                "sound": "semaforo"
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "3",
+                "duration": 0.8,
+                "pause": false
+              }
+            },
+            {
+              "type": "wait",
+              "params": {
+                "seconds": 1
+              }
+            },
+            {
+              "type": "audio.play",
+              "params": {
+                "sound": "semaforo"
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "2",
+                "duration": 0.8,
+                "pause": false
+              }
+            },
+            {
+              "type": "wait",
+              "params": {
+                "seconds": 1
+              }
+            },
+            {
+              "type": "audio.play",
+              "params": {
+                "sound": "semaforo"
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "1",
+                "duration": 0.8,
+                "pause": false
+              }
+            },
+            {
+              "type": "wait",
+              "params": {
+                "seconds": 1
+              }
+            },
+            {
+              "type": "controls.lock",
+              "params": {
+                "mode": "unlock"
+              }
+            },
+            {
+              "type": "audio.play",
+              "params": {
+                "sound": "partenza"
+              }
+            },
+            {
+              "type": "block.action",
+              "params": {
+                "target": "#rivale",
+                "action": "PathFollower.go",
+                "args": {}
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "Via!",
+                "duration": 1,
+                "pause": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "gara_giro",
+          "comment": "Un giro in più",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "@auto_giocatore",
+              "event": "lap"
+            }
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "audio.play",
+              "params": {
+                "sound": "giro_fatto"
+              }
+            }
+          ]
+        },
+        {
+          "id": "gara_ultimo",
+          "comment": "Comincia l'ultimo giro",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "@auto_giocatore",
+              "event": "lap"
+            }
+          },
+          "conditions": [
+            {
+              "type": "var.compare",
+              "params": {
+                "variable": "giro",
+                "op": "==",
+                "value": "3"
+              }
+            },
+            {
+              "type": "block.condition",
+              "params": {
+                "target": "@auto_giocatore",
+                "condition": "LapCounter.isFinished"
+              },
+              "not": true
+            }
+          ],
+          "actions": [
+            {
+              "type": "message.show",
+              "params": {
+                "text": "Ultimo giro!",
+                "duration": 1.5,
+                "pause": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "gara_avversario",
+          "comment": "Un avversario arrivato si ferma",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "#rivale",
+              "event": "finished"
+            }
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "block.action",
+              "params": {
+                "target": "self",
+                "action": "PathFollower.stop",
+                "args": {}
+              }
+            }
+          ]
+        },
+        {
+          "id": "gara_fine",
+          "comment": "Arrivo",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "@auto_giocatore",
+              "event": "finished"
+            }
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "controls.lock",
+              "params": {
+                "mode": "lock"
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "Arrivo! Posizione {posizione} su 4",
+                "duration": 2.5,
+                "pause": false
+              }
+            },
+            {
+              "type": "wait",
+              "params": {
+                "seconds": 2.5
+              }
+            },
+            {
+              "type": "controls.lock",
+              "params": {
+                "mode": "unlock"
+              }
+            },
+            {
+              "type": "scene.goto",
+              "params": {
+                "scene": "fine",
+                "fade": 0.6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fine",
+      "name": "Livello completato",
+      "width": 20,
+      "height": 12,
+      "background": "#14261a",
+      "ySort": false,
+      "openBottom": false,
+      "layers": [
+        {
+          "id": "vuoto",
+          "name": "Vuoto",
+          "tileset": "tiles",
+          "width": 20,
+          "height": 12,
+          "data": [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+          ],
+          "z": 0,
+          "collides": false,
+          "visible": true,
+          "locked": false,
+          "parallax": 1
+        }
+      ],
+      "entities": [
+        {
+          "id": "titolo_fine",
+          "name": "Titolo",
+          "x": 160,
+          "y": 46,
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Gara finita!",
+                "size": 18,
+                "align": "center"
+              }
+            }
+          ]
+        },
+        {
+          "id": "monete_fine",
+          "name": "Monete raccolte",
+          "x": 160,
+          "y": 80,
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Tempo: {tempo} s · Giro migliore: {migliore} s",
+                "size": 9,
+                "align": "center"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ricomincia",
+          "name": "Ricomincia",
+          "x": 160,
+          "y": 112,
+          "blocks": [
+            {
+              "type": "Button",
+              "props": {
+                "text": "Ricomincia",
+                "scene": "circuito",
+                "order": 0,
+                "sound": "moneta"
+              }
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "azzera",
+          "comment": "Ricominciando si riparte da zero",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "@ricomincia",
+              "event": "pressed"
+            }
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "var.set",
+              "params": {
+                "variable": "monete",
+                "value": "0"
+              }
+            },
+            {
+              "type": "var.set",
+              "params": {
+                "variable": "vita",
+                "value": "3"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "id": "it",
+      "name": "Italiano"
+    },
+    {
+      "id": "en",
+      "name": "English"
+    }
+  ],
+  "translations": {
+    "en": {
+      "1": "1",
+      "2": "2",
+      "3": "3",
+      "PEPINO": "PEPINO",
+      "Punti {punti}": "Score {punti}",
+      "Punti: {punti}": "Score: {punti}",
+      "Frecce: muoviti · Z: spara · X: rallenta": "Arrows: move · Z: fire · X: slow down",
+      "Clicca una piazzola per costruire una torretta (20 monete)": "Click a build spot to build a tower (20 coins)",
+      "Ondata {ondata}/5": "Wave {ondata}/5",
+      "Gli slime sono passati!": "The slimes got through!",
+      "Hai difeso il villaggio!": "You defended the village!",
+      "↑ acceleri · ↓ freni · ← → sterzi. Resta sull'asfalto!": "↑ throttle · ↓ brake · ← → steer. Stay on the tarmac!",
+      "Via!": "Go!",
+      "Ultimo giro!": "Final lap!",
+      "Arrivo! Posizione {posizione} su 4": "Finish! Position {posizione} of 4",
+      "Giro {giro}/3": "Lap {giro}/3",
+      "Posizione {posizione}/4": "Position {posizione}/4",
+      "Tempo {tempo}": "Time {tempo}",
+      "Gara finita!": "Race over!",
+      "Tempo: {tempo} s · Giro migliore: {migliore} s": "Time: {tempo} s · Best lap: {migliore} s",
+      "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
+      "Nuova partita": "New game",
+      "Continua": "Continue",
+      "Lingua: Italiano": "Language: English",
+      "↑ ↓ scegli   ·   Z o Invio conferma": "↑ ↓ choose   ·   Z or Enter confirm",
+      "← →  muoviti     Z  salta (anche in aria)": "← →  move     Z  jump (in the air too)",
+      "X  dash     ↑ ↓  scale     F1  debug": "X  dash     ↑ ↓  ladders     F1  debug",
+      "Vita": "Life",
+      "Monete {monete}": "Coins {monete}",
+      "Boing! Questa molla è un blocco scritto in Python: guardalo nella scheda Codice.": "Boing! This spring is a block written in Python: look at it in the Code tab.",
+      "Raccogli le monete e raggiungi la porta in fondo al livello!": "Collect the coins and reach the door at the end of the level!",
+      "Dieci monete! Continua così.": "Ten coins! Keep it up.",
+      "C": "C",
+      "Pepinopoli": "Pepinopolis",
+      "Benvenuto a Pepinopoli! La partita è stata salvata.": "Welcome to Pepinopolis! The game has been saved.",
+      "«Le porte collegano i mondi. Vicino a un cartello premi C per leggerlo.»": "“Doors connect the worlds. Next to a sign, press C to read it.”",
+      "Hai il mestolo! Premi V per colpire gli slime.": "You have the ladle! Press V to hit the slimes.",
+      "Pepinopoli è salva! Il nonno ti regala 10 monete.": "Pepinopolis is safe! Grandpa gives you 10 coins.",
+      "Strada dei teppisti": "Thugs' Street",
+      "Strada dei teppisti! ↑ ↓ cammini in profondità, Z salta, V colpisce.": "Thugs' Street! ↑ ↓ walk in depth, Z jumps, V hits.",
+      "Avanti!": "Go on!",
+      "Avanti, il capo ti aspetta in fondo alla strada!": "Go on, the boss is waiting at the end of the street!",
+      "Hai sconfitto il Capo dei teppisti! La porta in fondo riporta al villaggio.": "You beat the Thug Boss! The door at the end leads back to the village.",
+      "Capo dei teppisti": "Thug Boss",
+      "Nonno Cetriolo": "Grandpa Cucumber",
+      "Pepino! Gli slime sono scappati dal laghetto e ora inseguono chiunque passi.": "Pepino! The slimes escaped from the pond and now they chase anyone who walks by.",
+      "Te la senti di dargli una lezione?": "Do you feel like teaching them a lesson?",
+      "Certo, ci penso io!": "Sure, leave it to me!",
+      "Magari più tardi...": "Maybe later...",
+      "Prendi il mio vecchio mestolo. Premi V per colpire.": "Take my old ladle. Press V to hit.",
+      "Pepino": "Pepino",
+      "Grazie nonno, vado subito!": "Thanks Grandpa, I'm on my way!",
+      "Va bene, ma stai lontano dagli slime. Torna a parlarmi quando sei pronto.": "All right, but stay away from the slimes. Come back and talk to me when you're ready.",
+      "Pausa": "Paused",
+      "Premi Esc (o Start) per riprendere": "Press Esc (or Start) to resume",
+      "Livello completato!": "Level complete!",
+      "Monete: {monete}": "Coins: {monete}",
+      "Ricomincia": "Play again"
+    }
+  },
+  "dialogues": [],
+  "rules": []
+}

@@ -61,7 +61,7 @@ export class Input {
   private pointerMoveQ = false;
   private pointerEl?: HTMLElement;
   /** Azioni che per ora non contano (comandi bloccati durante un filmato). */
-  masked: Set<string> | null = null;
+  masked: ReadonlySet<string> | null = null;
 
   constructor(private bindings: Record<string, string[]>) {
     for (const list of Object.values(bindings)) {

@@ -1498,6 +1498,199 @@ function levelDefense() {
   };
 }
 
+// ---- Gran premio dei cetrioli: corse viste dall'alto (modello di progetto)
+
+/** Auto vista dall'alto con il muso a destra: è la direzione della rotazione 0. */
+function drawCar(file, body, dark, roof) {
+  const c = new Pix(16, 16);
+  for (const [x, y] of [[2, 1], [10, 1], [2, 12], [10, 12]]) c.rect(x, y, 4, 3, "#1d1d24");
+  shape(c, 0, 0, roundRect(1, 3, 14, 12), body, dark, [0, 0, 15, 15]);
+  c.rect(9, 5, 2, 6, SP.glass);
+  c.rect(4, 5, 1, 6, SP.glassDk);
+  c.rect(5, 5, 4, 6, roof);
+  c.rect(12, 7, 2, 2, roof);
+  c.set(14, 4, "#fff3a6");
+  c.set(14, 11, "#fff3a6");
+  c.save(file);
+}
+drawCar("auto_verde.png", SP.hull, SP.hullDk, SP.hullHi);
+drawCar("auto_rossa.png", "#d0525a", "#5e1b24", "#f08a8a");
+drawCar("auto_blu.png", "#3f7fd9", "#1c3566", "#8fc0ff");
+drawCar("auto_gialla.png", "#f0c43c", "#7a5a14", "#fff0a0");
+{
+  const f = new Pix(8, 96);
+  for (let y = 0; y < 96; y += 4) for (let x = 0; x < 8; x += 4) f.rect(x, y, 4, 4, ((x + y) / 4) % 2 ? "#1d1d24" : "#ffffff");
+  f.save("linea_arrivo.png");
+}
+
+const RACE_ASSETS = [
+  ...["verde", "rossa", "blu", "gialla"].map((c) => ({ id: `auto_${c}`, type: "image", src: `assets/auto_${c}.png` })),
+  { id: "linea_arrivo", type: "image", src: "assets/linea_arrivo.png" },
+  { id: "semaforo", type: "audio", src: "", sfx: sfxData({ freq: 520, freqEnd: 520, sustain: 0.12, decay: 0.06, volume: 0.3 }) },
+  { id: "partenza", type: "audio", src: "", sfx: sfxData({ freq: 1040, freqEnd: 1040, sustain: 0.3, decay: 0.15, volume: 0.3 }) },
+  { id: "giro_fatto", type: "audio", src: "", sfx: sfxData({ freq: 660, freqEnd: 990, sustain: 0.08, decay: 0.12, volume: 0.3 }) },
+];
+
+function levelRace() {
+  const W = 40;
+  const H = 24;
+  const at = (c, r) => r * W + c;
+  const floor = new Array(W * H).fill(8);
+  const track = new Array(W * H).fill(-1);
+  const walls = new Array(W * H).fill(-1);
+  for (let i = 0; i < floor.length; i++) if (rnd() < 0.15) floor[i] = 9;
+  // La pista è un anello: il rettangolo esterno meno il prato in mezzo, con gli angoli arrotondati.
+  const rounded = (c0, r0, c1, r1, rad) => (c, r) => {
+    if (c < c0 || c > c1 || r < r0 || r > r1) return false;
+    const dx = Math.max(c0 + rad - c, 0, c - (c1 - rad));
+    const dy = Math.max(r0 + rad - r, 0, r - (r1 - rad));
+    return dx * dx + dy * dy <= rad * rad + 0.5;
+  };
+  const outer = rounded(2, 2, 37, 21, 4);
+  const inner = rounded(8, 8, 31, 15, 2);
+  const onTrack = (c, r) => outer(c, r) && !inner(c, r);
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) if (onTrack(c, r)) track[at(c, r)] = 20;
+  // Il cordolo: marciapiede tutto intorno all'asfalto (è già fuori pista).
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      if (onTrack(c, r)) continue;
+      let near = false;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) near ||= onTrack(c + dc, r + dr);
+      if (near) floor[at(c, r)] = 19;
+    }
+  }
+  for (let c = 0; c < W; c++) walls[at(c, 0)] = walls[at(c, H - 1)] = 13;
+  for (let r = 0; r < H; r++) walls[at(0, r)] = walls[at(W - 1, r)] = 13;
+  for (const c of [12, 16, 20, 24, 28]) walls[at(c, 11)] = 12;
+  for (const c of [14, 18, 22, 26]) walls[at(c, 12)] = 12;
+  for (const [c, r] of [[10, 10], [29, 13]]) walls[at(c, r)] = 15;
+
+  // Linea centrale della pista in senso orario, dall'angolo in alto a destra; ogni avversario ha la sua corsia.
+  const LINE = [[500, 80], [560, 140], [560, 244], [500, 304], [140, 304], [80, 244], [80, 140], [140, 80]];
+  const lane = (d) =>
+    LINE.map(([x, y]) => [x + (Math.abs(x - 320) > 200 ? Math.sign(320 - x) * d : 0), y + (Math.abs(y - 192) > 80 ? Math.sign(192 - y) * d : 0)]);
+  const rivals = [
+    { id: "auto_rossa", name: "Auto rossa", lane: -20, x: 296, speed: 7.8 },
+    { id: "auto_blu", name: "Auto blu", lane: 20, x: 276, speed: 7.5 },
+    { id: "auto_gialla", name: "Auto gialla", lane: 0, x: 256, speed: 7 },
+  ];
+  const checkpoint = (id, name, order, x, y, w, h, extra = []) => ({
+    id,
+    name,
+    x,
+    y,
+    z: -12,
+    blocks: [...extra, { type: "Checkpoint", props: { order, width: w, height: h } }],
+  });
+  const hudText = (id, name, x, text, align = "left") => ({
+    id,
+    name,
+    x,
+    y: 4,
+    z: 100,
+    tags: ["interfaccia"],
+    blocks: [{ type: "Text", props: { text, size: 8, align } }],
+  });
+
+  const entities = [
+    checkpoint("arrivo", "Linea d'arrivo", 0, 328, 80, 1, 6, [{ type: "Sprite", props: { image: "linea_arrivo", origin: "center", flipWithFacing: false } }]),
+    checkpoint("traguardo_1", "Traguardo 1", 1, 560, 192, 6, 1),
+    checkpoint("traguardo_2", "Traguardo 2", 2, 320, 304, 1, 6),
+    checkpoint("traguardo_3", "Traguardo 3", 3, 80, 192, 6, 1),
+    ...rivals.flatMap((r) =>
+      lane(r.lane).map(([x, y], i) => ({
+        id: `${r.id}_punto_${i + 1}`,
+        name: `${r.name} · punto ${i + 1}`,
+        x,
+        y,
+        blocks: [{ type: "Waypoint", props: { path: `giro_${r.id}`, order: i + 1 } }],
+      })),
+    ),
+    ...rivals.map((r) => ({
+      id: r.id,
+      name: r.name,
+      x: r.x,
+      y: 80 + r.lane,
+      tags: ["rivale"],
+      blocks: [
+        { type: "Sprite", props: { image: r.id, origin: "center", flipWithFacing: false } },
+        { type: "PathFollower", props: { path: `giro_${r.id}`, speed: r.speed, atEnd: "loop", autoStart: false, rotate: true } },
+        { type: "LapCounter", props: { laps: 3 } },
+      ],
+    })),
+    {
+      id: "auto_giocatore",
+      name: "Auto di Pepino",
+      x: 236,
+      y: 60,
+      tags: ["giocatore"],
+      blocks: [
+        { type: "Sprite", props: { image: "auto_verde", origin: "center", flipWithFacing: false } },
+        { type: "Body", props: { width: 11, height: 11, group: "giocatore", collidesWith: [] } },
+        { type: "CarController", props: { trackLayer: "pista", maxSpeed: 9, startAngle: 0 } },
+        { type: "LapCounter", props: { laps: 3, lapVariable: "giro", timeVariable: "tempo", bestVariable: "migliore", positionVariable: "posizione" } },
+        { type: "CameraFollow", props: { mode: "topdown", deadzoneW: 0.5, deadzoneH: 0.5, offsetY: 0, lookahead: 0 } },
+      ],
+    },
+    hudText("hud_giro", "HUD · Giro", 8, "Giro {giro}/3"),
+    hudText("hud_posizione", "HUD · Posizione", 160, "Posizione {posizione}/4", "center"),
+    hudText("hud_tempo", "HUD · Tempo", 250, "Tempo {tempo}"),
+  ];
+
+  const player = "@auto_giocatore";
+  const sound = (id) => ({ type: "audio.play", params: { sound: id } });
+  const wait = (seconds) => ({ type: "wait", params: { seconds } });
+  return {
+    id: "circuito",
+    name: "Circuito dei cetrioli",
+    width: W,
+    height: H,
+    background: "#6cc24a",
+    ySort: false,
+    openBottom: false,
+    music: "musica",
+    layers: [
+      makeLayer("prato", "Prato", W, H, floor, -20, false),
+      makeLayer("pista", "Pista", W, H, track, -15, false),
+      makeLayer("muri", "Muretti e alberi", W, H, walls, -5, true),
+    ],
+    entities,
+    rules: [
+      rule("gara_via", "Conto alla rovescia, poi via!", { type: "scene.start", params: {} }, [], [
+        { type: "controls.lock", params: { mode: "lock" } },
+        say("↑ acceleri · ↓ freni · ← → sterzi. Resta sull'asfalto!", 2),
+        wait(2),
+        ...["3", "2", "1"].flatMap((n) => [sound("semaforo"), say(n, 0.8), wait(1)]),
+        { type: "controls.lock", params: { mode: "unlock" } },
+        sound("partenza"),
+        { type: "block.action", params: { target: "#rivale", action: "PathFollower.go", args: {} } },
+        say("Via!", 1),
+      ]),
+      rule("gara_giro", "Un giro in più", { type: "event", params: { target: player, event: "lap" } }, [], [sound("giro_fatto")]),
+      rule(
+        "gara_ultimo",
+        "Comincia l'ultimo giro",
+        { type: "event", params: { target: player, event: "lap" } },
+        [
+          { type: "var.compare", params: { variable: "giro", op: "==", value: "3" } },
+          { type: "block.condition", params: { target: player, condition: "LapCounter.isFinished" }, not: true },
+        ],
+        [say("Ultimo giro!", 1.5)],
+      ),
+      rule("gara_avversario", "Un avversario arrivato si ferma", { type: "event", params: { target: "#rivale", event: "finished" } }, [], [
+        { type: "block.action", params: { target: "self", action: "PathFollower.stop", args: {} } },
+      ]),
+      rule("gara_fine", "Arrivo", { type: "event", params: { target: player, event: "finished" } }, [], [
+        { type: "controls.lock", params: { mode: "lock" } },
+        say("Arrivo! Posizione {posizione} su 4", 2.5),
+        wait(2.5),
+        { type: "controls.lock", params: { mode: "unlock" } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.6 } },
+      ]),
+    ],
+  };
+}
+
 // ---- Fine livello (usata dai modelli di progetto)
 function levelEnd(restartScene) {
   return {
@@ -1680,6 +1873,18 @@ const EN = {
   "Ondata {ondata}/5": "Wave {ondata}/5",
   "Gli slime sono passati!": "The slimes got through!",
   "Hai difeso il villaggio!": "You defended the village!",
+  "↑ acceleri · ↓ freni · ← → sterzi. Resta sull'asfalto!": "↑ throttle · ↓ brake · ← → steer. Stay on the tarmac!",
+  3: "3",
+  2: "2",
+  1: "1",
+  "Via!": "Go!",
+  "Ultimo giro!": "Final lap!",
+  "Arrivo! Posizione {posizione} su 4": "Finish! Position {posizione} of 4",
+  "Giro {giro}/3": "Lap {giro}/3",
+  "Posizione {posizione}/4": "Position {posizione}/4",
+  "Tempo {tempo}": "Time {tempo}",
+  "Gara finita!": "Race over!",
+  "Tempo: {tempo} s · Giro migliore: {migliore} s": "Time: {tempo} s · Best lap: {migliore} s",
   "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
   "Nuova partita": "New game",
   Continua: "Continue",
@@ -2124,6 +2329,17 @@ const templates = {
     assets: TD_ASSETS,
     prefabs: TD_PREFABS,
     variables: { monete: 50, vita: 10, ondata: 0 },
+  },
+  racing: {
+    name: "Il mio gioco di corse",
+    start: "circuito",
+    touch: { mode: "auto", buttons: [] },
+    scenes: [
+      levelRace(),
+      retext(retext(levelEnd("circuito"), "titolo_fine", "Gara finita!"), "monete_fine", "Tempo: {tempo} s · Giro migliore: {migliore} s"),
+    ],
+    assets: RACE_ASSETS,
+    variables: { giro: 1, posizione: 4, tempo: 0, migliore: 0, monete: 0, vita: 3 },
   },
 };
 

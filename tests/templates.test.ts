@@ -7,7 +7,7 @@ import { makeWorld } from "./helpers";
 const load = (id: string) => JSON.parse(readFileSync(resolve(process.cwd(), "samples", "templates", `${id}.json`), "utf8")) as ProjectData;
 
 describe("modelli di progetto (Nuovo progetto)", () => {
-  for (const id of ["platform", "topdown", "beatemup", "shmup", "towerdefense"]) {
+  for (const id of ["platform", "topdown", "beatemup", "shmup", "towerdefense", "racing"]) {
     it(`il modello «${id}» è pulito e parte senza errori`, () => {
       loadScripts([]);
       const p = load(id);
@@ -50,6 +50,34 @@ describe("modelli di progetto (Nuovo progetto)", () => {
     w.step(60 * 20);
     expect(Number(w.game.vars.ondata)).toBeGreaterThanOrEqual(1);
     expect(Number(w.game.vars.monete)).toBeGreaterThan(30);
+  });
+
+  it("corse: dopo il conto alla rovescia l'auto parte, gli avversari girano e i giri si contano", () => {
+    const p = load("racing");
+    const w = makeWorld(p);
+    const car = w.get("auto_giocatore");
+    const rival = w.get("auto_rossa");
+    const x0 = car.x;
+    const r0 = rival.x;
+    w.input.hold("up");
+    w.step(90);
+    // La regola blocca i comandi durante il primo passo: al massimo l'auto si sposta di una frazione di pixel.
+    expect(car.x).toBeCloseTo(x0, 0);
+    expect(rival.x).toBe(r0);
+    w.step(60 * 5);
+    expect(car.x).toBeGreaterThan(x0 + 50);
+    expect(rival.x).toBeGreaterThan(r0 + 50);
+    expect(w.game.vars.giro).toBe(1);
+    expect([1, 2, 3, 4]).toContain(w.game.vars.posizione);
+    // Un giro passando dai traguardi in ordine.
+    w.input.release("up");
+    for (const id of ["traguardo_1", "traguardo_2", "traguardo_3", "arrivo"]) {
+      const cp = w.get(id);
+      car.x = cp.worldX;
+      car.y = cp.worldY;
+      w.step(3);
+    }
+    expect(w.game.vars.giro).toBe(2);
   });
 
   it("il beat 'em up blocca la camera nell'arena finché ci sono teppisti", () => {

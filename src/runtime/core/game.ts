@@ -53,7 +53,7 @@ interface ActiveMessage extends Message {
 const MESSAGE_STYLE: TextStyle = { size: 8, color: "#f2f7ee", bold: false };
 
 /** Comandi che non arrivano al personaggio mentre scorre un filmato (dialoghi e messaggi li ricevono lo stesso). */
-const LOCKED_ACTIONS = new Set(["left", "right", "up", "down", "jump", "dash", "action", "attack"]);
+export const LOCKED_ACTIONS: ReadonlySet<string> = new Set(["left", "right", "up", "down", "jump", "dash", "action", "attack"]);
 
 /**
  * Il gioco: carica gli asset, gestisce le scene e fa girare il loop a passo fisso (60 Hz).

@@ -66,6 +66,13 @@ defineBlock({
       default: false,
       help: "Se attivo, l'oggetto viene messo sul primo punto appena compare.",
     },
+    autoStart: {
+      type: "boolean",
+      label: "Parte da solo",
+      default: true,
+      help: "Se spento, aspetta l'azione «Riparti» (per esempio il via di una gara).",
+    },
+    rotate: { type: "boolean", label: "Ruota verso dove va", default: false, help: "La sprite gira nella direzione del movimento, come un'auto vista dall'alto." },
   },
   states: [
     { id: "idle", label: "Fermo" },
@@ -92,7 +99,7 @@ defineBlock({
     const d = self.data;
     d.points = pathPoints(self);
     d.done = false;
-    d.stopped = false;
+    d.stopped = self.props.autoStart === false;
     d.i = 0;
     if (self.props.startAtFirst && d.points.length) {
       placeAt(self.entity, d.points[0].x, d.points[0].y);
@@ -124,6 +131,7 @@ defineBlock({
         placeAt(e, e.worldX + (dx / dist) * step, e.worldY + (dy / dist) * step);
         if (Math.abs(dx) > 0.01) e.facingX = dx > 0 ? 1 : -1;
         e.direction = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
+        if (p.rotate) e.fx.rot = Math.atan2(dy, dx);
         return;
       }
       placeAt(e, t.x, t.y);

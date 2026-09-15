@@ -37,4 +37,10 @@ export const TEMPLATES: ProjectTemplate[] = [
     description: "Un sentiero nel prato: gli slime arrivano a ondate e tu costruisci torrette sulle piazzole con le monete guadagnate.",
     icon: "grid",
   },
+  {
+    id: "racing",
+    label: "Corse 2D",
+    description: "Gran premio dei cetrioli: un circuito visto dall'alto, tre avversari, tre giri, conto alla rovescia, tempo e posizione in classifica.",
+    icon: "flag",
+  },
 ];

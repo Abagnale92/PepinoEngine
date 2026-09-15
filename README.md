@@ -80,6 +80,9 @@ Scorciatoie: `V` seleziona, `B` pennello, `E` gomma, `G` griglia, `C` collisioni
 | IA | Segue un percorso | Cammina lungo i punti del percorso in ordine; alla fine sparisce, ricomincia il giro o si ferma |
 | Gameplay | Piazzola | Con un clic o un tocco costruisce un modello (una torretta) se la variabile dei soldi basta; mostra il costo |
 | Gameplay | Ondate | Nemici a ondate sempre più numerose, con pausa, nemico speciale ogni tanto e numero dell'ondata in una variabile; avvisa quando sono finite |
+| Movimento | Controller Auto | Guida vista dall'alto: gas, freno e retromarcia, sterzo; la sprite ruota con l'auto, derapa con poca aderenza e rallenta fuori dal layer della pista |
+| Gameplay | Traguardo | Linea d'arrivo (numero 0) o punto di passaggio numerato di una pista |
+| Gameplay | Giri | Conta i giri passando dai Traguardi in ordine; tempo, giro migliore e posizione in classifica nelle variabili |
 | Effetti | Particelle | Polvere, scintille, fumo: di continuo o a raffica quando succede qualcosa (colpo, salto, morte) |
 | Effetti | Luce | Torce e lampioni: illuminano quando la scena ha la luce ambiente; colore, raggio, tremolio |
 | Effetti | Effetti animati | Come JuiceFX: la sprite si schiaccia, si allunga, lampeggia, trema, appare e sparisce con stile, galleggia o pulsa, lascia una scia di immagini fantasma. Parte da un evento o gira sempre |
@@ -173,6 +176,7 @@ Nel gioco: `Esc` (o Start sul gamepad) mette in pausa; i messaggi compaiono in b
 - **Modelli di progetto**: «Nuovo» crea un gioco piccolo ma completo per genere. Anche la demo ha la «Strada dei teppisti», un beat 'em up di notte con lampioni, scintille e due arene: la porta in fondo al villaggio ci porta dentro.
 - **Shoot'em up**: il modello «Nello spazio» è uno sparatutto a scorrimento verticale. Un oggetto con **Scorrimento automatico** fa salire lo schermo e porta con sé le stelle (Particelle); la navicella ha il **Controller Navicella** e **Spara** verso l'alto tenendo premuto Z. Le ondate di ufo, caccia in picchiata e ufo che sparano usano **Traiettoria** e partono quando entrano nello schermo; in cima aspetta un'astronave madre che spara a ventaglio. Musica ed effetti sonori sono creati con la scheda Musica, i punti con una Regola.
 - **Tower defense**: nel modello «Difesa del villaggio» gli slime arrivano a **Ondate** e con **Segue un percorso** camminano lungo i **Punti del percorso** del sentiero. Cliccando una **Piazzola** si costruisce una torretta per 20 monete; la torretta ha **Spara** in automatico verso il nemico più vicino. Le Regole danno 5 monete per ogni slime sconfitto, tolgono vita a chi arriva in fondo, fanno ricominciare quando la vita finisce e portano alla fine quando le ondate sono respinte.
+- **Corse 2D**: nel modello «Gran premio dei cetrioli» l'auto ha il **Controller Auto** (↑ gas, ↓ freno, ← → sterzo) e rallenta sull'erba, cioè dove il layer «Pista» non ha tile. La linea d'arrivo e tre punti della pista sono **Traguardi**; il blocco **Giri** li conta in ordine e scrive giro, tempo, giro migliore e posizione nelle variabili dell'HUD. I tre avversari usano **Segue un percorso** con «Ruota verso dove va» e «Parte da solo» spento: una Regola blocca i comandi, fa il conto alla rovescia e poi dà il via a tutti con «Azione di un blocco → Riparti».
 
 ## Blocchi in codice
 
