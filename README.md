@@ -35,7 +35,7 @@ Altri comandi:
 - **Regole** (scheda accanto a Scena): la logica del gioco senza codice, scritta come frasi «Quando → Allora». Vedi sotto.
 - **Testi**: tutti i testi del gioco in una tabella, con una colonna per ogni lingua in cui tradurli. Vedi «Lingue e traduzioni».
 - **Codice**: blocchi nuovi scritti in JavaScript o Python. Vedi «Blocchi in codice».
-- **Nuovo** (barra in alto): crea un progetto da un modello di genere, platform, top-down o beat 'em up, già giocabile. Nell'app desktop chiede una cartella vuota e copia gli asset.
+- **Nuovo** (barra in alto): crea un progetto da un modello di genere, platform, top-down, beat 'em up, shoot'em up o tower defense, già giocabile. Nell'app desktop chiede una cartella vuota e copia gli asset.
 - **Impostazioni della scena** (Inspector senza selezione): luci 2D con il colore della luce ambiente, effetto a tutto schermo; nella sezione Progetto i controlli touch.
 - **Prova** (F5): avvia il gioco nell'editor con lo stesso runtime della build. Pausa, avanzamento di un frame, velocità, collisioni e variabili in tempo reale.
 - **Esporta WebGL**: crea una cartella con `index.html`, `pepino.js`, `project.json` e gli asset, pronta per itch.io o un qualsiasi server web. Il gioco va aperto da un server (itch.io, `npx vite preview`…): aprendo `index.html` con doppio clic il browser blocca il caricamento dei file.
@@ -57,6 +57,7 @@ Scorciatoie: `V` seleziona, `B` pennello, `E` gomma, `G` griglia, `C` collisioni
 | Movimento | Controller Platform | Corsa, salto con altezza in tile, doppio salto, coyote time, memoria del salto, dash, scale, piattaforme attraversabili |
 | Movimento | Controller Top-down | 4 o 8 direzioni senza gravità |
 | Camera | Camera che segue | Stile platform (anticipo), dall'alto, beat 'em up (solo orizzontale, può non tornare indietro), a stanze o bloccata; zona morta, limiti della scena, scossa, blocco dell'arena |
+| Camera | Scorrimento automatico | Lo schermo avanza da solo in una direzione a velocità costante fino alla fine della scena (shoot'em up, runner); l'oggetto che lo porta viaggia con lo schermo |
 | IA | Pattuglia | Avanti e indietro, si gira contro i muri e sui bordi |
 | Combattimento | Salute | Vita, invulnerabilità, contraccolpo, danno dai tile pericolo, cosa succede alla morte |
 | Combattimento | Danno al contatto | Ferisce chi lo tocca; si può schiacciare saltandoci sopra |
@@ -69,10 +70,16 @@ Scorciatoie: `V` seleziona, `B` pennello, `E` gomma, `G` griglia, `C` collisioni
 | IA | Insegue | Vede il bersaglio (i muri bloccano la vista) e lo insegue: salta gli ostacoli nei platform, trova la strada con A* nel top-down |
 | Personaggi | Personaggio che parla | Vicino + Azione apre un dialogo; fumetto sopra la testa |
 | Combattimento | Attacco corpo a corpo | Colpo davanti a sé con preparazione, colpo attivo e recupero |
-| Combattimento | Spara | Lancia un proiettile (modello) quando premi un comando o da solo verso il bersaglio |
+| Combattimento | Spara | Lancia un proiettile (modello) quando premi un comando (anche di continuo, tenendolo premuto) o da solo verso il bersaglio; mira verso il bersaglio, dove guarda o in una direzione fissa; più proiettili a ventaglio |
 | Combattimento | Proiettile | Vola dritto o ad arco, ferisce, sparisce contro i muri |
 | Gameplay | Generatore | Crea oggetti da un modello a intervalli, con un massimo |
 | Movimento | Controller Beat 'em up | Cammina avanti e in profondità, salta su un terzo asse con l'ombra a terra |
+| Movimento | Controller Navicella | 8 direzioni per shoot'em up, rallentamento di precisione, non esce dallo schermo ed è trascinata dallo scorrimento |
+| Movimento | Traiettoria | Movimento da solo: dritto, a onda, in picchiata verso il bersaglio o in cerchio; parte quando entra nello schermo e sparisce quando ne esce |
+| IA | Punto del percorso | Tappa numerata di un percorso con nome; nel gioco non si vede |
+| IA | Segue un percorso | Cammina lungo i punti del percorso in ordine; alla fine sparisce, ricomincia il giro o si ferma |
+| Gameplay | Piazzola | Con un clic o un tocco costruisce un modello (una torretta) se la variabile dei soldi basta; mostra il costo |
+| Gameplay | Ondate | Nemici a ondate sempre più numerose, con pausa, nemico speciale ogni tanto e numero dell'ondata in una variabile; avvisa quando sono finite |
 | Effetti | Particelle | Polvere, scintille, fumo: di continuo o a raffica quando succede qualcosa (colpo, salto, morte) |
 | Effetti | Luce | Torce e lampioni: illuminano quando la scena ha la luce ambiente; colore, raggio, tremolio |
 | Effetti | Effetti animati | Come JuiceFX: la sprite si schiaccia, si allunga, lampeggia, trema, appare e sparisce con stile, galleggia o pulsa, lascia una scia di immagini fantasma. Parte da un evento o gira sempre |
@@ -164,6 +171,8 @@ Nel gioco: `Esc` (o Start sul gamepad) mette in pausa; i messaggi compaiono in b
 - **Effetti a tutto schermo**: vignetta, vecchio televisore (CRT), Game Boy, bianco e nero, seppia, con l'intensità. Si scelgono per scena o da una Regola.
 - **Controlli touch**: su telefoni e tablet il gioco esportato mostra joystick e fino a 4 pulsanti (si scelgono nella sezione Progetto). Aggiungendo `&touch` all'indirizzo del gioco si provano anche da PC; nell'anteprima c'è il pulsante «Touch».
 - **Modelli di progetto**: «Nuovo» crea un gioco piccolo ma completo per genere. Anche la demo ha la «Strada dei teppisti», un beat 'em up di notte con lampioni, scintille e due arene: la porta in fondo al villaggio ci porta dentro.
+- **Shoot'em up**: il modello «Nello spazio» è uno sparatutto a scorrimento verticale. Un oggetto con **Scorrimento automatico** fa salire lo schermo e porta con sé le stelle (Particelle); la navicella ha il **Controller Navicella** e **Spara** verso l'alto tenendo premuto Z. Le ondate di ufo, caccia in picchiata e ufo che sparano usano **Traiettoria** e partono quando entrano nello schermo; in cima aspetta un'astronave madre che spara a ventaglio. Musica ed effetti sonori sono creati con la scheda Musica, i punti con una Regola.
+- **Tower defense**: nel modello «Difesa del villaggio» gli slime arrivano a **Ondate** e con **Segue un percorso** camminano lungo i **Punti del percorso** del sentiero. Cliccando una **Piazzola** si costruisce una torretta per 20 monete; la torretta ha **Spara** in automatico verso il nemico più vicino. Le Regole danno 5 monete per ogni slime sconfitto, tolgono vita a chi arriva in fondo, fanno ricominciare quando la vita finisce e portano alla fine quando le ondate sono respinte.
 
 ## Blocchi in codice
 

@@ -65,29 +65,45 @@ function fire(self: BlockInstance, target?: Entity) {
     self.data.warned = true;
     return;
   }
-  let dir = facingVector(e);
-  if (p.aim === "target") {
-    const t = target ?? nearestTagged(self.scene, e, p.target, p.range * ts);
-    if (t) {
-      const a = bodyCenter(e);
-      const c = bodyCenter(t);
-      const len = Math.hypot(c.x - a.x, c.y - a.y) || 1;
-      dir = { x: (c.x - a.x) / len, y: (c.y - a.y) / len };
-      if (Math.abs(c.x - a.x) > 1) e.facingX = c.x < a.x ? -1 : 1;
+  let angle: number;
+  if (p.aim === "fixed") angle = (Number(p.angle ?? -90) * Math.PI) / 180;
+  else {
+    let dir = facingVector(e);
+    if (p.aim === "target") {
+      const t = target ?? nearestTagged(self.scene, e, p.target, p.range * ts);
+      if (t) {
+        const a = bodyCenter(e);
+        const c = bodyCenter(t);
+        const len = Math.hypot(c.x - a.x, c.y - a.y) || 1;
+        dir = { x: (c.x - a.x) / len, y: (c.y - a.y) / len };
+        if (Math.abs(c.x - a.x) > 1) e.facingX = c.x < a.x ? -1 : 1;
+      }
     }
+    angle = Math.atan2(dir.y, dir.x);
   }
-  const side = dir.x < 0 ? -1 : 1;
-  const pr = self.scene.spawn(p.projectile, e.worldX + side * p.offsetX, e.worldY + p.offsetY);
-  if (!pr) return;
-  if (pr.body) {
-    pr.body.vx = dir.x * p.speed * ts;
-    pr.body.vy = dir.y * p.speed * ts;
+  // Più proiettili a ventaglio, centrati sulla direzione di tiro (a 360° si distribuiscono tutto intorno).
+  const n = Math.max(1, Math.round(Number(p.count ?? 1)));
+  const spread = (Number(p.spread ?? 0) * Math.PI) / 180;
+  const stepA = n > 1 ? (spread >= Math.PI * 2 - 1e-6 ? spread / n : spread / (n - 1)) : 0;
+  let last: Entity | undefined;
+  for (let i = 0; i < n; i++) {
+    const a = angle + (i - (n - 1) / 2) * stepA;
+    const dir = { x: Math.cos(a), y: Math.sin(a) };
+    const side = dir.x < -1e-6 ? -1 : 1;
+    const pr = self.scene.spawn(p.projectile, e.worldX + side * p.offsetX, e.worldY + p.offsetY);
+    if (!pr) continue;
+    if (pr.body) {
+      pr.body.vx = dir.x * p.speed * ts;
+      pr.body.vy = dir.y * p.speed * ts;
+    }
+    pr.facingX = side;
+    const proj = pr.get("Projectile");
+    if (proj) proj.data.owner = e;
+    last = pr;
   }
-  pr.facingX = side;
-  const proj = pr.get("Projectile");
-  if (proj) proj.data.owner = e;
+  if (!last) return;
   self.data.cd = p.interval;
-  self.emit("shot", pr);
+  self.emit("shot", last);
   if (p.sound) self.game.audio.play(p.sound);
 }
 
@@ -110,6 +126,7 @@ defineBlock({
       ],
     },
     command: { type: "input", label: "Comando", default: "attack" },
+    hold: { type: "boolean", label: "Tenendo premuto spara di continuo", default: false },
     aim: {
       type: "select",
       label: "Mira",
@@ -117,8 +134,12 @@ defineBlock({
       options: [
         { value: "target", label: "Verso il bersaglio" },
         { value: "facing", label: "Dove sta guardando" },
+        { value: "fixed", label: "In una direzione fissa" },
       ],
     },
+    angle: { type: "number", label: "Direzione", unit: "°", default: -90, step: 15, help: "-90 = verso l'alto, 0 = destra, 90 = giù, 180 = sinistra." },
+    count: { type: "integer", label: "Proiettili per raffica", default: 1, min: 1, max: 12 },
+    spread: { type: "number", label: "Apertura", unit: "°", default: 30, min: 0, max: 360, step: 5, help: "Con più proiettili: l'angolo del ventaglio." },
     target: { type: "tag", label: "Bersaglio", default: "giocatore" },
     range: { type: "number", label: "Distanza massima", unit: "tile", default: 8, min: 0, step: 0.5 },
     lineOfSight: { type: "boolean", label: "Solo se lo vede (muri in mezzo no)", default: true },
@@ -140,7 +161,8 @@ defineBlock({
     d.cd -= dt;
     if (d.cd > 1e-6) return;
     if (p.mode === "player") {
-      if (self.game.input.pressed(p.command)) fire(self);
+      const input = self.game.input;
+      if (p.hold ? input.isDown(p.command) : input.pressed(p.command)) fire(self);
       return;
     }
     const t = nearestTagged(self.scene, self.entity, p.target, p.range * self.scene.tileSize);

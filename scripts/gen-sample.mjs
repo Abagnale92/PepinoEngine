@@ -1074,6 +1074,430 @@ function levelStreet(exitScene = "villaggio") {
   };
 }
 
+// ---- Nello spazio: shoot'em up a scorrimento verticale (modello di progetto)
+
+const SP = {
+  hull: "#5fae4e", hullHi: "#93d86c", hullDk: "#1d3b1f", glass: "#8fd3ff", glassDk: "#2c67a8",
+  flame: "#ffb14a", flameHi: "#fff3a6", ufo: "#b452e0", ufoDk: "#4a1d5e",
+  caccia: "#d0525a", cacciaDk: "#5e1b24", light: "#ffd84a", madre: "#6f5aa8", madreDk: "#26194a",
+};
+
+/** Navicella-cetriolo vista dall'alto; `tilt` = -1/1 per l'inclinazione quando va di lato. */
+function drawShip(c, ox, tilt) {
+  const body = (x, y) => y >= 1 && y <= 12 && Math.abs(x - 7.5) <= 0.5 + (y - 1) * 0.25;
+  const wing = (side, reach) => (x, y) => {
+    const d = side * (x - 7.5);
+    return d >= 2 && d <= reach && y <= 12 && y >= 8 + (d - 2) * 0.5;
+  };
+  const inside = (x, y) => body(x, y) || wing(-1, tilt < 0 ? 5 : 7)(x, y) || wing(1, tilt > 0 ? 5 : 7)(x, y);
+  shape(c, ox, 0, inside, SP.hull, SP.hullDk, [0, 0, 15, 15]);
+  blob(c, ox, 0, 8, 6, 1.2, 1.8, SP.glass);
+  c.set(ox + 7, 3, SP.hullHi);
+  c.rect(ox + 6, 13, 4, 1, SP.flameHi);
+  c.rect(ox + 7, 14, 2, 1, SP.flame);
+}
+
+function drawUfo(c, ox, frame) {
+  shape(c, ox, 0, ellipse(8, 10, 7.5, 3.2), SP.ufo, SP.ufoDk, [0, 5, 15, 14]);
+  shape(c, ox, 0, (x, y) => ellipse(8, 8, 3.8, 3.5)(x, y) && y <= 8, SP.glass, SP.glassDk, [3, 3, 12, 9]);
+  for (let i = 0; i < 4; i++) c.set(ox + 3 + i * 3, 10, (i + frame) % 2 ? SP.light : SP.flameHi);
+}
+
+/** Caccia nemico che punta verso il basso. */
+function drawCaccia(c, ox, frame) {
+  shape(c, ox, 0, (x, y) => y >= 1 && y <= 14 && Math.abs(x - 7.5) <= (14 - y) * 0.45 + 0.5, SP.caccia, SP.cacciaDk, [0, 0, 15, 15]);
+  for (let y = 2; y <= 6; y++) {
+    for (let x = 0; x < 16; x++) {
+      const d = Math.abs(x - 7.5);
+      if (d >= 2.5 && d <= 7 - (y - 2) * 0.8) c.set(ox + x, y, SP.cacciaDk);
+    }
+  }
+  blob(c, ox, 0, 8, 8, 1, 1.5, SP.glass);
+  c.rect(ox + 6, 0, 4, 1, frame ? SP.flameHi : SP.flame);
+}
+
+function drawMadre(c, ox, frame) {
+  shape(c, ox, 0, ellipse(24, 19, 23.5, 8), SP.madre, SP.madreDk, [0, 10, 47, 28]);
+  shape(c, ox, 0, (x, y) => ellipse(24, 14, 11, 9)(x, y) && y <= 15, SP.glass, SP.glassDk, [12, 4, 36, 16]);
+  for (let i = 0; i < 8; i++) c.set(ox + 5 + i * 5, 20, (i + frame) % 2 ? SP.light : SP.flameHi);
+  c.rect(ox + 18, 26, 12, 2, SP.madreDk);
+}
+
+{
+  const nav = new Pix(48, 16);
+  drawShip(nav, 0, 0);
+  drawShip(nav, 16, -1);
+  drawShip(nav, 32, 1);
+  nav.save("navicella.png");
+  const ufo = new Pix(32, 16);
+  drawUfo(ufo, 0, 0);
+  drawUfo(ufo, 16, 1);
+  ufo.save("ufo.png");
+  const caccia = new Pix(32, 16);
+  drawCaccia(caccia, 0, 0);
+  drawCaccia(caccia, 16, 1);
+  caccia.save("caccia.png");
+  const madre = new Pix(96, 32);
+  drawMadre(madre, 0, 0);
+  drawMadre(madre, 48, 1);
+  madre.save("madre.png");
+  const laser = new Pix(3, 8);
+  laser.rect(0, 1, 3, 6, "#9ff3ff");
+  laser.rect(1, 0, 1, 8, "#ffffff");
+  laser.save("laser.png");
+  const plasma = new Pix(6, 6);
+  blob(plasma, 0, 0, 3, 3, 3, 3, "#ff77a8");
+  blob(plasma, 0, 0, 3, 3, 1.5, 1.5, "#ffe0ee");
+  plasma.save("plasma.png");
+}
+
+/** Brano chiptune del livello, scritto come nella scheda Musica: il gioco lo calcola all'avvio. */
+function spaceSong() {
+  const ch = (name, wave, volume, attack, release, notes) => ({ name, wave, volume, attack, release, notes });
+  const bassLine = [36, 36, 43, 43, 41, 41, 43, 46];
+  const bass = bassLine.flatMap((p, i) => [
+    { step: i * 4, len: 2, pitch: p },
+    { step: i * 4 + 2, len: 1, pitch: p + 12 },
+  ]);
+  const arp = [60, 64, 67, 72, 60, 64, 67, 72, 65, 69, 72, 77, 67, 71, 74, 79];
+  const lead = arp.map((p, i) => ({ step: i * 2, len: 1, pitch: p + 12 }));
+  const drums = [];
+  for (let s = 0; s < 32; s += 2) drums.push({ step: s, len: 1, pitch: 42 });
+  for (let s = 0; s < 32; s += 8) drums.push({ step: s, len: 1, pitch: 36 }, { step: s + 4, len: 1, pitch: 38 });
+  return {
+    bpm: 150,
+    length: 32,
+    loop: true,
+    echo: 0.25,
+    channels: [
+      ch("Melodia", "pulse25", 0.35, 0.005, 0.06, lead),
+      ch("Armonia", "square", 0.3, 0.005, 0.1, []),
+      ch("Basso", "triangle", 0.7, 0.002, 0.05, bass),
+      ch("Batteria", "drums", 0.5, 0, 0, drums),
+    ],
+  };
+}
+
+const sfxData = (o) => ({ wave: "square", freq: 440, freqEnd: 440, attack: 0, sustain: 0.05, decay: 0.1, volume: 0.5, vibrato: 0, vibratoSpeed: 10, jump: 1, jumpAt: 0.05, crush: 0, ...o });
+
+const SPACE_ASSETS = [
+  {
+    id: "navicella",
+    type: "image",
+    src: "assets/navicella.png",
+    frameWidth: 16,
+    frameHeight: 16,
+    animations: {
+      idle: { frames: [0], fps: 1, loop: true },
+      left: { frames: [1], fps: 1, loop: true },
+      right: { frames: [2], fps: 1, loop: true },
+    },
+  },
+  { id: "ufo", type: "image", src: "assets/ufo.png", frameWidth: 16, frameHeight: 16, animations: { idle: { frames: [0, 1], fps: 4, loop: true } } },
+  { id: "caccia", type: "image", src: "assets/caccia.png", frameWidth: 16, frameHeight: 16, animations: { idle: { frames: [0, 1], fps: 8, loop: true } } },
+  { id: "madre", type: "image", src: "assets/madre.png", frameWidth: 48, frameHeight: 32, animations: { idle: { frames: [0, 1], fps: 3, loop: true } } },
+  { id: "laser", type: "image", src: "assets/laser.png" },
+  { id: "plasma", type: "image", src: "assets/plasma.png" },
+  { id: "sparo", type: "audio", src: "", sfx: sfxData({ freq: 1200, freqEnd: 500, sustain: 0.03, decay: 0.08, volume: 0.3 }) },
+  { id: "esplosione", type: "audio", src: "", sfx: sfxData({ wave: "noise", freq: 900, freqEnd: 60, sustain: 0.05, decay: 0.5, volume: 0.7 }) },
+  { id: "brano_spazio", type: "audio", src: "", song: spaceSong() },
+];
+
+const boom = (count = 16) => ({
+  type: "Particles",
+  props: { mode: "burst", burstOn: "died", burstCount: count, speed: 3, spread: 360, lifetime: 0.5, sizeStart: 3, sizeEnd: 0, colorStart: "#fff3a6", colorEnd: "#ff6b3b00", additive: true },
+});
+
+const enemyBlocks = (image, w, h, hp, pattern) => [
+  { type: "Sprite", props: { image, flipWithFacing: false } },
+  { type: "Body", props: { width: w, height: h, group: "nemici", collidesWith: ["giocatore"], world: false } },
+  { type: "MovePattern", props: pattern },
+  { type: "Health", props: { max: hp, invulnerability: 0, knockback: 0, hurtSound: "esplosione" } },
+  { type: "ContactDamage", props: { target: "giocatore", stompable: false } },
+  { type: "SpriteFX", props: { onHurt: "hit" } },
+  boom(),
+  { type: "Animator", props: {} },
+];
+
+const SPACE_PREFABS = [
+  {
+    id: "laser",
+    name: "Laser",
+    tags: ["proiettile"],
+    blocks: [
+      { type: "Sprite", props: { image: "laser", flipWithFacing: false } },
+      { type: "Body", props: { width: 3, height: 8, group: "proiettili", collidesWith: [], world: false } },
+      { type: "Projectile", props: { target: "nemico", damage: 1, lifetime: 1.2, destroyOnWall: false } },
+    ],
+  },
+  {
+    id: "plasma",
+    name: "Plasma",
+    tags: ["proiettile"],
+    blocks: [
+      { type: "Sprite", props: { image: "plasma", flipWithFacing: false } },
+      { type: "Body", props: { width: 6, height: 6, group: "proiettili", collidesWith: [], world: false } },
+      { type: "Projectile", props: { target: "giocatore", damage: 1, lifetime: 4, destroyOnWall: false } },
+    ],
+  },
+  { id: "ufo", name: "Ufo", tags: ["nemico"], blocks: enemyBlocks("ufo", 12, 8, 2, { pattern: "wave", direction: 90, speed: 1.6, amplitude: 1.5, frequency: 0.4 }) },
+  { id: "caccia", name: "Caccia", tags: ["nemico"], blocks: enemyBlocks("caccia", 10, 12, 1, { pattern: "dive", speed: 5, target: "giocatore" }) },
+  {
+    id: "ufo_sparo",
+    name: "Ufo che spara",
+    tags: ["nemico"],
+    blocks: [
+      ...enemyBlocks("ufo", 12, 8, 3, { pattern: "circle", direction: 90, speed: 0.8, amplitude: 1.5, frequency: 0.3 }),
+      { type: "Shooter", props: { projectile: "plasma", mode: "auto", aim: "target", target: "giocatore", range: 12, lineOfSight: false, interval: 1.6, speed: 4, offsetX: 0, offsetY: 0 } },
+    ],
+  },
+];
+
+function levelSpace() {
+  const W = 20;
+  const H = 80;
+  const bottom = H * TS;
+  const entities = [
+    {
+      id: "scorrimento",
+      name: "Scorrimento",
+      x: 160,
+      y: bottom - 90,
+      blocks: [
+        { type: "AutoScroll", props: { direction: "up", speed: 1.25, startDelay: 1.5 } },
+        {
+          type: "Particles",
+          props: {
+            mode: "continuous", rate: 10, area: 170, offsetX: 0, offsetY: -95, speed: 1.5, direction: 90, spread: 0, gravity: 0,
+            lifetime: 7, sizeStart: 1, sizeEnd: 1, colorStart: "#ffffff", colorEnd: "#c8d8ff66", max: 150,
+          },
+        },
+      ],
+    },
+    {
+      id: "navicella",
+      name: "Pepino in navicella",
+      x: 160,
+      y: bottom - 24,
+      tags: ["giocatore"],
+      blocks: [
+        { type: "Sprite", props: { image: "navicella", flipWithFacing: false } },
+        { type: "Body", props: { width: 8, height: 10, group: "giocatore", collidesWith: ["nemici"], world: false } },
+        { type: "ShipController", props: { speed: 6, focus: "dash", focusSpeed: 2.5 } },
+        {
+          type: "Shooter",
+          props: { projectile: "laser", mode: "player", command: "jump", hold: true, aim: "fixed", angle: -90, interval: 0.14, speed: 14, offsetX: 0, offsetY: -12, sound: "sparo" },
+        },
+        { type: "Health", props: { max: 3, variable: "vita", invulnerability: 1.2, knockback: 0, hurtSound: "colpo", onDeath: "restart" } },
+        { type: "SpriteFX", props: { onHurt: "hit" } },
+        { type: "Animator", props: {} },
+      ],
+    },
+    { id: "hud_punti_sp", name: "HUD · Punti", x: 8, y: 4, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Punti {punti}", size: 8 } }] },
+    { id: "hud_vita_sp_testo", name: "HUD · Vita", x: 244, y: 4, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Vita", size: 8 } }] },
+    { id: "hud_vita_sp", name: "HUD · Barra vita", x: 272, y: 6, z: 100, tags: ["interfaccia"], blocks: [{ type: "Bar", props: { variable: "vita", max: 3, width: 40, height: 5 } }] },
+    {
+      id: "madre",
+      name: "Astronave madre",
+      x: 160,
+      y: 120,
+      tags: ["nemico"],
+      blocks: [
+        ...enemyBlocks("madre", 40, 16, 20, { pattern: "wave", direction: 90, speed: 0, amplitude: 5, frequency: 0.15, leaveScreen: false }),
+        { type: "Shooter", props: { projectile: "plasma", mode: "auto", aim: "target", target: "giocatore", range: 20, lineOfSight: false, count: 5, spread: 60, interval: 1.8, speed: 3.5, offsetX: 0, offsetY: -8 } },
+      ].map((b) => (b.type === "Particles" ? boom(40) : b)),
+    },
+  ];
+  // Ondate dal basso verso l'alto: partono quando entrano nello schermo.
+  for (let i = 0; i < 9; i++) {
+    const y = bottom - 280 - i * 95;
+    if (i % 3 === 0) for (const x of [60, 120, 200, 260]) entities.push(inst("ufo", "Ufo", x, y));
+    else if (i % 3 === 1) for (const x of [80, 160, 240]) entities.push(inst("caccia", "Caccia", x, y));
+    else for (const x of [90, 230]) entities.push(inst("ufo_sparo", "Ufo che spara", x, y));
+  }
+  return {
+    id: "spazio",
+    name: "Nello spazio",
+    width: W,
+    height: H,
+    background: "#0b1026",
+    music: "brano_spazio",
+    layers: [makeLayer("vuoto", "Vuoto", W, H, new Array(W * H).fill(-1), 0, false)],
+    entities,
+    rules: [
+      rule("sp_inizio", "Comandi", { type: "scene.start", params: {} }, [], [say("Frecce: muoviti · Z: spara · X: rallenta", 4)]),
+      rule("sp_punti", "Nemico abbattuto", { type: "event", params: { target: "#nemico", event: "died" } }, [], [
+        { type: "var.add", params: { amount: 10, variable: "punti" } },
+      ]),
+      rule("sp_vittoria", "Astronave madre sconfitta", { type: "event", params: { target: "@madre", event: "died" } }, [], [
+        { type: "var.add", params: { amount: 100, variable: "punti" } },
+        { type: "wait", params: { seconds: 1.5 } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.6 } },
+      ]),
+    ],
+  };
+}
+
+// ---- Difesa del villaggio: tower defense (modello di progetto)
+
+{
+  const t = new Pix(16, 16);
+  shape(t, 0, 0, roundRect(3, 6, 12, 15), P.stone, P.stoneDk, [0, 0, 15, 15]);
+  for (const x of [3, 6, 9, 12]) {
+    t.rect(x, 3, 2, 3, P.stone);
+    t.set(x, 3, P.stoneHi);
+  }
+  t.rect(3, 6, 10, 1, P.stoneDk);
+  t.rect(7, 10, 2, 5, P.ink);
+  blob(t, 0, 0, 8, 4.5, 2.2, 2.2, P.pickle);
+  t.set(7, 4, P.pickleOut);
+  t.set(9, 4, P.pickleOut);
+  t.save("torretta.png");
+}
+
+const TD_ASSETS = [
+  { id: "torretta", type: "image", src: "assets/torretta.png" },
+  { id: "tiro", type: "audio", src: "", sfx: sfxData({ freq: 500, freqEnd: 250, sustain: 0.02, decay: 0.06, volume: 0.25 }) },
+];
+
+const goo = () => ({
+  type: "Particles",
+  props: { mode: "burst", burstOn: "died", burstCount: 12, speed: 2.5, spread: 360, lifetime: 0.45, sizeStart: 3, sizeEnd: 0, colorStart: "#9be26a", colorEnd: "#3f8a3600" },
+});
+
+const pathSlime = (id, name, speed, hp, color) => ({
+  id,
+  name,
+  tags: ["nemico"],
+  blocks: [
+    { type: "Sprite", props: { image: "slime", tint: color } },
+    { type: "Body", props: { width: 12, height: 9, group: "nemici", collidesWith: [], world: false } },
+    { type: "PathFollower", props: { path: "strada", speed, atEnd: "destroy", startAtFirst: true } },
+    { type: "Health", props: { max: hp, invulnerability: 0, knockback: 0 } },
+    { type: "SpriteFX", props: { onHurt: "hit" } },
+    goo(),
+    { type: "Animator", props: {} },
+  ],
+});
+
+const TD_PREFABS = [
+  {
+    id: "sasso",
+    name: "Sasso",
+    tags: ["proiettile"],
+    blocks: [
+      { type: "Sprite", props: { image: "seme", flipWithFacing: false } },
+      { type: "Body", props: { width: 4, height: 4, group: "proiettili", collidesWith: [], world: false } },
+      { type: "Projectile", props: { target: "nemico", damage: 1, lifetime: 1, destroyOnWall: false } },
+    ],
+  },
+  {
+    id: "torretta",
+    name: "Torretta",
+    tags: ["torretta"],
+    blocks: [
+      { type: "Sprite", props: { image: "torretta", flipWithFacing: false } },
+      {
+        type: "Shooter",
+        props: { projectile: "sasso", mode: "auto", aim: "target", target: "nemico", range: 3.5, lineOfSight: false, interval: 0.7, speed: 9, offsetX: 0, offsetY: -12, sound: "tiro" },
+      },
+      { type: "SpriteFX", props: { onAppear: "pop", customEvent: "shot", customEffect: "squash" } },
+    ],
+  },
+  pathSlime("slime_percorso", "Slime del sentiero", 1.2, 4, "#ffffff"),
+  pathSlime("slime_veloce", "Slime veloce", 2.2, 2, "#9fc4ff"),
+];
+
+function levelDefense() {
+  const W = 20;
+  const H = 11;
+  const floor = new Array(W * H).fill(8);
+  const dec = new Array(W * H).fill(-1);
+  const at = (c, r) => r * W + c;
+  // Il sentiero: da sinistra a destra con due curve.
+  const route = [[0, 2], [6, 2], [6, 7], [13, 7], [13, 3], [19, 3]];
+  for (let i = 0; i < route.length - 1; i++) {
+    const [c0, r0] = route[i];
+    const [c1, r1] = route[i + 1];
+    for (let c = Math.min(c0, c1); c <= Math.max(c0, c1); c++) for (let r = Math.min(r0, r1); r <= Math.max(r0, r1); r++) floor[at(c, r)] = 10;
+  }
+  for (let k = 0; k < 26; k++) {
+    const i = Math.floor(rnd() * W * H);
+    if (floor[i] === 8) floor[i] = 9;
+  }
+  for (const [c, r, t] of [[1, 5, 12], [2, 9, 12], [17, 8, 12], [18, 0, 12], [9, 1, 15], [16, 9, 15], [3, 0, 14], [10, 10, 14]]) dec[at(c, r)] = t;
+
+  const spots = [[4, 4], [8, 5], [10, 9], [11, 5], [15, 5], [16, 1]];
+  const waypoints = [[-1, 2], ...route.slice(1, -1), [20, 3]];
+  const entities = [
+    ...waypoints.map(([c, r], i) => ({
+      id: `punto_${i + 1}`,
+      name: `Punto ${i + 1}`,
+      x: cx(c),
+      y: mid(r) + 5,
+      blocks: [{ type: "Waypoint", props: { path: "strada", order: i + 1 } }],
+    })),
+    ...spots.map(([c, r], i) => ({
+      id: `piazzola_${i + 1}`,
+      name: `Piazzola ${i + 1}`,
+      x: cx(c),
+      y: feet(r),
+      blocks: [{ type: "BuildSpot", props: { prefab: "torretta", cost: 20, variable: "monete", sound: "moneta" } }],
+    })),
+    {
+      id: "ondate",
+      name: "Ondate di slime",
+      x: cx(0),
+      y: feet(0),
+      blocks: [
+        {
+          type: "Waves",
+          props: { prefab: "slime_percorso", altPrefab: "slime_veloce", altEvery: 3, waves: 5, count: 4, increase: 2, interval: 1.1, pause: 5, startDelay: 4, variable: "ondata" },
+        },
+      ],
+    },
+    { id: "hud_monete_td", name: "HUD · Monete", x: 8, y: 4, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Monete {monete}", size: 8 } }] },
+    { id: "hud_ondata_td", name: "HUD · Ondata", x: 160, y: 4, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Ondata {ondata}/5", size: 8, align: "center" } }] },
+    { id: "hud_vita_td_testo", name: "HUD · Vita", x: 244, y: 4, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Vita", size: 8 } }] },
+    { id: "hud_vita_td", name: "HUD · Barra vita", x: 272, y: 6, z: 100, tags: ["interfaccia"], blocks: [{ type: "Bar", props: { variable: "vita", max: 10, width: 40, height: 5 } }] },
+  ];
+  return {
+    id: "difesa",
+    name: "Difesa del villaggio",
+    width: W,
+    height: H,
+    background: "#6cc24a",
+    music: "musica",
+    layers: [
+      makeLayer("prato", "Prato", W, H, floor, 0, false),
+      makeLayer("decorazioni", "Decorazioni", W, H, dec, 1, false),
+    ],
+    entities,
+    rules: [
+      rule("td_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [say("Clicca una piazzola per costruire una torretta (20 monete)", 5)]),
+      rule("td_monete", "Slime sconfitto", { type: "event", params: { target: "#nemico", event: "died" } }, [], [
+        { type: "var.add", params: { amount: 5, variable: "monete" } },
+      ]),
+      rule("td_passato", "Uno slime è arrivato in fondo", { type: "event", params: { target: "#nemico", event: "reachedEnd" } }, [], [
+        { type: "var.add", params: { amount: -1, variable: "vita" } },
+      ]),
+      rule(
+        "td_perso",
+        "Niente più vita",
+        { type: "always", params: {} },
+        [{ type: "var.compare", params: { variable: "vita", op: "<=", value: "0" } }],
+        [say("Gli slime sono passati!", 2), { type: "wait", params: { seconds: 2 } }, { type: "scene.restart", params: {} }],
+        { once: true },
+      ),
+      rule("td_vinto", "Tutte le ondate respinte", { type: "event", params: { target: "@ondate", event: "cleared" } }, [], [
+        say("Hai difeso il villaggio!", 2),
+        { type: "wait", params: { seconds: 2 } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.6 } },
+      ]),
+    ],
+  };
+}
+
 // ---- Fine livello (usata dai modelli di progetto)
 function levelEnd(restartScene) {
   return {
@@ -1249,6 +1673,13 @@ function levelMenu() {
 
 const EN = {
   PEPINO: "PEPINO",
+  "Punti {punti}": "Score {punti}",
+  "Punti: {punti}": "Score: {punti}",
+  "Frecce: muoviti · Z: spara · X: rallenta": "Arrows: move · Z: fire · X: slow down",
+  "Clicca una piazzola per costruire una torretta (20 monete)": "Click a build spot to build a tower (20 coins)",
+  "Ondata {ondata}/5": "Wave {ondata}/5",
+  "Gli slime sono passati!": "The slimes got through!",
+  "Hai difeso il villaggio!": "You defended the village!",
   "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
   "Nuova partita": "New game",
   Continua: "Continue",
@@ -1643,6 +2074,13 @@ const doorsTo = (s, scene) => ({
     e.prefab === "porta" ? { ...e, blocks: e.blocks.map((b) => (b.type === "SceneExit" ? { ...b, props: { ...b.props, scene } } : b)) } : e,
   ),
 });
+/** Cambia il testo del blocco Testo di un oggetto della scena. */
+const retext = (s, entityId, text) => ({
+  ...s,
+  entities: s.entities.map((e) =>
+    e.id === entityId ? { ...e, blocks: e.blocks.map((b) => (b.type === "Text" ? { ...b, props: { ...b.props, text } } : b)) } : e,
+  ),
+});
 const without = (s, entityIds, ruleIds = []) => ({
   ...s,
   entities: s.entities.filter((e) => !entityIds.includes(e.id) && !entityIds.includes(e.name)),
@@ -1669,6 +2107,24 @@ const templates = {
     touch: { mode: "auto", buttons: ["attack", "jump"] },
     scenes: [levelStreet("fine"), levelEnd("strada")],
   },
+  shmup: {
+    name: "Il mio shoot'em up",
+    start: "spazio",
+    touch: { mode: "auto", buttons: ["jump", "dash"] },
+    scenes: [levelSpace(), retext(levelEnd("spazio"), "monete_fine", "Punti: {punti}")],
+    assets: SPACE_ASSETS,
+    prefabs: SPACE_PREFABS,
+    variables: { punti: 0, vita: 3, monete: 0 },
+  },
+  towerdefense: {
+    name: "Il mio tower defense",
+    start: "difesa",
+    touch: { mode: "off", buttons: [] },
+    scenes: [levelDefense(), levelEnd("difesa")],
+    assets: TD_ASSETS,
+    prefabs: TD_PREFABS,
+    variables: { monete: 50, vita: 10, ondata: 0 },
+  },
 };
 
 for (const [id, t] of Object.entries(templates)) {
@@ -1677,7 +2133,10 @@ for (const [id, t] of Object.entries(templates)) {
     ...base,
     name: t.name,
     settings: { ...project.settings, startScene: t.start, touch: t.touch },
-    variables: { monete: 0, vita: 3, missione: 0 },
+    variables: t.variables ?? { monete: 0, vita: 3, missione: 0 },
+    // Asset e modelli propri del genere si aggiungono a quelli della demo.
+    assets: [...base.assets, ...(t.assets ?? [])],
+    prefabs: [...base.prefabs, ...(t.prefabs ?? [])],
     scenes: t.scenes,
     dialogues: t.dialogues ?? [],
     rules: [],

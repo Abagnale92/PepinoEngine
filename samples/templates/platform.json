@@ -6783,6 +6783,13 @@
   "translations": {
     "en": {
       "PEPINO": "PEPINO",
+      "Punti {punti}": "Score {punti}",
+      "Punti: {punti}": "Score: {punti}",
+      "Frecce: muoviti · Z: spara · X: rallenta": "Arrows: move · Z: fire · X: slow down",
+      "Clicca una piazzola per costruire una torretta (20 monete)": "Click a build spot to build a tower (20 coins)",
+      "Ondata {ondata}/5": "Wave {ondata}/5",
+      "Gli slime sono passati!": "The slimes got through!",
+      "Hai difeso il villaggio!": "You defended the village!",
       "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
       "Nuova partita": "New game",
       "Continua": "Continue",

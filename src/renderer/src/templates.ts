@@ -25,4 +25,16 @@ export const TEMPLATES: ProjectTemplate[] = [
     description: "Una strada di notte con i lampioni: si cammina in profondità, si salta e si combatte a ondate.",
     icon: "enemy",
   },
+  {
+    id: "shmup",
+    label: "Shoot'em up",
+    description: "Nello spazio: la navicella spara mentre lo schermo scorre, ondate di nemici con traiettorie diverse e un'astronave madre alla fine.",
+    icon: "up",
+  },
+  {
+    id: "towerdefense",
+    label: "Tower defense",
+    description: "Un sentiero nel prato: gli slime arrivano a ondate e tu costruisci torrette sulle piazzole con le monete guadagnate.",
+    icon: "grid",
+  },
 ];
