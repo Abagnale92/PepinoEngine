@@ -1,0 +1,2377 @@
+{
+  "format": "pepino",
+  "version": 1,
+  "name": "Il mio roguelike",
+  "settings": {
+    "resolution": {
+      "width": 320,
+      "height": 180
+    },
+    "pixelPerfect": true,
+    "tileSize": 16,
+    "startScene": "sotterraneo",
+    "background": "#8fd3ff",
+    "font": "pixel",
+    "collisionGroups": [
+      "giocatore",
+      "nemici",
+      "raccoglibili",
+      "trigger",
+      "proiettili"
+    ],
+    "touch": {
+      "mode": "auto",
+      "buttons": [
+        "attack",
+        "action"
+      ]
+    }
+  },
+  "input": {
+    "left": [
+      "Key:ArrowLeft",
+      "Key:KeyA",
+      "Pad:DPadLeft",
+      "Pad:LeftStickLeft"
+    ],
+    "right": [
+      "Key:ArrowRight",
+      "Key:KeyD",
+      "Pad:DPadRight",
+      "Pad:LeftStickRight"
+    ],
+    "up": [
+      "Key:ArrowUp",
+      "Key:KeyW",
+      "Pad:DPadUp",
+      "Pad:LeftStickUp"
+    ],
+    "down": [
+      "Key:ArrowDown",
+      "Key:KeyS",
+      "Pad:DPadDown",
+      "Pad:LeftStickDown"
+    ],
+    "jump": [
+      "Key:Space",
+      "Key:KeyZ",
+      "Pad:A"
+    ],
+    "dash": [
+      "Key:ShiftLeft",
+      "Key:KeyX",
+      "Pad:RB",
+      "Pad:B"
+    ],
+    "action": [
+      "Key:KeyC",
+      "Key:Enter",
+      "Pad:X"
+    ],
+    "attack": [
+      "Key:KeyV",
+      "Key:KeyJ",
+      "Pad:Y"
+    ],
+    "pause": [
+      "Key:Escape",
+      "Pad:Start"
+    ]
+  },
+  "variables": {
+    "vita": 3,
+    "monete": 0,
+    "piano": 1,
+    "inventario": ""
+  },
+  "items": [
+    {
+      "id": "pozione",
+      "name": "Pozione",
+      "icon": "oggetti",
+      "frame": 0,
+      "kind": "consumable",
+      "price": 3,
+      "max": 5,
+      "description": "Recupera un cuore.",
+      "effect": {
+        "type": "heal",
+        "amount": 1
+      }
+    },
+    {
+      "id": "stivali",
+      "name": "Stivali veloci",
+      "icon": "oggetti",
+      "frame": 1,
+      "kind": "instant",
+      "price": 5,
+      "description": "Corri più veloce per 10 secondi.",
+      "effect": {
+        "type": "powerup",
+        "powerup": "speed",
+        "seconds": 10
+      }
+    },
+    {
+      "id": "stella",
+      "name": "Stella",
+      "icon": "oggetti",
+      "frame": 2,
+      "kind": "instant",
+      "price": 8,
+      "description": "Invincibile per 8 secondi.",
+      "effect": {
+        "type": "powerup",
+        "powerup": "invincible",
+        "seconds": 8
+      }
+    },
+    {
+      "id": "calamita",
+      "name": "Calamita",
+      "icon": "oggetti",
+      "frame": 3,
+      "kind": "instant",
+      "price": 4,
+      "description": "Attira le monete vicine per 12 secondi.",
+      "effect": {
+        "type": "powerup",
+        "powerup": "magnet",
+        "seconds": 12
+      }
+    },
+    {
+      "id": "scudo",
+      "name": "Scudo",
+      "icon": "oggetti",
+      "frame": 4,
+      "kind": "instant",
+      "price": 6,
+      "description": "Para il prossimo colpo.",
+      "effect": {
+        "type": "powerup",
+        "powerup": "shield",
+        "seconds": 0
+      }
+    },
+    {
+      "id": "fungo",
+      "name": "Fungo saltarello",
+      "icon": "oggetti",
+      "frame": 5,
+      "kind": "instant",
+      "price": 4,
+      "description": "Salti più in alto per 10 secondi.",
+      "effect": {
+        "type": "powerup",
+        "powerup": "jump",
+        "seconds": 10
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "oggetti",
+      "type": "image",
+      "src": "assets/oggetti.png",
+      "frameWidth": 16,
+      "frameHeight": 16
+    },
+    {
+      "id": "tiles",
+      "type": "image",
+      "src": "assets/tiles.png"
+    },
+    {
+      "id": "pepino",
+      "type": "image",
+      "src": "assets/pepino.png",
+      "frameWidth": 16,
+      "frameHeight": 24,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 2,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 10,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "attack1": {
+          "frames": [
+            11,
+            12,
+            12
+          ],
+          "fps": 12,
+          "loop": false
+        },
+        "attack2": {
+          "frames": [
+            11,
+            13,
+            13
+          ],
+          "fps": 12,
+          "loop": false
+        },
+        "attack3": {
+          "frames": [
+            14,
+            15,
+            15,
+            15,
+            15
+          ],
+          "fps": 12,
+          "loop": false
+        },
+        "airAttack": {
+          "frames": [
+            16
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "hurt": {
+          "frames": [
+            17
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "down": {
+          "frames": [
+            18
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "getup": {
+          "frames": [
+            19
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "jump": {
+          "frames": [
+            6
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            7
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "dash": {
+          "frames": [
+            8
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "climb": {
+          "frames": [
+            9,
+            10
+          ],
+          "fps": 6,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "pepino_td",
+      "type": "image",
+      "src": "assets/pepino_td.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "idle_down": {
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk_down": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "idle_up": {
+          "frames": [
+            2
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk_up": {
+          "frames": [
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "idle_side": {
+          "frames": [
+            4
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "walk_side": {
+          "frames": [
+            4,
+            5
+          ],
+          "fps": 6,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "slime",
+      "type": "image",
+      "src": "assets/slime.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "run": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 5,
+          "loop": true
+        },
+        "fall": {
+          "frames": [
+            0
+          ],
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "coin",
+      "type": "image",
+      "src": "assets/coin.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "door",
+      "type": "image",
+      "src": "assets/door.png"
+    },
+    {
+      "id": "cartello",
+      "type": "image",
+      "src": "assets/sign.png"
+    },
+    {
+      "id": "nonno",
+      "type": "image",
+      "src": "assets/nonno.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "fps": 4,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "ritratti",
+      "type": "image",
+      "src": "assets/ritratti.png",
+      "frameWidth": 32,
+      "frameHeight": 32
+    },
+    {
+      "id": "seme",
+      "type": "image",
+      "src": "assets/seme.png"
+    },
+    {
+      "id": "molla",
+      "type": "image",
+      "src": "assets/molla.png"
+    },
+    {
+      "id": "lampione",
+      "type": "image",
+      "src": "assets/lampione.png"
+    },
+    {
+      "id": "boss",
+      "type": "image",
+      "src": "assets/boss.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "windup": {
+          "frames": [
+            4
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "attack": {
+          "frames": [
+            5
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "charge": {
+          "frames": [
+            6,
+            3
+          ],
+          "fps": 10,
+          "loop": true
+        },
+        "jump": {
+          "frames": [
+            5
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "slam": {
+          "frames": [
+            4
+          ],
+          "fps": 1,
+          "loop": true
+        },
+        "shoot": {
+          "frames": [
+            5,
+            0
+          ],
+          "fps": 8,
+          "loop": true
+        },
+        "summon": {
+          "frames": [
+            4,
+            5
+          ],
+          "fps": 6,
+          "loop": true
+        },
+        "tired": {
+          "frames": [
+            7
+          ],
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "sputasemi",
+      "type": "image",
+      "src": "assets/sputasemi.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 2,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "salto",
+      "type": "audio",
+      "src": "assets/jump.wav"
+    },
+    {
+      "id": "moneta",
+      "type": "audio",
+      "src": "assets/coin.wav"
+    },
+    {
+      "id": "colpo",
+      "type": "audio",
+      "src": "assets/hurt.wav"
+    },
+    {
+      "id": "schiaccia",
+      "type": "audio",
+      "src": "assets/stomp.wav"
+    },
+    {
+      "id": "dash",
+      "type": "audio",
+      "src": "assets/dash.wav"
+    },
+    {
+      "id": "musica",
+      "type": "audio",
+      "src": "assets/music.wav"
+    },
+    {
+      "id": "sotterraneo",
+      "type": "image",
+      "src": "assets/sotterraneo.png",
+      "frameWidth": 16,
+      "frameHeight": 16
+    },
+    {
+      "id": "scalino",
+      "type": "audio",
+      "src": "",
+      "sfx": {
+        "wave": "square",
+        "freq": 330,
+        "freqEnd": 110,
+        "attack": 0,
+        "sustain": 0.03,
+        "decay": 0.16,
+        "volume": 0.28,
+        "vibrato": 0,
+        "vibratoSpeed": 10,
+        "jump": 1,
+        "jumpAt": 0.05,
+        "crush": 0
+      }
+    }
+  ],
+  "tilesets": [
+    {
+      "id": "tiles",
+      "name": "Natura",
+      "image": "tiles",
+      "tileSize": 16,
+      "columns": 8,
+      "count": 23,
+      "tiles": {
+        "0": {
+          "collision": "solid"
+        },
+        "1": {
+          "collision": "solid"
+        },
+        "2": {
+          "collision": "solid"
+        },
+        "3": {
+          "collision": "oneway"
+        },
+        "4": {
+          "collision": "ladder"
+        },
+        "5": {
+          "collision": "hazard"
+        },
+        "11": {
+          "collision": "solid"
+        },
+        "12": {
+          "collision": "solid"
+        },
+        "13": {
+          "collision": "solid"
+        },
+        "15": {
+          "collision": "solid"
+        },
+        "21": {
+          "collision": "solid"
+        }
+      }
+    }
+  ],
+  "prefabs": [
+    {
+      "id": "slime",
+      "name": "Slime",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 9,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "PlatformController",
+          "props": {
+            "input": "ai",
+            "speed": 1.5,
+            "airJumps": 0,
+            "dash": false
+          }
+        },
+        {
+          "type": "Patrol",
+          "props": {}
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 1,
+            "knockback": 0,
+            "invulnerability": 0
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompSound": "schiaccia"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "slime_td",
+      "name": "Slime vagante",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 8,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "TopDownController",
+          "props": {
+            "input": "ai",
+            "speed": 1.8,
+            "directions": "4"
+          }
+        },
+        {
+          "type": "Patrol",
+          "props": {
+            "axis": "vertical",
+            "turnAtEdges": false
+          }
+        },
+        {
+          "type": "Chaser",
+          "props": {
+            "target": "giocatore",
+            "seeRange": 4.5,
+            "loseRange": 7
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 2,
+            "invulnerability": 0.4,
+            "knockback": 7
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompable": false
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "moneta",
+      "name": "Moneta",
+      "tags": [
+        "moneta"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "coin",
+            "origin": "center",
+            "flipWithFacing": false
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 8,
+            "height": 8,
+            "group": "raccoglibili",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "Collectible",
+          "props": {
+            "variable": "monete",
+            "sound": "moneta"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "porta",
+      "name": "Porta",
+      "tags": [
+        "uscita"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "door",
+            "flipWithFacing": false
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 10,
+            "height": 20,
+            "group": "trigger",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "SceneExit",
+          "props": {
+            "scene": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "seme",
+      "name": "Seme",
+      "tags": [
+        "proiettile"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "seme",
+            "origin": "center"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 6,
+            "height": 6,
+            "group": "proiettili",
+            "collidesWith": [],
+            "world": true
+          }
+        },
+        {
+          "type": "Projectile",
+          "props": {
+            "target": "giocatore",
+            "damage": 1,
+            "lifetime": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "sputasemi",
+      "name": "Sputasemi",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "sputasemi"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 13,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 1,
+            "invulnerability": 0,
+            "knockback": 0
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompSound": "schiaccia"
+          }
+        },
+        {
+          "type": "Shooter",
+          "props": {
+            "projectile": "seme",
+            "mode": "auto",
+            "aim": "target",
+            "range": 7,
+            "interval": 2.2,
+            "speed": 5,
+            "offsetX": 4,
+            "offsetY": -8
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "teppista",
+      "name": "Teppista",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime",
+            "tint": "#c9a2ff",
+            "shadow": true
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 8,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "BeatEmUpController",
+          "props": {
+            "input": "ai",
+            "speed": 2.2,
+            "depthSpeed": 1.6,
+            "jumpHeight": 0
+          }
+        },
+        {
+          "type": "Chaser",
+          "props": {
+            "target": "giocatore",
+            "seeRange": 9,
+            "loseRange": 16,
+            "lineOfSight": false,
+            "stopDistance": 0.7,
+            "giveUp": 5
+          }
+        },
+        {
+          "type": "Attack",
+          "props": {
+            "mode": "auto",
+            "target": "giocatore",
+            "damage": 1,
+            "reach": 10,
+            "width": 14,
+            "height": 12,
+            "startup": 0.3,
+            "active": 0.1,
+            "recovery": 0.3,
+            "cooldown": 1.1,
+            "slashColor": "#ff8a8acc"
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 3,
+            "invulnerability": 0,
+            "knockback": 7
+          }
+        },
+        {
+          "type": "Particles",
+          "props": {
+            "burstOn": "hurt",
+            "burstCount": 10,
+            "speed": 3.5,
+            "lifetime": 0.35,
+            "sizeStart": 2.5,
+            "additive": true,
+            "offsetY": -6
+          }
+        },
+        {
+          "type": "SpriteFX",
+          "props": {
+            "onJump": "none",
+            "onHurt": "hit",
+            "onAppear": "pop",
+            "onDeath": "vanish"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "capo",
+      "name": "Capo dei teppisti",
+      "tags": [
+        "nemico",
+        "boss"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "boss",
+            "shadow": true
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 22,
+            "height": 10,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "Boss",
+          "props": {
+            "title": "Capo dei teppisti",
+            "wakeRange": 6,
+            "speed": 1.6,
+            "damage": 1,
+            "summon": true,
+            "minion": "teppista",
+            "minions": 2,
+            "restTime": 1.4
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 24,
+            "invulnerability": 0.12,
+            "knockback": 0,
+            "onDeath": "destroy"
+          }
+        },
+        {
+          "type": "SpriteFX",
+          "props": {
+            "idle": "breathe",
+            "onJump": "none",
+            "onHurt": "hit",
+            "onDeath": "vanish",
+            "strength": 1.2
+          }
+        },
+        {
+          "type": "Particles",
+          "props": {
+            "burstOn": "slam",
+            "burstCount": 18,
+            "speed": 3,
+            "spread": 180,
+            "direction": -90,
+            "lifetime": 0.45,
+            "sizeStart": 3,
+            "colorStart": "#c9c2b8",
+            "colorEnd": "#c9c2b800",
+            "gravity": 6,
+            "offsetY": -2
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "scala_giu",
+      "name": "Scala per il piano dopo",
+      "tags": [
+        "scala"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "sotterraneo",
+            "frame": 0,
+            "origin": "center",
+            "flipWithFacing": false
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 14,
+            "height": 14,
+            "group": "trigger",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "FloorExit",
+          "props": {
+            "target": "giocatore",
+            "floorVar": "piano",
+            "fade": 0.4,
+            "sound": "scalino"
+          }
+        }
+      ]
+    },
+    {
+      "id": "scrigno",
+      "name": "Scrigno",
+      "tags": [
+        "raccoglibile"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "sotterraneo",
+            "frame": 1,
+            "origin": "center",
+            "flipWithFacing": false
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 12,
+            "group": "raccoglibili",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "Collectible",
+          "props": {
+            "variable": "monete",
+            "amount": 5,
+            "sound": "moneta"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pozione_terra",
+      "name": "Pozione nel sotterraneo",
+      "tags": [
+        "raccoglibile"
+      ],
+      "blocks": [
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 12,
+            "group": "raccoglibili",
+            "collidesWith": [
+              "giocatore"
+            ],
+            "world": false
+          }
+        },
+        {
+          "type": "ItemPickup",
+          "props": {
+            "item": "pozione",
+            "sound": "moneta"
+          }
+        }
+      ]
+    },
+    {
+      "id": "slime_cantina",
+      "name": "Slime di cantina",
+      "tags": [
+        "nemico"
+      ],
+      "blocks": [
+        {
+          "type": "Sprite",
+          "props": {
+            "image": "slime",
+            "tint": "#b0a2ff"
+          }
+        },
+        {
+          "type": "Body",
+          "props": {
+            "width": 12,
+            "height": 8,
+            "group": "nemici",
+            "collidesWith": [
+              "giocatore"
+            ]
+          }
+        },
+        {
+          "type": "TopDownController",
+          "props": {
+            "input": "ai",
+            "speed": 1.6,
+            "directions": "8"
+          }
+        },
+        {
+          "type": "Chaser",
+          "props": {
+            "target": "giocatore",
+            "seeRange": 5,
+            "loseRange": 9
+          }
+        },
+        {
+          "type": "Patrol",
+          "props": {
+            "axis": "horizontal",
+            "turnAtEdges": false
+          }
+        },
+        {
+          "type": "Health",
+          "props": {
+            "max": 2,
+            "invulnerability": 0.3,
+            "knockback": 6
+          }
+        },
+        {
+          "type": "ContactDamage",
+          "props": {
+            "target": "giocatore",
+            "stompable": false
+          }
+        },
+        {
+          "type": "SpriteFX",
+          "props": {
+            "onHurt": "hit",
+            "onDeath": "vanish",
+            "onJump": "none",
+            "onLand": "none"
+          }
+        },
+        {
+          "type": "Animator",
+          "props": {}
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "sotterraneo",
+      "name": "Le cantine del nonno",
+      "width": 26,
+      "height": 18,
+      "background": "#0e1014",
+      "ySort": true,
+      "openBottom": false,
+      "music": "musica",
+      "layers": [
+        {
+          "id": "cantina",
+          "name": "Cantina",
+          "tileset": "tiles",
+          "width": 26,
+          "height": 18,
+          "data": [
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ],
+          "z": 0,
+          "collides": true,
+          "visible": true,
+          "locked": false,
+          "parallax": 1
+        }
+      ],
+      "entities": [
+        {
+          "id": "giocatore_rl",
+          "name": "Pepino",
+          "x": 40,
+          "y": 40,
+          "tags": [
+            "giocatore"
+          ],
+          "blocks": [
+            {
+              "type": "Sprite",
+              "props": {
+                "image": "pepino_td"
+              }
+            },
+            {
+              "type": "Body",
+              "props": {
+                "width": 10,
+                "height": 7,
+                "group": "giocatore",
+                "collidesWith": [
+                  "nemici",
+                  "raccoglibili",
+                  "trigger"
+                ]
+              }
+            },
+            {
+              "type": "TopDownController",
+              "props": {
+                "directions": "8",
+                "speed": 4
+              }
+            },
+            {
+              "type": "Animator",
+              "props": {}
+            },
+            {
+              "type": "CameraFollow",
+              "props": {
+                "mode": "topdown",
+                "deadzoneW": 1,
+                "deadzoneH": 1,
+                "offsetY": -0.5,
+                "lookahead": 0
+              }
+            },
+            {
+              "type": "Health",
+              "props": {
+                "max": 3,
+                "variable": "vita",
+                "onDeath": "restart",
+                "hurtSound": "colpo",
+                "invulnerability": 1
+              }
+            },
+            {
+              "type": "Attack",
+              "props": {
+                "target": "nemico",
+                "damage": 1,
+                "reach": 12,
+                "width": 16,
+                "height": 14,
+                "sound": "colpo"
+              }
+            },
+            {
+              "type": "PowerUps",
+              "props": {}
+            },
+            {
+              "type": "MiniMap",
+              "props": {
+                "size": 48,
+                "corner": "topright",
+                "mark": "nemico"
+              }
+            },
+            {
+              "type": "SpriteFX",
+              "props": {
+                "onHurt": "hit",
+                "onJump": "none",
+                "onLand": "none",
+                "onDeath": "vanish"
+              }
+            }
+          ]
+        },
+        {
+          "id": "regia_cantina",
+          "name": "Generatore del sotterraneo",
+          "x": 0,
+          "y": 0,
+          "blocks": [
+            {
+              "type": "DungeonGenerator",
+              "props": {
+                "rooms": 8,
+                "roomMin": 3,
+                "roomMax": 6,
+                "floorTile": 10,
+                "wallTile": 13,
+                "seed": 0,
+                "player": "giocatore",
+                "exit": "scala_giu",
+                "floorVar": "piano",
+                "spawns": [
+                  {
+                    "prefab": "slime_cantina",
+                    "count": 3,
+                    "perFloor": 1
+                  },
+                  {
+                    "prefab": "scrigno",
+                    "count": 2,
+                    "perFloor": 0.5
+                  },
+                  {
+                    "prefab": "pozione_terra",
+                    "count": 1,
+                    "perFloor": 0
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_vita_testo",
+          "name": "HUD · Vita",
+          "x": 8,
+          "y": 4,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Vita",
+                "size": 7
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_vita",
+          "name": "HUD · Barra vita",
+          "x": 30,
+          "y": 7,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Bar",
+              "props": {
+                "variable": "vita",
+                "max": 3,
+                "width": 40,
+                "height": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_monete",
+          "name": "HUD · Monete",
+          "x": 82,
+          "y": 4,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Monete {monete}",
+                "size": 7
+              }
+            }
+          ]
+        },
+        {
+          "id": "hud_piano",
+          "name": "HUD · Piano",
+          "x": 150,
+          "y": 4,
+          "z": 100,
+          "tags": [
+            "interfaccia"
+          ],
+          "blocks": [
+            {
+              "type": "Text",
+              "props": {
+                "text": "Piano {piano}",
+                "size": 7,
+                "outline": true
+              }
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "rl_inizio",
+          "comment": "Come si gioca",
+          "when": {
+            "type": "scene.start",
+            "params": {}
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "message.show",
+              "params": {
+                "text": "Frecce per muoverti · V colpisci · trova la scala e scendi. Ogni piano è diverso!",
+                "duration": 4,
+                "pause": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "rl_moneta",
+          "comment": "Uno slime sconfitto lascia una moneta",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "#nemico",
+              "event": "died"
+            }
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "var.add",
+              "params": {
+                "amount": 1,
+                "variable": "monete"
+              }
+            }
+          ]
+        },
+        {
+          "id": "rl_caduta",
+          "comment": "Se la vita finisce si riparte dal primo piano",
+          "when": {
+            "type": "event",
+            "params": {
+              "target": "@giocatore_rl",
+              "event": "died"
+            }
+          },
+          "conditions": [],
+          "actions": [
+            {
+              "type": "var.set",
+              "params": {
+                "variable": "piano",
+                "value": "1"
+              }
+            },
+            {
+              "type": "var.set",
+              "params": {
+                "variable": "monete",
+                "value": "0"
+              }
+            }
+          ]
+        },
+        {
+          "id": "rl_scesi",
+          "comment": "Ogni piano nuovo ridà un cuore",
+          "when": {
+            "type": "scene.start",
+            "params": {}
+          },
+          "conditions": [
+            {
+              "type": "var.compare",
+              "params": {
+                "variable": "piano",
+                "op": ">",
+                "value": "1"
+              }
+            }
+          ],
+          "actions": [
+            {
+              "type": "block.action",
+              "params": {
+                "target": "@giocatore_rl",
+                "action": "Health.heal",
+                "args": {
+                  "amount": 1
+                }
+              }
+            },
+            {
+              "type": "message.show",
+              "params": {
+                "text": "Piano {piano}!",
+                "duration": 2,
+                "pause": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "id": "it",
+      "name": "Italiano"
+    },
+    {
+      "id": "en",
+      "name": "English"
+    }
+  ],
+  "translations": {
+    "en": {
+      "1": "1",
+      "2": "2",
+      "3": "3",
+      "PEPINO": "PEPINO",
+      "Punti {punti}": "Score {punti}",
+      "Punti: {punti}": "Score: {punti}",
+      "Frecce: muoviti · Z: spara · X: rallenta": "Arrows: move · Z: fire · X: slow down",
+      "Clicca una piazzola per costruire una torretta (20 monete)": "Click a build spot to build a tower (20 coins)",
+      "Ondata {ondata}/5": "Wave {ondata}/5",
+      "Gli slime sono passati!": "The slimes got through!",
+      "Hai difeso il villaggio!": "You defended the village!",
+      "↑ acceleri · ↓ freni · ← → sterzi. Resta sull'asfalto!": "↑ throttle · ↓ brake · ← → steer. Stay on the tarmac!",
+      "Via!": "Go!",
+      "Ultimo giro!": "Final lap!",
+      "Arrivo! Posizione {posizione} su 4": "Finish! Position {posizione} of 4",
+      "Giro {giro}/3": "Lap {giro}/3",
+      "Posizione {posizione}/4": "Position {posizione}/4",
+      "Tempo {tempo}": "Time {tempo}",
+      "Gara finita!": "Race over!",
+      "Tempo: {tempo} s · Giro migliore: {migliore} s": "Time: {tempo} s · Best lap: {migliore} s",
+      "Clicca per camminare. Clicca le cose per guardarle, raccoglierle o usarle.": "Click to walk. Click things to look at them, pick them up or use them.",
+      "Finestra": "Window",
+      "Quadro": "Painting",
+      "Cassettiera": "Chest of drawers",
+      "Vaso": "Vase",
+      "Porta": "Door",
+      "Moneta": "Coin",
+      "Chiave": "Key",
+      "Fuori c'è il giardino. Devo trovare il modo di uscire!": "The garden is outside. I have to find a way out!",
+      "Il bisnonno Cetriolo. Che bei baffi!": "Great-grandpa Pickle. What a moustache!",
+      "Calzini, calzini e ancora calzini. Niente chiave.": "Socks, socks and more socks. No key.",
+      "La porta è chiusa a chiave.": "The door is locked.",
+      "La chiave gira... la porta si apre!": "The key turns... the door opens!",
+      "Non entra nella serratura.": "It doesn't fit in the lock.",
+      "Una moneta! La metto in tasca.": "A coin! Into my pocket it goes.",
+      "No grazie, non mi serve.": "No thanks, I don't need that.",
+      "Non funziona.": "That doesn't work.",
+      "Usa {oggetto} con {punto}": "Use {oggetto} with {punto}",
+      "Nel vaso, Pepino! La chiave è nel vaso.": "In the vase, Pepino! The key is in the vase.",
+      "Grazie! Ora mi ricordo: la chiave è nel vaso!": "Thanks! Now I remember: the key is in the vase!",
+      "Ormai nel vaso c'è solo terra.": "Now there's only soil in the vase.",
+      "Un vaso con una pianta. È pieno di terra.": "A vase with a plant. It's full of soil.",
+      "Nel vaso c'era la chiave!": "The key was in the vase!",
+      "Pepino! Ho chiuso la porta e ho nascosto la chiave in un posto sicuro...": "Pepino! I locked the door and hid the key in a safe place...",
+      "...ma non mi ricordo più dove! Alla mia età la memoria va a monete.": "...but I can't remember where! At my age, memory runs on coins.",
+      "Va a monete?": "Runs on coins?",
+      "Dammi una moneta per il gelato e mi tornerà in mente tutto!": "Give me a coin for an ice cream and it'll all come back to me!",
+      "Sei uscito dalla casa!": "You got out of the house!",
+      "Pozione": "Potion",
+      "Recupera un cuore.": "Restores one heart.",
+      "Stivali veloci": "Speed boots",
+      "Corri più veloce per 10 secondi.": "Run faster for 10 seconds.",
+      "Stella": "Star",
+      "Invincibile per 8 secondi.": "Invincible for 8 seconds.",
+      "Calamita": "Magnet",
+      "Attira le monete vicine per 12 secondi.": "Pulls nearby coins for 12 seconds.",
+      "Scudo": "Shield",
+      "Para il prossimo colpo.": "Blocks the next hit.",
+      "Fungo saltarello": "Bouncy mushroom",
+      "Salti più in alto per 10 secondi.": "Jump higher for 10 seconds.",
+      "Una moneta luccicante.": "A shiny coin.",
+      "La chiave della porta di casa.": "The key to the front door.",
+      "Velocità": "Speed",
+      "Super salto": "Super jump",
+      "Invincibilità": "Invincibility",
+      "Più forza": "Strength",
+      "Salto in più": "Extra jump",
+      "Esci": "Leave",
+      "Comprato!": "Bought!",
+      "Non ti bastano": "You can't afford it",
+      "Ne hai già il massimo": "You already have the maximum",
+      "Non si può usare adesso": "It can't be used now",
+      "↑ ↓ scegli · Azione compra · Esc esci": "↑ ↓ choose · Action buys · Esc leaves",
+      "Bottega di Zia Zucca": "Auntie Pumpkin's Shop",
+      "C  Bottega": "C  Shop",
+      "Monete": "Coins",
+      "Munizioni": "Ammo",
+      "Dieci semi per la sparasemi.": "Ten seeds for the seed shooter.",
+      "Medikit": "Medkit",
+      "Recupera due cuori.": "Restores two hearts.",
+      "← ↓ ↑ → quando la nota tocca la linea. Non perdere il ritmo!": "← ↓ ↑ → when the note touches the line. Don't lose the beat!",
+      "Concerto finito!": "Show over!",
+      "Punti: {punti} · Note mancate: {mancate}": "Score: {punti} · Missed notes: {mancate}",
+      "Perfetto!": "Perfect!",
+      "Bene!": "Good!",
+      "Mancata": "Missed",
+      "Combo": "Combo",
+      "Pronti…": "Ready…",
+      "Finito!": "Done!",
+      "Ombra": "Shadow",
+      "Fusibile": "Fuse",
+      "Pila": "Battery",
+      "Armadio": "Wardrobe",
+      "Cancello": "Gate",
+      "Torcia {batteria}%": "Torch {batteria}%",
+      "Fusibili {fusibili}/3": "Fuses {fusibili}/3",
+      "Coraggio": "Courage",
+      "Q accende e spegne la torcia · C per nasconderti negli armadi. Trova 3 fusibili e scappa dal cancello!": "Q turns the torch on and off · C hides you in the wardrobes. Find 3 fuses and escape through the gate!",
+      "Pila nuova!": "Fresh battery!",
+      "Hai tutti i fusibili: il cancello si apre!": "You have all the fuses: the gate opens!",
+      "Il cancello è bloccato: mancano dei fusibili.": "The gate is locked: some fuses are missing.",
+      "Troppa paura!": "Too scared!",
+      "Sei uscito dalla serra!": "You got out of the greenhouse!",
+      "Il nonno non ci crederà mai.": "Grandpa will never believe it.",
+      "Fine turno": "End turn",
+      "Il tuo turno": "Your turn",
+      "Hai vinto!": "You won!",
+      "Hai perso!": "You lost!",
+      "Non hai abbastanza energia": "Not enough energy",
+      "Attacca": "Attacks",
+      "Si cura": "Heals",
+      "Si difende": "Defends",
+      "Energia": "Energy",
+      "Mazzo": "Deck",
+      "Scarti": "Discard",
+      "Colpisce": "Hits",
+      "Cura": "Heals",
+      "Pesca carte": "Draws cards",
+      "Dà energia": "Gives energy",
+      "Zampata": "Paw swipe",
+      "Zappata": "Hoe hit",
+      "Foglia dura": "Tough leaf",
+      "Innaffiata": "Watering",
+      "Buona idea": "Good idea",
+      "Peperoncino": "Chilli",
+      "Cavolo Nero": "Black Cabbage",
+      "Barbabietola": "Beetroot",
+      "Corazza": "Armour",
+      "Morso": "Bite",
+      "Testata": "Headbutt",
+      "Radici": "Roots",
+      "Zuccherino": "Sugar lump",
+      "← → scegli la carta · C la giochi · X chiude il turno. Puoi anche cliccare!": "← → pick the card · C plays it · X ends the turn. You can click too!",
+      "Hai imparato il Peperoncino!": "You learned the Chilli!",
+      "Ultimo duello: usa il Peperoncino al momento giusto!": "Last duel: play the Chilli at the right moment!",
+      "Torneo vinto!": "Tournament won!",
+      "Il Peperoncino resta nel tuo mazzo.": "The Chilli stays in your deck.",
+      "Ti hanno battuto!": "They beat you!",
+      "Riprova: le carte imparate si perdono.": "Try again: the cards you learned are lost.",
+      "Piano {piano}": "Floor {piano}",
+      "Piano {piano}!": "Floor {piano}!",
+      "Frecce per muoverti · V colpisci · trova la scala e scendi. Ogni piano è diverso!": "Arrows to move · V hits · find the stairs and go down. Every floor is different!",
+      "Peperone": "Pepper",
+      "Round": "Round",
+      "Lotta!": "Fight!",
+      "K.O.": "K.O.",
+      "Tempo scaduto": "Time up",
+      "Vince {0}!": "{0} wins!",
+      "Incontro finito!": "Match over!",
+      "Ci rivediamo sul tetto!": "See you on the roof!",
+      "← → muoviti · tieni indietro per parare · ↓ abbassati · Z salta · V colpisci (tre colpi in fila)": "← → move · hold back to guard · ↓ crouch · Z jump · V hit (three hits in a row)",
+      "Semi {munizioni} · Peperoncini {peperoncini}": "Seeds {munizioni} · Peppers {peperoncini}",
+      "Sparasemi": "Seed shooter",
+      "Lanciapeperoncini": "Pepper launcher",
+      "La seconda arma: peperoncini che bruciano.": "The second weapon: peppers that burn.",
+      "Lanciapeperoncini! Premi E per cambiare arma.": "Pepper launcher! Press E to switch weapon.",
+      "↑ ↓ cammina · ← → gira · X + ← → passo di lato · V spara · E cambia arma. Trova l'uscita!": "↑ ↓ walk · ← → turn · X + ← → sidestep · V shoots · E switches weapon. Find the exit!",
+      "Sei uscito dal labirinto!": "You got out of the maze!",
+      "Il nonno ti aspetta in giardino.": "Grandpa is waiting for you in the garden.",
+      "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
+      "Nuova partita": "New game",
+      "Continua": "Continue",
+      "Lingua: Italiano": "Language: English",
+      "↑ ↓ scegli   ·   Z o Invio conferma": "↑ ↓ choose   ·   Z or Enter confirm",
+      "← →  muoviti     Z  salta (anche in aria)": "← →  move     Z  jump (in the air too)",
+      "X  dash     ↑ ↓  scale     F1  debug": "X  dash     ↑ ↓  ladders     F1  debug",
+      "Vita": "Life",
+      "Monete {monete}": "Coins {monete}",
+      "Boing! Questa molla è un blocco scritto in Python: guardalo nella scheda Codice.": "Boing! This spring is a block written in Python: look at it in the Code tab.",
+      "Raccogli le monete e raggiungi la porta in fondo al livello!": "Collect the coins and reach the door at the end of the level!",
+      "Dieci monete! Continua così.": "Ten coins! Keep it up.",
+      "C": "C",
+      "Pepinopoli": "Pepinopolis",
+      "Benvenuto a Pepinopoli! La partita è stata salvata.": "Welcome to Pepinopolis! The game has been saved.",
+      "«Le porte collegano i mondi. Vicino a un cartello premi C per leggerlo.»": "“Doors connect the worlds. Next to a sign, press C to read it.”",
+      "Hai il mestolo! Premi V per colpire gli slime.": "You have the ladle! Press V to hit the slimes.",
+      "Pepinopoli è salva! Il nonno ti regala 10 monete.": "Pepinopolis is safe! Grandpa gives you 10 coins.",
+      "Strada dei teppisti": "Thugs' Street",
+      "Strada dei teppisti! ↑ ↓ cammini in profondità, Z salta, V colpisce.": "Thugs' Street! ↑ ↓ walk in depth, Z jumps, V hits.",
+      "Avanti!": "Go on!",
+      "Avanti, il capo ti aspetta in fondo alla strada!": "Go on, the boss is waiting at the end of the street!",
+      "Hai sconfitto il Capo dei teppisti! La porta in fondo riporta al villaggio.": "You beat the Thug Boss! The door at the end leads back to the village.",
+      "Capo dei teppisti": "Thug Boss",
+      "Nonno Cetriolo": "Grandpa Cucumber",
+      "Pepino! Gli slime sono scappati dal laghetto e ora inseguono chiunque passi.": "Pepino! The slimes escaped from the pond and now they chase anyone who walks by.",
+      "Te la senti di dargli una lezione?": "Do you feel like teaching them a lesson?",
+      "Certo, ci penso io!": "Sure, leave it to me!",
+      "Magari più tardi...": "Maybe later...",
+      "Prendi il mio vecchio mestolo. Premi V per colpire.": "Take my old ladle. Press V to hit.",
+      "Pepino": "Pepino",
+      "Grazie nonno, vado subito!": "Thanks Grandpa, I'm on my way!",
+      "Va bene, ma stai lontano dagli slime. Torna a parlarmi quando sei pronto.": "All right, but stay away from the slimes. Come back and talk to me when you're ready.",
+      "Pausa": "Paused",
+      "Premi Esc (o Start) per riprendere": "Press Esc (or Start) to resume",
+      "Livello completato!": "Level complete!",
+      "Monete: {monete}": "Coins: {monete}",
+      "Ricomincia": "Play again"
+    }
+  },
+  "dialogues": [],
+  "rules": []
+}

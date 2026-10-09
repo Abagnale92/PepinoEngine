@@ -59,16 +59,33 @@ export class Entity {
   z: number;
   tags: Set<string>;
   visible = true;
+  /** Scala dell'oggetto: ingrandisce lo sprite e il corpo di collisione (1 = grandezza originale). */
+  scaleX = 1;
+  scaleY = 1;
   /** Stato corrente (fermo, corsa, salto…): lo impostano i blocchi, lo legge l'animatore. */
   state = "idle";
   facingX: 1 | -1 = 1;
   direction: Direction = "down";
   /** Secondi in cui l'oggetto non risponde ai comandi (dopo un contraccolpo). */
   stunned = 0;
+  /** Sta parando: i colpi che arrivano da davanti non fanno male (lo imposta il Controller Picchiaduro). */
+  guarding = false;
   /** Altezza da terra in pixel (salti nei beat 'em up): lo sprite sale, l'ombra e il corpo restano a terra. */
   elevation = 0;
+  /** È dentro un Nascondiglio: non si fa male, riprende coraggio, la torcia non consuma. */
+  hiding = false;
+  /**
+   * Rotazione dello sprite in radianti: parte da quella scelta nell'editor (in gradi), poi la può cambiare
+   * chi guida l'oggetto (auto, percorsi, torrette); gli Effetti animati si sommano. Il corpo non ruota.
+   */
+  rotation = 0;
   /** Effetti animati del momento (schiacciata, lampo, tremolio…): li legge lo Sprite. */
   fx: SpriteFX = identityFx();
+  /**
+   * Potenziamenti attivi, scritti dal blocco Potenziamenti: moltiplicatori (speed 1.6, jump 1.5, damage 2),
+   * raggio della calamita, salti in più, colpi dello scudo; invincible c'è o non c'è.
+   */
+  boosts: Record<string, number> = {};
   intent: Intent = { x: 0, y: 0, jump: false, jumpPressed: false, dashPressed: false, actionPressed: false };
   blocks: BlockInstance[] = [];
   body?: BodyState;
@@ -82,7 +99,19 @@ export class Entity {
 
   constructor(
     readonly scene: Scene,
-    init: { id: string; name: string; x: number; y: number; z?: number; tags?: string[]; visible?: boolean },
+    init: {
+      id: string;
+      name: string;
+      x: number;
+      y: number;
+      z?: number;
+      tags?: string[];
+      visible?: boolean;
+      scaleX?: number;
+      scaleY?: number;
+      /** In gradi, come nel progetto. */
+      rotation?: number;
+    },
   ) {
     this.id = init.id;
     this.name = init.name;
@@ -91,6 +120,18 @@ export class Entity {
     this.z = init.z ?? 0;
     this.tags = new Set(init.tags ?? []);
     this.visible = init.visible !== false;
+    this.scaleX = init.scaleX || 1;
+    this.scaleY = init.scaleY || 1;
+    this.rotation = ((init.rotation || 0) * Math.PI) / 180;
+  }
+
+  /** Valore di un potenziamento attivo (velocità, salto, forza…), oppure `none` se non c'è. */
+  boost(kind: string, none = 1): number {
+    return this.boosts[kind] ?? none;
+  }
+
+  hasBoost(kind: string): boolean {
+    return kind in this.boosts;
   }
 
   get worldX(): number {

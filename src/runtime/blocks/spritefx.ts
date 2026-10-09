@@ -6,7 +6,7 @@ import { drawSpriteFrame, type Origin } from "../render/sprites";
 import { drawRay } from "../render/shapes";
 
 /**
- * Effetti animati in stile JuiceFX: invece di disegnare altri fotogrammi, lo sprite viene deformato
+ * Effetti animati delle sprite: invece di disegnare altri fotogrammi, lo sprite viene deformato
  * nel tempo (schiacciato, allungato, ruotato, inclinato, lampeggiante, tremante). Gli effetti "una volta"
  * partono da un evento (salto, atterraggio, colpo…); quelli continui girano sempre.
  */
@@ -53,6 +53,9 @@ const DURATION: Record<string, number> = {
   lunge: 0.16,
   teleport: 0.4,
 };
+
+/** Durata di un effetto «una volta» a velocità 1, in secondi (0 = effetto sconosciuto). */
+export const effectDuration = (kind: string): number => DURATION[kind] ?? 0;
 
 export function hexToNumber(hex: string | undefined): number {
   const [r, g, b] = parseColor(hex);
@@ -201,6 +204,8 @@ interface Ghost {
   frame: number;
   flip: boolean;
   age: number;
+  /** Rotazione dell'oggetto quando è nata la copia (auto che curvano). */
+  rot?: number;
 }
 
 const TRAIL_LIFE = 0.22;
@@ -223,7 +228,7 @@ defineBlock({
   label: "Effetti animati",
   category: "Effetti",
   description:
-    "Dà vita alle sprite senza disegnare altri fotogrammi, come JuiceFX: si schiaccia quando atterra, si allunga quando salta, lampeggia e trema quando è colpita, sparisce con stile. Ci sono anche effetti continui: galleggia, pulsa, ondeggia.",
+    "Dà vita alle sprite senza disegnare altri fotogrammi: si schiaccia quando atterra, si allunga quando salta, lampeggia e trema quando è colpita, sparisce con stile. Ci sono anche effetti continui: galleggia, pulsa, ondeggia. L'anteprima qui sotto mostra subito l'effetto scelto.",
   priority: -5,
   props: {
     idle: { type: "select", label: "Effetto continuo", default: "none", options: LOOP_EFFECTS, group: "Sempre" },
@@ -313,7 +318,7 @@ defineBlock({
       const fast = (b && Math.hypot(b.vx, b.vy) > 6 * ts) || e.elevation > 3 || e.state.startsWith("attack") || e.state === "airAttack";
       if (fast && d.trailT <= 0) {
         d.trailT = 0.035;
-        ghosts.push({ x: e.worldX + s.offsetX, y: e.worldY + s.offsetY - e.elevation, frame: s.frame, flip: spriteFlip(self), age: 0 });
+        ghosts.push({ x: e.worldX + s.offsetX, y: e.worldY + s.offsetY - e.elevation, frame: s.frame, flip: spriteFlip(self), age: 0, rot: e.rotation });
         if (ghosts.length > 6) ghosts.shift();
       }
     }
@@ -327,7 +332,8 @@ defineBlock({
     const color = hexToNumber(self.props.trailColor);
     for (const g of ghosts) {
       const a = 0.45 * (1 - g.age / TRAIL_LIFE);
-      drawSpriteFrame(r, img, g.frame, g.x, g.y, s.origin as Origin, g.flip, hexColor("#ffffff", a), 1, { sx: 1, sy: 1, rot: 0, skew: 0, flashColor: color });
+      const e = self.entity;
+      drawSpriteFrame(r, img, g.frame, g.x, g.y, s.origin as Origin, g.flip, hexColor("#ffffff", a), 1, { sx: e.scaleX, sy: e.scaleY, rot: g.rot ?? 0, skew: 0, flashColor: color });
     }
   },
   destroy(self) {
@@ -340,7 +346,18 @@ defineBlock({
     if (!s || !s.visible || !DURATION[kind]) return;
     const img = self.game.assets.image(s.image);
     if (!img) return;
-    const snap = { x: e.worldX + s.offsetX, y: e.worldY + s.offsetY - e.elevation, frame: s.frame, flip: spriteFlip(self), origin: s.origin, tint: s.tint, opacity: s.opacity };
+    const snap = {
+      x: e.worldX + s.offsetX,
+      y: e.worldY + s.offsetY - e.elevation,
+      frame: s.frame,
+      flip: spriteFlip(self),
+      origin: s.origin,
+      tint: s.tint,
+      opacity: s.opacity,
+      scaleX: e.scaleX,
+      scaleY: e.scaleY,
+      rotation: e.rotation,
+    };
     const dur = DURATION[kind] / Math.max(0.1, p.speed);
     const k = p.strength;
     const facing = e.facingX;
@@ -353,9 +370,9 @@ defineBlock({
         resetFx(fx);
         applyEffect(fx, kind, Math.min(1, t / dur), k, facing, color);
         drawSpriteFrame(r, img, snap.frame, snap.x + fx.dx, snap.y + fx.dy, snap.origin as Origin, snap.flip, hexColor(snap.tint, snap.opacity * fx.alpha), fx.flash, {
-          sx: fx.sx,
-          sy: fx.sy,
-          rot: fx.rot,
+          sx: fx.sx * snap.scaleX,
+          sy: fx.sy * snap.scaleY,
+          rot: snap.rotation + fx.rot,
           skew: fx.skew,
           flashColor: fx.flashColor,
         });

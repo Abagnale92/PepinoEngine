@@ -4,6 +4,8 @@ import { interpolate } from "../blocks/text";
 
 export interface DialogueInput {
   pressed(action: string): boolean;
+  /** Clic o tocco: va avanti come Azione. */
+  readonly pointer?: { readonly pressed: boolean };
 }
 
 export interface ActiveDialogue {
@@ -71,23 +73,28 @@ export class DialogueRunner {
     c.wait = 0.12;
   }
 
-  update(dt: number, input: DialogueInput): void {
+  /** `pointed` = la risposta sotto il puntatore, se si è appena mosso o ha cliccato (-1 = nessuna). */
+  update(dt: number, input: DialogueInput, pointed = -1): void {
     const c = this.current;
     if (!c) return;
     if (c.wait > 0) c.wait -= dt;
-    const confirm = c.wait <= 0 && (input.pressed("action") || input.pressed("jump"));
+    const ready = c.wait <= 0;
+    const confirm = ready && (input.pressed("action") || input.pressed("jump"));
+    const click = ready && !!input.pointer?.pressed;
     if (!this.fullyShown) {
-      c.shown = confirm ? c.text.length : Math.min(c.text.length, c.shown + dt * 45);
+      c.shown = confirm || click ? c.text.length : Math.min(c.text.length, c.shown + dt * 45);
       return;
     }
     const choices = this.choices;
     if (choices.length) {
+      if (pointed >= 0 && pointed < choices.length) c.choice = pointed;
       if (input.pressed("down")) c.choice = (c.choice + 1) % choices.length;
       if (input.pressed("up")) c.choice = (c.choice - 1 + choices.length) % choices.length;
-      if (confirm) this.choose(c.choice);
+      // Un clic sceglie solo se è sopra una risposta.
+      if (confirm || (click && pointed >= 0 && pointed < choices.length)) this.choose(c.choice);
       return;
     }
-    if (confirm) this.go(this.line!.goto);
+    if (confirm || click) this.go(this.line!.goto);
   }
 
   /** Sceglie la risposta `i` (anche da mouse o dai test). */

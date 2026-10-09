@@ -6,11 +6,13 @@ import { NumberField } from "./fields";
 import { Icon } from "./Icon";
 import { FrameThumb } from "./thumbs";
 import { T } from "../i18n";
+import { Splitter, usePanelVar } from "./Splitter";
 
 type EditDialogue = (fn: (d: DialogueData) => void, merge?: string) => void;
 
 /** Editor dei dialoghi: battute con nome e ritratto, scelte che portano altrove o impostano variabili. */
 export function DialoguesView() {
+  const listVar = usePanelVar("--list-w", "dialogues");
   const project = useEditor((s) => s.project)!;
   const dialogues = project.dialogues ?? [];
   const [selId, setSelId] = useState(dialogues[0]?.id ?? "");
@@ -36,7 +38,8 @@ export function DialoguesView() {
   const speakers = [...new Set(dialogues.flatMap((d) => d.lines.map((l) => l.speaker ?? "")).filter(Boolean))];
 
   return (
-    <div className="dlg-view">
+    <div className="dlg-view" style={listVar}>
+      <Splitter id="dialogues" />
       <aside className="dlg-list">
         <div className="tree-h">
           <span>{T("Dialoghi · ")}{dialogues.length}</span>

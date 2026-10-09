@@ -1,8 +1,24 @@
 export * from "./math";
 export * from "./project/format";
+export {
+  INVENTORY_VAR,
+  POWERUP_KINDS,
+  POWERUP_OPTIONS,
+  ITEM_KINDS,
+  EFFECT_TYPES,
+  inventory,
+  addItem,
+  removeItem,
+  countItem,
+  hasItem,
+  itemDef,
+  useItem,
+  powerupInfo,
+} from "./items/items";
+export type { Stack } from "./items/items";
 export { Emitter } from "./core/events";
-export { defineBlock, getBlockDef, listBlockDefs, resolveProps, BlockInstance } from "./core/block";
-export type { BlockDef, BlockSpec, PropSchema, PropType, PropOption, NamedInfo } from "./core/block";
+export { defineBlock, getBlockDef, listBlockDefs, resolveProps, listRows, BlockInstance } from "./core/block";
+export type { BlockDef, BlockSpec, PropSchema, PropType, PropOption, NamedInfo, ListRow } from "./core/block";
 export { Entity } from "./core/entity";
 export type { Intent, SpriteState, Direction } from "./core/entity";
 export { Scene, mergeBlocks } from "./core/scene";
@@ -32,7 +48,7 @@ export type { BitmapFont, FontInfo } from "./render/fonts";
 export { mountTouchControls, wantsTouch } from "./input/touch";
 export type { SceneEffect } from "./core/scene";
 export { Translator } from "./i18n/translator";
-export { applyEffect, applyLoop, spawnImpact, ONE_SHOT_EFFECTS, LOOP_EFFECTS } from "./blocks/juice";
+export { applyEffect, applyLoop, effectDuration, spawnImpact, ONE_SHOT_EFFECTS, LOOP_EFFECTS } from "./blocks/spritefx";
 export { drawArc, drawRay } from "./render/shapes";
 export { identityFx } from "./core/entity";
 export type { SpriteFX } from "./core/entity";
@@ -90,4 +106,5 @@ export type { ScriptResult } from "./scripting/loader";
 export { compilePython, PythonError, PY_METHOD_NAMES } from "./scripting/python";
 export { PY, setScriptLogger } from "./scripting/pyruntime";
 export { describeScriptError } from "./scripting/errors";
+export { compilePepino, ENGINE_HOST, runPepinoTests } from "./scripting/pepino";
 export type { ProjectIssue, IssueLevel } from "./project/validate";

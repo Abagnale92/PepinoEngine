@@ -9,6 +9,27 @@ import { bodyCenter } from "./targets";
 
 // ------------------------------------------------------------------ Controller Auto
 
+/** Rimette l'auto dov'era in pista poco prima di uscire, ferma e con il muso nella direzione di allora. */
+function backOnTrack(self: BlockInstance): boolean {
+  const d = self.data;
+  const trail = d.trail as { x: number; y: number; heading: number }[];
+  const spot = trail[0];
+  if (!spot) return false;
+  const e = self.entity;
+  e.x = spot.x;
+  e.y = spot.y;
+  d.heading = spot.heading;
+  e.rotation = spot.heading;
+  if (self.body) self.body.vx = self.body.vy = 0;
+  d.offroad = false;
+  d.offTime = 0;
+  trail.length = 0;
+  self.state = "idle";
+  self.emit("reset");
+  self.emit("ontrack");
+  return true;
+}
+
 /** L'auto è fuori pista se sotto di lei il layer della pista non ha tile. */
 function offTrack(self: BlockInstance): boolean {
   const name = String(self.props.trackLayer ?? "").trim();
@@ -55,12 +76,26 @@ defineBlock({
       help: "Nome del layer con l'asfalto: dove non ci sono tile l'auto è fuori pista. Vuoto = sempre in pista.",
     },
     offroad: { type: "number", label: "Velocità fuori pista", default: 0.5, min: 0, max: 1, step: 0.05, help: "Frazione della velocità massima." },
+    resetAfter: {
+      type: "number",
+      label: "Rimetti in pista dopo",
+      unit: "s",
+      default: 0,
+      min: 0,
+      step: 0.5,
+      help: "Se l'auto resta fuori pista per questo tempo torna dov'era in pista poco prima, ferma. 0 = mai.",
+    },
     startAngle: { type: "number", label: "Direzione iniziale", unit: "°", default: 0, step: 15, help: "-90 = verso l'alto, 0 = destra, 90 = giù, 180 = sinistra." },
   },
   states: [
     { id: "idle", label: "Fermo" },
-    { id: "drive", label: "Guida" },
+    { id: "drive", label: "Alla guida" },
     { id: "drift", label: "Derapa" },
+  ],
+  events: [
+    { id: "offroad", label: "Esce di pista" },
+    { id: "ontrack", label: "Torna in pista" },
+    { id: "reset", label: "È stata rimessa in pista" },
   ],
   conditions: {
     isOffroad: { label: "È fuori pista", test: (self) => !!self.data.offroad },
@@ -77,7 +112,11 @@ defineBlock({
   init(self) {
     self.data.heading = (Number(self.props.startAngle) * Math.PI) / 180;
     self.data.offroad = false;
-    self.entity.fx.rot = self.data.heading;
+    self.data.offTime = 0;
+    // Dove era l'auto in pista negli ultimi istanti (un punto ogni 0,1 s): serve per rimetterla in pista.
+    self.data.trail = [] as { x: number; y: number; heading: number }[];
+    self.data.trailT = 0;
+    self.entity.rotation = self.data.heading;
   },
   update(self, dt) {
     const b = self.body;
@@ -93,8 +132,23 @@ defineBlock({
     // Velocità in avanti e di lato (la derapata), rispetto al muso dell'auto.
     let fs = b.vx * fx + b.vy * fy;
     let ls = -b.vx * fy + b.vy * fx;
+    const wasOff = !!d.offroad;
     d.offroad = offTrack(self);
-    const max = p.maxSpeed * ts * (d.offroad ? p.offroad : 1);
+    if (d.offroad !== wasOff) self.emit(d.offroad ? "offroad" : "ontrack");
+    if (d.offroad) {
+      d.offTime += dt;
+      if (p.resetAfter > 0 && d.offTime >= p.resetAfter && backOnTrack(self)) return;
+    } else {
+      d.offTime = 0;
+      d.trailT -= dt;
+      if (d.trailT <= 0) {
+        d.trailT = 0.1;
+        const trail = d.trail as { x: number; y: number; heading: number }[];
+        trail.push({ x: e.x, y: e.y, heading: d.heading });
+        if (trail.length > 8) trail.shift();
+      }
+    }
+    const max = p.maxSpeed * ts * (d.offroad ? p.offroad : 1) * e.boost("speed");
     const gas = it.y < -0.1;
     const brake = it.y > 0.1;
     if (gas) fs += p.accel * ts * dt * (fs < 0 ? 2 : 1);
@@ -110,7 +164,7 @@ defineBlock({
     fy = Math.sin(d.heading);
     b.vx = fx * fs - fy * ls;
     b.vy = fy * fs + fx * ls;
-    e.fx.rot = d.heading;
+    e.rotation = d.heading;
     self.state = Math.abs(fs) < 4 ? "idle" : Math.abs(ls) > 30 ? "drift" : "drive";
   },
 });

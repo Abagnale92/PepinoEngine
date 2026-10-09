@@ -18,7 +18,7 @@ import {
 const ASCII = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join("");
 const EXTRA = "àèéìòùÀÈÉÌÒÙçÇñüö«»…·▶▼←→↑↓♥’";
 
-const demo = () => JSON.parse(readFileSync(resolve("samples/demo/project.json"), "utf8")) as ProjectData;
+const platform = () => JSON.parse(readFileSync(resolve("samples/templates/platform.json"), "utf8")) as ProjectData;
 
 describe("caratteri a punti", () => {
   it("ogni lettera ha righe della stessa larghezza", () => {
@@ -76,7 +76,7 @@ describe("caratteri nel progetto", () => {
     expect(BUILTIN_FONTS.map((f) => f.id)).toEqual(["pixel", "pixel-bold", "pixel-tiny", "sans", "serif", "mono"]);
     expect(isBuiltinFont("pixel") && !isBuiltinFont("comic")).toBe(true);
 
-    const p = demo();
+    const p = platform();
     p.assets.push({ id: "mio_font", type: "font", src: "assets/mio_font.ttf" });
     const text = p.scenes.flatMap((s) => s.entities).find((e) => e.blocks.some((b) => b.type === "Text"))!;
     const block = text.blocks.find((b) => b.type === "Text")!;

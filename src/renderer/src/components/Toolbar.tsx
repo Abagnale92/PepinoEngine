@@ -3,6 +3,7 @@ import { redo, setState, undo, useEditor, type Tool } from "../store";
 import { exportWeb, newProject, openProjectDialog, openSample, saveProject, togglePlay } from "../commands";
 import { api } from "../api";
 import { TEMPLATES } from "../templates";
+import { bilingual, useSamples } from "../samples";
 import { Icon } from "./Icon";
 import { N, T } from "../i18n";
 
@@ -46,6 +47,46 @@ function NewProjectMenu({ disabled }: { disabled: boolean }) {
   );
 }
 
+/** «Esempi»: apre uno dei giochi di esempio (c'è solo se ce ne sono). */
+function SamplesMenu({ disabled }: { disabled: boolean }) {
+  const samples = useSamples();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [open]);
+  if (!samples.length) return null;
+  return (
+    <div className="tb-menu" ref={ref}>
+      <button type="button" className={`btn ghost${open ? " on" : ""}`} disabled={disabled} onClick={() => setOpen(!open)} title={T("Apri un gioco di esempio")}>{T("Esempi")}</button>
+      {open && (
+        <div className="popover">
+          <div className="group-label">{T("Giochi fatti con Pepino")}</div>
+          {samples.map((s) => (
+            <button
+              type="button"
+              key={s.id}
+              className="menu-item"
+              onClick={() => {
+                setOpen(false);
+                void openSample(s.id);
+              }}
+            >
+              <b>{bilingual(s.name)}</b>
+              {s.description && <span>{bilingual(s.description)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TOOLS: [Tool, string, string, string][] = [
   ["select", "select", N("Seleziona e sposta"), "V"],
   ["paint", "paint", N("Pennello tile"), "B"],
@@ -80,7 +121,7 @@ export function Toolbar() {
       <NewProjectMenu disabled={playing} />
       <button type="button" className="btn ghost" onClick={openProjectDialog} title={T("Apri un progetto")}>
         <Icon name="folder" />{T(" Apri")}</button>
-      <button type="button" className="btn ghost" onClick={openSample} title={T("Apri il progetto demo")}>{T("Demo")}</button>
+      <SamplesMenu disabled={playing} />
       <button type="button" className="btn ghost" onClick={saveProject} disabled={!dirty || !api.desktop} title={api.desktop ? T("Salva (Ctrl+S)") : T("Salvataggio disponibile nell'app desktop")}>
         <Icon name="save" />{T(" Salva")}</button>
       <div className="sep" />

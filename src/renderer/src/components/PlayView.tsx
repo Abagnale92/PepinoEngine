@@ -5,12 +5,14 @@ import { getSettings } from "../settings";
 import { togglePlay } from "../commands";
 import { Icon } from "./Icon";
 import { T } from "../i18n";
+import { Splitter, usePanelVar } from "./Splitter";
 
 /** Lingua scelta nell'anteprima: resta tra un «Prova» e l'altro. */
 let previewLanguage = "";
 
 /** Anteprima: lo stesso runtime della build WebGL, con i controlli di debug accanto. */
 export function PlayView() {
+  const sideVar = usePanelVar("--side-w", "playDebug");
   const languages = getState().project?.languages ?? [];
   const [language, setLanguage] = useState(languages.some((l) => l.id === previewLanguage) ? previewLanguage : (languages[0]?.id ?? ""));
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -146,7 +148,8 @@ export function PlayView() {
         <button type="button" className="btn small danger" onClick={togglePlay} title={T("Torna all'editor (F5)")}>
           <Icon name="stop" size={13} />{T(" Ferma")}</button>
       </div>
-      <div className="play-main">
+      <div className="play-main" style={sideVar}>
+        <Splitter id="playDebug" edge="end" />
         <div className="play-stage" ref={stageRef} style={{ position: "relative" }}>
           <canvas ref={canvasRef} className="play-canvas" tabIndex={0} />
           {error && <div className="play-error">{error}</div>}

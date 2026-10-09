@@ -8,12 +8,16 @@ import { python } from "@codemirror/lang-python";
 import { HighlightStyle, ensureSyntaxTree, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
 import { tags as t } from "@lezer/highlight";
-import { compilePython, getBlockDef, PythonError, type ProjectData, type ScriptData, type ScriptResult } from "@runtime";
+import { compilePepino, compilePython, ENGINE_HOST, getBlockDef, PythonError, runPepinoTests, type ProjectData, type ScriptData, type ScriptResult } from "@runtime";
+import { detectLang, translate } from "../../../lang";
+import { pepinoLanguage } from "../pepinoLang";
+import { pepTemplate } from "../pepinoTemplates";
 import { editProject, getState, log, setState, useEditor } from "../store";
 import { flattenEntities, uniqueId } from "../projectOps";
 import { Icon } from "./Icon";
-import { T } from "../i18n";
+import { getEditorLang, T } from "../i18n";
 import { useSettings } from "../settings";
+import { Splitter, usePanel, usePanelVar } from "./Splitter";
 
 // ------------------------------------------------------------------ Aspetto dell'editor
 
@@ -42,6 +46,8 @@ const makeTheme = (fontSize: number) =>
 
 const highlight = HighlightStyle.define([
   { tag: [t.keyword, t.controlKeyword, t.definitionKeyword, t.moduleKeyword, t.operatorKeyword], color: "#c792ea" },
+  // Le parole italiane di tutti: mamma mia!, pizza, spaghetti, bravo, cappuccino.
+  { tag: t.special(t.keyword), color: "#ff7b63", fontWeight: "bold" },
   { tag: [t.string, t.special(t.string)], color: "#c3e88d" },
   { tag: [t.number, t.bool, t.null], color: "#f78c6c" },
   { tag: t.comment, color: "#6b7a67", fontStyle: "italic" },
@@ -50,6 +56,9 @@ const highlight = HighlightStyle.define([
   { tag: [t.operator, t.punctuation], color: "#89ddff" },
   { tag: [t.className, t.typeName], color: "#ffcb6b" },
   { tag: t.self, color: "#ff9cac" },
+  { tag: t.atom, color: "#f78c6c" },
+  { tag: t.unit, color: "#f5a97f", fontStyle: "italic" },
+  { tag: t.special(t.variableName), color: "#ff9cac" },
 ]);
 
 // ------------------------------------------------------------------ Controllo mentre si scrive
@@ -115,6 +124,9 @@ function CodeEditor({
 
   useEffect(() => {
     const py = script.language === "py";
+    const pep = script.language === "pep";
+    const four = py || pep;
+    const lang = pep ? pepinoLanguage() : [py ? python() : javascript(), linter(py ? lintPython : lintJs, { delay: 300 })];
     const v = new EditorView({
       parent: host.current!,
       state: EditorState.create({
@@ -122,10 +134,9 @@ function CodeEditor({
         extensions: [
           basicSetup,
           keymap.of([indentWithTab]),
-          indentUnit.of(py ? "    " : "  "),
-          EditorState.tabSize.of(py ? 4 : 2),
-          py ? python() : javascript(),
-          linter(py ? lintPython : lintJs, { delay: 300 }),
+          indentUnit.of(four ? "    " : "  "),
+          EditorState.tabSize.of(four ? 4 : 2),
+          lang,
           lintGutter(),
           makeTheme(fontSize),
           syntaxHighlighting(highlight),
@@ -273,19 +284,26 @@ export function CodeView() {
   const [side, setSide] = useState<Side>("guide");
   const handle = useRef<EditorHandle | null>(null);
   const root = useRef<HTMLDivElement>(null);
-  const [narrow, setNarrow] = useState(false);
+  const [width, setWidth] = useState(Infinity);
   const sized = useRef(false);
+  // Larghezze dell'elenco e della guida scelte trascinando i divisori.
+  const listW = usePanel("codeList");
+  const sideW = usePanel("codeSide");
+  const panelVars = { ...usePanelVar("--list-w", "codeList"), ...usePanelVar("--side-w", "codeSide") };
+  // Sotto questa larghezza la guida non sta accanto al codice (310 = spazio minimo dell'editor).
+  const minWide = useRef(820);
+  minWide.current = listW + sideW + 310;
+  const narrow = width < minWide.current;
 
   // Con poco spazio la guida diventa un pannello sopra l'editor (e parte chiusa), così il codice resta leggibile.
   useEffect(() => {
     const el = root.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
-      const isNarrow = entry.contentRect.width < 820;
-      setNarrow(isNarrow);
+      setWidth(entry.contentRect.width);
       if (!sized.current) {
         sized.current = true;
-        if (isNarrow) setSide(null);
+        if (entry.contentRect.width < minWide.current) setSide(null);
       }
     });
     ro.observe(el);
@@ -296,10 +314,15 @@ export function CodeView() {
   const result = sel ? results.find((r) => r.id === sel.id) : undefined;
   const uses = usesOf(project, result?.blocks ?? []);
 
-  const add = (language: "js" | "py") => {
-    const id = uniqueId(language === "py" ? "script_py" : "script_js", new Set(scripts.map((s) => s.id)));
-    const code = language === "py" ? pyTemplate(uniqueBlockName("Lampeggia")) : jsTemplate(uniqueBlockName("Oscilla"));
-    const name = language === "py" ? T("Nuovo script Python") : T("Nuovo script JavaScript");
+  const add = (language: "js" | "py" | "pep") => {
+    const id = uniqueId(language === "py" ? "script_py" : language === "pep" ? "script_pep" : "script_js", new Set(scripts.map((s) => s.id)));
+    const code =
+      language === "py"
+        ? pyTemplate(uniqueBlockName("Lampeggia"))
+        : language === "pep"
+          ? pepTemplate(uniqueBlockName(getEditorLang() === "en" ? "Stroll" : "Passeggia"), getEditorLang())
+          : jsTemplate(uniqueBlockName("Oscilla"));
+    const name = language === "py" ? T("Nuovo script Python") : language === "pep" ? T("Nuovo script Pepino") : T("Nuovo script JavaScript");
     editProject((p) => void (p.scripts ??= []).push({ id, name, language, code }));
     setState({ codeScriptId: id });
   };
@@ -312,6 +335,37 @@ export function CodeView() {
       const s = p.scripts?.find((x) => x.id === sel.id);
       if (s) s.code = code;
     }, `code:${sel.id}`);
+  };
+
+  /** Esegue le «prova» dello script Pepino e scrive i risultati nella Console. */
+  const runTests = () => {
+    if (!sel || sel.language !== "pep") return;
+    const results = runPepinoTests(sel.code, getEditorLang(), (t) => log("info", t));
+    setState({ bottomTab: "console" });
+    if (!results) {
+      log("error", T("Lo script «{0}» ha degli errori: correggili prima di provarlo.", sel.name));
+      return;
+    }
+    if (!results.length) {
+      log("info", T("Lo script «{0}» non ha prove: scrivile con «prova \"nome\":».", sel.name));
+      return;
+    }
+    for (const r of results) {
+      if (r.ok) log("info", T("✔ Prova «{0}» riuscita", r.name));
+      else log("error", r.name ? T("✘ Prova «{0}» fallita{1}: {2}", r.name, r.line ? T(" (riga {0})", r.line) : "", r.message ?? "") : (r.message ?? ""));
+    }
+    const ok = results.filter((r) => r.ok).length;
+    log(ok === results.length ? "info" : "warn", T("Prove riuscite: {0} su {1}", ok, results.length));
+  };
+
+  /** Riscrive lo script Pepino con le parole dell'altra lingua (italiano ↔ inglese). */
+  const translateScript = () => {
+    if (!sel || sel.language !== "pep") return;
+    const to = detectLang(sel.code) === "it" ? "en" : "it";
+    editProject((p) => {
+      const s = p.scripts?.find((x) => x.id === sel.id);
+      if (s) s.code = translate(s.code, to, ENGINE_HOST);
+    });
   };
 
   const rename = (name: string) =>
@@ -328,7 +382,9 @@ export function CodeView() {
   };
 
   return (
-    <div className={`code-view${narrow ? " narrow" : ""}`} ref={root}>
+    <div className={`code-view${narrow ? " narrow" : ""}`} ref={root} style={panelVars}>
+      <Splitter id="codeList" />
+      {sel && side && <Splitter id="codeSide" edge="end" />}
       <aside className="code-list">
         <div className="tree-h">
           <span>{T("Script · ")}{scripts.length}</span>
@@ -338,12 +394,14 @@ export function CodeView() {
             <Icon name="plus" size={12} />{T(" JavaScript")}</button>
           <button type="button" className="btn small" onClick={() => add("py")} title={T("Nuovo script in Python")}>
             <Icon name="plus" size={12} />{T(" Python")}</button>
+          <button type="button" className="btn small" onClick={() => add("pep")} title={T("Nuovo script in Pepino Language")}>
+            <Icon name="plus" size={12} />{T(" Pepino")}</button>
         </div>
         {scripts.map((s) => {
           const r = results.find((x) => x.id === s.id);
           return (
             <button type="button" key={s.id} className={`tree-row${sel?.id === s.id ? " on" : ""}`} onClick={() => setState({ codeScriptId: s.id })}>
-              <span className={`lang-badge ${s.language}`}>{s.language === "py" ? T("PY") : T("JS")}</span>
+              <span className={`lang-badge ${s.language}`}>{s.language === "py" ? T("PY") : s.language === "pep" ? T("PEP") : T("JS")}</span>
               <span className="tree-name">{s.name}</span>
               {r?.error && <span className="dot-err" title={r.error.message} />}
             </button>
@@ -356,12 +414,22 @@ export function CodeView() {
         {sel ? (
           <>
             <div className="code-head">
-              <span className={`lang-badge ${sel.language}`}>{sel.language === "py" ? T("Python") : T("JavaScript")}</span>
+              <span className={`lang-badge ${sel.language}`}>{sel.language === "py" ? T("Python") : sel.language === "pep" ? T("Pepino") : T("JavaScript")}</span>
               <input className="title-input" value={sel.name} onChange={(e) => rename(e.target.value)} />
               <span className="dim">{T("usato da ")}{uses} {uses === 1 ? T("oggetto") : T("oggetti")}
               </span>
               <div className="spacer" />
-              {sel.language === "py" && (
+              {sel.language === "pep" && (
+                <button type="button" className="btn small" onClick={translateScript} title={T("Riscrive lo script con le parole dell'altra lingua")}>
+                  <Icon name="globe" size={13} />
+                  {detectLang(sel.code) === "it" ? T(" In inglese") : T(" In italiano")}
+                </button>
+              )}
+              {sel.language === "pep" && /^\s*(prova|test)\s+["']/m.test(sel.code) && (
+                <button type="button" className="btn small" onClick={runTests} title={T("Esegue le prove scritte nello script")}>
+                  <Icon name="play" size={12} />{T(" Prove")}</button>
+              )}
+              {sel.language !== "js" && (
                 <button type="button" className={`btn small${side === "js" ? " on" : ""}`} onClick={() => setSide(side === "js" ? null : "js")}>
                   <Icon name="code" size={13} />{T(" JavaScript generato")}</button>
               )}
@@ -376,8 +444,10 @@ export function CodeView() {
         ) : (
           <div className="rules-empty">
             <h3>{T("Blocchi in codice")}</h3>
-            <p>{T("Quando i blocchi pronti non bastano, scrivine uno tuo in ")}<b>{T("JavaScript")}</b>{T(" o in ")}<b>{T("Python")}</b>{T(". Il nuovo blocco compare nell'Inspector come tutti gli altri, e le sue azioni e condizioni si usano nelle Regole.")}</p>
+            <p>{T("Quando i blocchi pronti non bastano, scrivine uno tuo in ")}<b>{T("Pepino Language")}</b>, <b>{T("JavaScript")}</b>{T(" o in ")}<b>{T("Python")}</b>{T(". Il nuovo blocco compare nell'Inspector come tutti gli altri, e le sue azioni e condizioni si usano nelle Regole.")}</p>
             <div className="row-btns">
+              <button type="button" className="btn primary" onClick={() => add("pep")}>
+                <Icon name="plus" size={13} />{T(" Script Pepino")}</button>
               <button type="button" className="btn primary" onClick={() => add("js")}>
                 <Icon name="plus" size={13} />{T(" Script JavaScript")}</button>
               <button type="button" className="btn primary" onClick={() => add("py")}>
@@ -394,7 +464,13 @@ export function CodeView() {
               <Icon name="close" size={13} />
             </button>
           )}
-          {side === "js" && sel.language === "py" ? <GeneratedJs code={sel.code} /> : <Guide language={sel.language} />}
+          {side === "js" && sel.language !== "js" ? (
+            <GeneratedJs code={sel.code} language={sel.language} />
+          ) : sel.language === "pep" ? (
+            <PepinoGuide />
+          ) : (
+            <Guide language={sel.language} />
+          )}
         </aside>
       )}
     </div>
@@ -437,14 +513,22 @@ function Status({ result, onJump }: { result?: ScriptResult; onJump: (line: numb
   );
 }
 
-function GeneratedJs({ code }: { code: string }) {
+function GeneratedJs({ code, language }: { code: string; language: ScriptData["language"] }) {
   const out = useMemo(() => {
+    if (language === "pep") {
+      const r = compilePepino(code, getEditorLang());
+      if (r.ok && r.code) return r.code;
+      return r.diagnostics
+        .filter((d) => d.severity === "error")
+        .map((d) => `// ${T("Riga ")}${d.line}: ${d.message}`)
+        .join("\n");
+    }
     try {
       return compilePython(code).code;
     } catch (e) {
       return e instanceof PythonError ? `// Riga ${e.line}: ${e.reason}` : String(e);
     }
-  }, [code]);
+  }, [code, language]);
   return (
     <>
       <h4>{T("JavaScript generato")}</h4>
@@ -454,7 +538,7 @@ function GeneratedJs({ code }: { code: string }) {
   );
 }
 
-function Guide({ language }: { language: "js" | "py" }) {
+function Guide({ language }: { language: ScriptData["language"] }) {
   const py = language === "py";
   return (
     <>
@@ -548,6 +632,98 @@ function Guide({ language }: { language: "js" | "py" }) {
 
       <h4>{T("Se qualcosa va storto")}</h4>
       <p>{T("Gli errori di scrittura sono sottolineati mentre scrivi. Se un blocco sbaglia a gioco avviato, si ferma solo quel blocco e la Console dice script e riga.")}</p>
+    </>
+  );
+}
+
+/** Guida veloce di Pepino Language (gli esempi nella lingua dell'editor). */
+function PepinoGuide() {
+  const en = getEditorLang() === "en";
+  const code = (it: string, eng: string) => <pre>{en ? eng : it}</pre>;
+  return (
+    <>
+      <h4>{T("Pepino Language")}</h4>
+      <p>{T("Il linguaggio di Pepino: si scrive con parole italiane o inglesi (il pulsante in alto riscrive lo script nell'altra lingua), controlla i tipi e le unità di misura mentre scrivi, e il gioco esportato non ha bisogno di niente in più.")}</p>
+
+      <h4>{T("Un blocco")}</h4>
+      {code(
+        `blocco Salto "Salto":\n    proprietà forza = 6 tile/s\n    evento saltato\n\n    quando aggiorna:\n        se gioco.appena_premuto("jump"):\n            se corpo != niente:\n                corpo.vy = -forza\n                emetti saltato`,
+        `block Jump "Jump":\n    property force = 6 tile/s\n    event jumped\n\n    on update:\n        if game.pressed("jump"):\n            if body != nothing:\n                body.vy = -force\n                emit jumped`,
+      )}
+      <dl className="stack">
+        <dt>{en ? "on start / update / end" : "quando inizia / aggiorna / finisce"}</dt>
+        <dd>{T("all'avvio, a ogni fotogramma, quando l'oggetto sparisce")}</dd>
+        <dt>{en ? "on touch other" : "quando tocca altro"}</dt>
+        <dd>{T("quando il Corpo tocca un altro oggetto")}</dd>
+        <dt>{en ? "on event name" : "quando evento nome"}</dt>
+        <dd>{T("quando l'oggetto riceve quell'evento")}</dd>
+        <dt>{en ? "property / event / action / condition" : "proprietà / evento / azione / condizione"}</dt>
+        <dd>{T("campi dell'Inspector e voci delle Regole")}</dd>
+      </dl>
+
+      <h4>{T("Nomi pronti")}</h4>
+      <dl className="stack">
+        <dt>{en ? "object" : "oggetto"}</dt>
+        <dd>
+          <code>x</code>, <code>y</code>, <code>{en ? "visible" : "visibile"}</code>, <code>{en ? "state" : "stato"}</code>, <code>{en ? "facing" : "direzione"}</code>, <code>{en ? "has_tag(…)" : "ha_etichetta(…)"}</code>, <code>{en ? "destroy()" : "distruggi()"}</code>
+        </dd>
+        <dt>{en ? "body" : "corpo"}</dt>
+        <dd>
+          <code>vx</code>, <code>vy</code>, <code>{en ? "on_ground" : "a_terra"}</code>, <code>{en ? "touches(…)" : "tocca(…)"}</code>
+          {T(" (può essere niente: scrivi «richiede Body» nel blocco per averlo sempre)")}
+        </dd>
+        <dt>{en ? "scene" : "scena"}</dt>
+        <dd>
+          <code>{en ? "find(…)" : "trova(…)"}</code>, <code>{en ? "find_all(…)" : "trova_tutti(…)"}</code>, <code>{en ? "spawn(…)" : "crea(…)"}</code>, <code>{en ? "time" : "tempo"}</code>
+        </dd>
+        <dt>{en ? "game" : "gioco"}</dt>
+        <dd>
+          <code>{en ? "variable(…)" : "variabile(…)"}</code>, <code>{en ? "set(…)" : "imposta(…)"}</code>, <code>{en ? "is_down(…)" : "premuto(…)"}</code>, <code>{en ? "play(…)" : "suona(…)"}</code>, <code>{en ? "message(…)" : "messaggio(…)"}</code>
+        </dd>
+        <dt>dt</dt>
+        <dd>{T("i secondi del fotogramma")}</dd>
+      </dl>
+
+      <h4>{T("Unità di misura")}</h4>
+      <p>
+        <code>3 tile</code>, <code>2 tile/s</code>, <code>0.5 s</code>, <code>200 ms</code>, <code>90°</code>
+        {T(": i conti si fanno da soli (un tile diventa pixel) e Pepino avvisa se sommi un tempo e una distanza.")}
+      </p>
+
+      <h4>{T("Aspettare")}</h4>
+      {code(
+        `quando inizia:\n    ripeti 3 volte:\n        oggetto.visibile = falso\n        aspetta 0.2 s\n        oggetto.visibile = vero\n        aspetta 0.2 s\n    aspetta finché oggetto.x > 100`,
+        `on start:\n    repeat 3 times:\n        object.visible = false\n        wait 0.2 s\n        object.visible = true\n        wait 0.2 s\n    wait until object.x > 100`,
+      )}
+
+      <h4>{T("Le parole italiane")}</h4>
+      <p>{T("Cinque parole che si scrivono uguali in italiano e in inglese:")}</p>
+      <dl className="stack">
+        <dt>mamma mia! "…"</dt>
+        <dd>{T("un errore grave: ferma tutto e nessun «tenta» lo copre")}</dd>
+        <dt>pizza Tipo:</dt>
+        <dd>{T("crea un valore un ingrediente per riga: i campi di un tipo, gli elementi di una Lista, le coppie di una Mappa")}</dd>
+        <dt>spaghetti valore:</dt>
+        <dd>{T("una catena di passi: ogni riga riceve il risultato della riga prima (l'originale non cambia)")}</dd>
+        <dt>bravo:</dt>
+        <dd>{T("dopo «tenta … se errore»: parte solo se è andato tutto bene, e vede le variabili del tentativo")}</dd>
+        <dt>cappuccino 2 s:</dt>
+        <dd>{T("fa il blocco più tardi (o in parallelo) e intanto il codice va avanti; se l'oggetto sparisce, non arriva")}</dd>
+      </dl>
+      {code(
+        `quando tocca altro:\n    cappuccino 1 s:\n        oggetto.distruggi()\n    nomi = spaghetti scena.trova_tutti("nemico"):\n        trasforma(n => n.nome)\n        unisci(", ")\n    se nomi = "":\n        mamma mia! "non ci sono nemici"`,
+        `on touch other:\n    cappuccino 1 s:\n        object.destroy()\n    names = spaghetti scene.find_all("enemy"):\n        map(n => n.name)\n        join(", ")\n    if names = "":\n        mamma mia! "there are no enemies"`,
+      )}
+
+      <h4>{T("Memoria")}</h4>
+      <p>{T("b = a fa una copia; «sposta» passa il valore senza copiarlo; i parametri sono prestiti (si leggono), con «cambia» la funzione li può modificare; «quando finisce» in un tipo parte nel momento esatto in cui il valore sparisce.")}</p>
+
+      <h4>{T("Fuori dall'engine")}</h4>
+      <p>
+        {T("Lo stesso linguaggio si usa anche da solo, con il comando ")}
+        <code>pepino</code>
+        {T(": programmi da terminale, file, prove. Guida completa: docs/pepino.html.")}
+      </p>
     </>
   );
 }

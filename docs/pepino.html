@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pepino Language</title>
+<meta name="description" content="Guida di Pepino Language: il linguaggio di Pepino Engine, facile come un racconto e preciso con la memoria come il C++.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Pixelify+Sans:wght@600&family=Schibsted+Grotesk:wght@500;700;800&display=swap">
+<style>
+:root{
+  --ground:#F1F4EC;--surface:#FBFCF8;--sunk:#E7ECE0;--ink:#17201A;--muted:#586555;--line:#D3DBCB;--line-strong:#A9B6A1;
+  --accent:#2C6A3C;--accent-ink:#FFFFFF;--accent-soft:#DCEBD1;--seed:#9A5A0B;--seed-soft:#F5E4C8;--later:#4C5F70;--later-soft:#E0E7EE;
+  --kw:#7B3FA8;--str:#3F7A16;--num:#B4501E;--com:#7A8775;--fn:#2458B3;--ty:#9A6A00;--it:#C2402A;
+  --shadow:0 1px 0 rgba(23,32,26,.04),0 12px 32px -12px rgba(23,32,26,.22);
+  --f-display:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;--f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;--f-pixel:"Pixelify Sans","Schibsted Grotesk",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#101510;--surface:#171E17;--sunk:#1C241C;--ink:#E2EADB;--muted:#9AA894;--line:#2A352A;--line-strong:#43533F;
+    --accent:#8CC480;--accent-ink:#0F1A10;--accent-soft:#1F3321;--seed:#E2A55A;--seed-soft:#35291A;--later:#9FB3C4;--later-soft:#1F2932;
+    --kw:#C792EA;--str:#C3E88D;--num:#F78C6C;--com:#6B7A67;--fn:#82AAFF;--ty:#FFCB6B;--it:#FF7B63;
+    --shadow:0 1px 0 rgba(0,0,0,.3),0 16px 40px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101510;--surface:#171E17;--sunk:#1C241C;--ink:#E2EADB;--muted:#9AA894;--line:#2A352A;--line-strong:#43533F;
+  --accent:#8CC480;--accent-ink:#0F1A10;--accent-soft:#1F3321;--seed:#E2A55A;--seed-soft:#35291A;--later:#9FB3C4;--later-soft:#1F2932;
+  --kw:#C792EA;--str:#C3E88D;--num:#F78C6C;--com:#6B7A67;--fn:#82AAFF;--ty:#FFCB6B;--it:#FF7B63;
+  --shadow:0 1px 0 rgba(0,0,0,.3),0 16px 40px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--ground);color:var(--ink);font:16px/1.62 var(--f-body);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-underline-offset:3px}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--sunk);padding:.08em .35em;border-radius:4px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h2{font-size:clamp(1.5rem,3vw,2rem);margin:0 0 .6rem}
+h3{font-size:1.12rem;margin:1.6rem 0 .5rem}
+p{margin:.55rem 0;max-width:72ch}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+header.hero{padding:56px 0 34px;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--f-pixel);color:var(--accent);font-size:1rem;letter-spacing:.04em}
+.hero h1{font-size:clamp(2.2rem,6vw,3.6rem);margin:.3rem 0 .8rem}
+.hero p{font-size:1.1rem;color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:20px;font-size:.92rem}
+nav.toc a{text-decoration:none;border-bottom:1px solid var(--line-strong)}
+section{padding:40px 0;border-bottom:1px solid var(--line)}
+.lead{color:var(--muted);font-size:1.02rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 .35rem;font-size:1.02rem}
+.card p{margin:0;font-size:.95rem;color:var(--muted)}
+.card .tag{display:inline-block;font:500 .72rem var(--f-mono);color:var(--seed);background:var(--seed-soft);padding:2px 7px;border-radius:99px;margin-bottom:8px}
+pre{font-family:var(--f-mono);font-size:.86rem;line-height:1.55;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;margin:.7rem 0}
+pre .k{color:var(--kw);font-weight:500}pre .i{color:var(--it);font-weight:700}.s{color:var(--str)}.n{color:var(--num)}.c{color:var(--com);font-style:italic}.f{color:var(--fn)}.t{color:var(--ty)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.two figure{margin:0}
+figcaption{font:500 .78rem var(--f-mono);color:var(--muted);margin-bottom:-4px}
+table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.93rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:7px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-display);font-weight:700;background:var(--sunk)}
+td code{white-space:nowrap}
+.scroll{overflow-x:auto}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:.9rem 0;max-width:80ch}
+.note.warm{border-color:var(--seed);background:var(--seed-soft)}
+.err{font-family:var(--f-mono);font-size:.84rem;background:var(--surface);border:1px solid var(--line);border-left:3px solid #C0453A;border-radius:0 10px 10px 0;padding:10px 14px;white-space:pre-wrap;margin:.7rem 0}
+footer{padding:30px 0 60px;color:var(--muted);font-size:.9rem}
+@media (max-width:560px){.wrap{padding:0 16px}header.hero{padding-top:36px}pre{font-size:.8rem}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">PEPINO LANGUAGE</div>
+    <h1>Facile come un racconto, preciso come il C++</h1>
+    <p>Pepino Language è il linguaggio di Pepino Engine. Si scrive con parole italiane o inglesi, controlla i tuoi errori prima di partire e te li spiega come farebbe un amico. Sotto la superficie gestisce la memoria con le regole del C++ moderno, senza puntatori pericolosi. Serve per scrivere blocchi del motore e, con il comando <code>pepino</code>, qualsiasi altro programma.</p>
+    <nav class="toc" aria-label="Indice">
+      <a href="#idee">Le idee</a><a href="#primo">Primo programma</a><a href="#valori">Valori</a><a href="#istruzioni">Istruzioni</a>
+      <a href="#funzioni">Funzioni</a><a href="#tipi">Tipi</a><a href="#memoria">Memoria</a><a href="#unita">Unità</a>
+      <a href="#aspetta">Aspettare</a><a href="#italiane">Le parole italiane</a><a href="#engine">Nell'engine</a><a href="#comando">Il comando pepino</a>
+      <a href="#libreria">Libreria</a><a href="#parole">Italiano ↔ inglese</a><a href="#errori">Errori gentili</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section id="idee"><div class="wrap">
+  <h2>Le idee</h2>
+  <p class="lead">Sei scelte, ognuna pensata per chi impara e per chi deve fare sul serio.</p>
+  <div class="cards">
+    <div class="card"><span class="tag">bilingue</span><h3>La tua lingua</h3><p>Le stesse parole in italiano e in inglese (<code>se</code>/<code>if</code>, <code>ripeti 3 volte</code>/<code>repeat 3 times</code>). Un pulsante riscrive il programma nell'altra lingua, lasciando intatti i tuoi nomi.</p></div>
+    <div class="card"><span class="tag">memoria</span><h3>Come il C++, ma sicura</h3><p>Valori veri: <code>b = a</code> fa una copia. <code>sposta</code> passa senza copiare. I parametri sono prestiti. Quando un valore finisce, si distrugge subito. Niente puntatori nulli o «appesi».</p></div>
+    <div class="card"><span class="tag">tipi</span><h3>Tipi senza scriverli</h3><p>Il compilatore deduce i tipi da solo e trova gli errori prima di partire. Una funzione senza tipi diventa un modello, come i template del C++.</p></div>
+    <div class="card"><span class="tag">unità</span><h3>Numeri con le unità</h3><p><code>4 tile/s</code>, <code>0.5 s</code>, <code>90°</code>: i conti si convertono da soli e Pepino ti ferma se sommi un tempo e una distanza.</p></div>
+    <div class="card"><span class="tag">tempo</span><h3>Aspettare è facile</h3><p><code>aspetta 2 s</code> dentro una funzione, e il gioco continua a girare. Niente callback, niente macchine a stati.</p></div>
+    <div class="card"><span class="tag">gentile</span><h3>Errori che spiegano</h3><p>«Non conosco «punto»: forse volevi dire «punti»?». Liste che partono da 1, <code>=</code> che nei <code>se</code> vuol dire «uguale», prove integrate con <code>prova</code>.</p></div>
+  </div>
+</div></section>
+
+<section id="primo"><div class="wrap">
+  <h2>Primo programma</h2>
+  <p>Il rientro (gli spazi a inizio riga) dice cosa sta dentro cosa: dopo i due punti le righe vanno più a destra. <code>#</code> inizia un commento.</p>
+  <div class="two">
+    <figure><figcaption>italiano</figcaption><pre><span class="c"># Il mio primo programma</span>
+nome = <span class="f">chiedi</span>(<span class="s">"Come ti chiami? "</span>)
+<span class="f">scrivi</span>(<span class="s">"Ciao, {nome}!"</span>)
+
+<span class="k">ripeti</span> <span class="n">3</span> <span class="k">volte</span>:
+    <span class="f">scrivi</span>(<span class="s">"Pepino!"</span>)
+
+<span class="k">per ogni</span> frutto <span class="k">in</span> [<span class="s">"mela"</span>, <span class="s">"pera"</span>]:
+    <span class="f">scrivi</span>(frutto.<span class="f">maiuscolo</span>())</pre></figure>
+    <figure><figcaption>english</figcaption><pre><span class="c"># My first program</span>
+name = <span class="f">ask</span>(<span class="s">"What's your name? "</span>)
+<span class="f">print</span>(<span class="s">"Hi, {name}!"</span>)
+
+<span class="k">repeat</span> <span class="n">3</span> <span class="k">times</span>:
+    <span class="f">print</span>(<span class="s">"Pepino!"</span>)
+
+<span class="k">for each</span> fruit <span class="k">in</span> [<span class="s">"apple"</span>, <span class="s">"pear"</span>]:
+    <span class="f">print</span>(fruit.<span class="f">upper</span>())</pre></figure>
+  </div>
+  <p>Dentro le stringhe, <code>{…}</code> inserisce un valore: <code>"Hai {punti * 2} punti"</code>. Per scrivere una graffa si usa <code>{{</code>.</p>
+</div></section>
+
+<section id="valori"><div class="wrap">
+  <h2>Valori</h2>
+  <div class="scroll"><table>
+    <tr><th>Tipo</th><th>Esempi</th><th>Note</th></tr>
+    <tr><td><code>Numero</code> / <code>Number</code></td><td><code>3</code>, <code>-2.5</code>, <code>1_000</code>, <code>4 tile/s</code></td><td>Uno solo per interi e decimali; si stampa senza errori dei decimali (<code>0.1 + 0.2</code> → <code>0.3</code>).</td></tr>
+    <tr><td><code>Testo</code> / <code>Text</code></td><td><code>"ciao"</code>, <code>'ciao'</code></td><td>Le posizioni partono da 1: <code>"ciao"[1]</code> è <code>"c"</code>.</td></tr>
+    <tr><td><code>SiNo</code> / <code>YesNo</code></td><td><code>vero</code>, <code>falso</code></td><td>Con <code>e</code>, <code>o</code>, <code>non</code> (<code>and</code>, <code>or</code>, <code>not</code>).</td></tr>
+    <tr><td><code>Lista di T</code> / <code>List of T</code></td><td><code>[1, 2, 3]</code></td><td>Anche <code>[Numero]</code>. <code>lista[1]</code> è il primo, <code>lista[-1]</code> l'ultimo.</td></tr>
+    <tr><td><code>Mappa di K a V</code> / <code>Map of K to V</code></td><td><code>{"Anna": 3}</code></td><td>Anche <code>[Testo: Numero]</code>. <code>m["Bo"] = 5</code> aggiunge.</td></tr>
+    <tr><td><code>T?</code></td><td><code>niente</code> / <code>nothing</code></td><td>Solo un tipo con <code>?</code> può essere niente, e va controllato prima di usarlo.</td></tr>
+    <tr><td>scelte</td><td><code>scelta Colore: rosso, verde</code></td><td><code>Colore.rosso</code>; si usano con <code>scegli</code>.</td></tr>
+    <tr><td>tipi tuoi</td><td><code>Punto(x: 3, y: 4)</code></td><td>Vedi <a href="#tipi">Tipi</a>.</td></tr>
+    <tr><td><code>Qualsiasi</code> / <code>Any</code></td><td>valori dell'engine</td><td>Per le variabili del gioco: non vengono controllati.</td></tr>
+  </table></div>
+  <p>Le variabili nascono la prima volta che dai loro un valore: <code>punti = 0</code>. Da lì in poi hanno quel tipo: <code>punti = "tanti"</code> è un errore. Si può scrivere il tipo: <code>nemici: Lista di Testo = []</code>. Le costanti non cambiano: <code>costante GRAVITÀ = 9.8</code>.</p>
+  <p>Una variabile creata dentro un blocco (un <code>se</code>, un ciclo) finisce con il blocco. Se la crei in tutti i rami di un <code>se … altrimenti</code>, esiste anche dopo.</p>
+</div></section>
+
+<section id="istruzioni"><div class="wrap">
+  <h2>Istruzioni</h2>
+<pre><span class="k">se</span> punti = <span class="n">10</span>:              <span class="c"># «=» nelle condizioni vuol dire «uguale» (va bene anche ==)</span>
+    <span class="f">scrivi</span>(<span class="s">"bravo"</span>)
+<span class="k">altrimenti se</span> punti > <span class="n">5</span>:
+    <span class="f">scrivi</span>(<span class="s">"quasi"</span>)
+<span class="k">altrimenti</span>:
+    <span class="f">scrivi</span>(<span class="s">"riprova"</span>)
+
+<span class="k">ripeti</span> <span class="n">4</span> <span class="k">volte</span>: …            <span class="k">ripeti</span>: …   <span class="c"># per sempre, fino a «interrompi»</span>
+<span class="k">mentre</span> vite > <span class="n">0</span>: …
+<span class="k">per ogni</span> x <span class="k">in</span> lista: …          <span class="k">per ogni</span> i, x <span class="k">in</span> lista: …   <span class="c"># i = posizione (da 1)</span>
+<span class="k">per ogni</span> chiave, valore <span class="k">in</span> mappa: …
+<span class="k">per</span> i <span class="k">da</span> <span class="n">1</span> <span class="k">a</span> <span class="n">10</span> <span class="k">passo</span> <span class="n">2</span>: …     <span class="c"># da 10 a 1 conta all'indietro</span>
+<span class="k">interrompi</span>   <span class="k">continua</span>   <span class="k">passa</span>   <span class="c"># esci dal ciclo, salta al giro dopo, non fare niente</span>
+
+<span class="k">scegli</span> colore:
+    <span class="k">caso</span> Colore.rosso: <span class="f">scrivi</span>(<span class="s">"stop"</span>)
+    <span class="k">caso</span> Colore.verde, Colore.blu: <span class="f">scrivi</span>(<span class="s">"vai"</span>)
+    <span class="k">altrimenti</span>: <span class="k">passa</span>
+
+<span class="k">tenta</span>:
+    età = <span class="f">numero</span>(<span class="f">chiedi</span>(<span class="s">"Età? "</span>))
+<span class="k">se errore</span> problema:
+    <span class="f">scrivi</span>(<span class="s">"Non va: {problema}"</span>)
+
+<span class="k">fallisci</span> <span class="s">"messaggio"</span>             <span class="c"># un errore scelto da te</span>
+<span class="k">controlla</span> totale > <span class="n">0</span>, <span class="s">"il totale deve essere positivo"</span></pre>
+</div></section>
+
+<section id="funzioni"><div class="wrap">
+  <h2>Funzioni</h2>
+<pre><span class="k">funzione</span> <span class="f">saluta</span>(nome: <span class="t">Testo</span>, saluto = <span class="s">"Ciao"</span>) -> <span class="t">Testo</span>:
+    <span class="k">ritorna</span> <span class="s">"{saluto}, {nome}!"</span>
+
+<span class="f">saluta</span>(<span class="s">"Anna"</span>)                        <span class="c"># "Ciao, Anna!"</span>
+<span class="f">saluta</span>(saluto: <span class="s">"Ehi"</span>, nome: <span class="s">"Bo"</span>)     <span class="c"># argomenti con il nome, in qualsiasi ordine</span>
+
+<span class="k">funzione</span> <span class="f">doppio</span>(x):                <span class="c"># senza tipi: è un modello</span>
+    <span class="k">ritorna</span> x + x
+<span class="f">doppio</span>(<span class="n">21</span>)   <span class="f">doppio</span>(<span class="s">"ab"</span>)          <span class="c"># 42 e "abab": due versioni, ognuna controllata</span>
+
+pari = numeri.<span class="f">filtra</span>(n => n % <span class="n">2</span> = <span class="n">0</span>)  <span class="c"># funzione veloce</span></pre>
+  <p>Il tipo restituito si può omettere: lo deduce Pepino. Una funzione che non restituisce niente non ha bisogno di <code>ritorna</code>. Le <b>funzioni veloci</b> (<code>x => …</code>) si usano dove serve una funzione (per esempio in <code>filtra</code>, <code>trasforma</code>, <code>ordina_per</code>); le variabili locali che usano vengono copiate quando nascono.</p>
+</div></section>
+
+<section id="tipi"><div class="wrap">
+  <h2>Tipi</h2>
+<pre><span class="k">tipo</span> <span class="t">Punto</span>:
+    x: <span class="t">Numero</span> = <span class="n">0</span>
+    y = <span class="n">0</span>                            <span class="c"># il tipo lo dà il valore</span>
+    nome: <span class="t">Testo</span>                      <span class="c"># senza valore: va dato quando lo crei</span>
+
+    <span class="k">funzione</span> <span class="f">lunghezza</span>() -> <span class="t">Numero</span>:
+        <span class="k">ritorna</span> <span class="f">radice</span>(x * x + y * y)   <span class="c"># i campi si usano per nome (o con questo.x)</span>
+
+    <span class="k">funzione</span> <span class="f">sposta_di</span>(dx, dy):
+        x += dx
+        y += dy
+
+    <span class="k">quando crea</span>:
+        <span class="f">scrivi</span>(<span class="s">"nasce {nome}"</span>)
+    <span class="k">quando finisce</span>:
+        <span class="f">scrivi</span>(<span class="s">"addio {nome}"</span>)          <span class="c"># parte nel momento esatto in cui il valore sparisce</span>
+
+p = <span class="t">Punto</span>(x: <span class="n">3</span>, y: <span class="n">4</span>, nome: <span class="s">"P"</span>)
+<span class="f">scrivi</span>(p)                          <span class="c"># Punto(x: 3, y: 4, nome: "P")</span>
+<span class="f">scrivi</span>(p = <span class="t">Punto</span>(<span class="n">3</span>, <span class="n">4</span>, <span class="s">"P"</span>))          <span class="c"># vero: si confrontano i valori</span></pre>
+  <p>Pepino capisce da solo quali funzioni cambiano i campi (come <code>sposta_di</code>): si possono chiamare solo su valori che si possono cambiare.</p>
+</div></section>
+
+<section id="memoria"><div class="wrap">
+  <h2>Memoria come il C++</h2>
+  <p class="lead">Ogni valore ha un solo proprietario: una variabile, un campo, un posto di una lista. Da questa regola viene tutto il resto.</p>
+<pre>a = <span class="t">Zaino</span>(<span class="s">"Anna"</span>)
+b = a                       <span class="c"># COPIA: una fotocopia, cambiare b non cambia a</span>
+c = <span class="k">sposta</span> b                 <span class="c"># SPOSTA: c prende il valore senza copiarlo; b non si usa più</span>
+
+<span class="k">funzione</span> <span class="f">conta</span>(z: <span class="t">Zaino</span>):       <span class="c"># PRESTITO: la funzione legge senza copiare e senza cambiare</span>
+    <span class="k">ritorna</span> z.oggetti.lunghezza
+
+<span class="k">funzione</span> <span class="f">riempi</span>(<span class="k">cambia</span> z: <span class="t">Zaino</span>):  <span class="c"># CAMBIA: la funzione modifica la variabile di chi chiama</span>
+    z.oggetti.<span class="f">aggiungi</span>(<span class="s">"acqua"</span>)
+<span class="f">riempi</span>(<span class="k">cambia</span> a)               <span class="c"># si scrive anche nella chiamata: così si vede</span>
+
+<span class="k">funzione</span> <span class="f">tieni</span>(<span class="k">prendi</span> z: <span class="t">Zaino</span>): …  <span class="c"># PRENDI: la funzione diventa proprietaria (copia, o «sposta» per regalarlo)</span></pre>
+  <div class="scroll"><table>
+    <tr><th>In Pepino</th><th>Nel C++</th><th>Che cosa garantisce</th></tr>
+    <tr><td><code>b = a</code></td><td>costruttore di copia</td><td>Nessun valore è condiviso per sbaglio.</td></tr>
+    <tr><td><code>b = sposta a</code></td><td><code>std::move</code></td><td>Il compilatore vieta di usare <code>a</code> dopo (anche «forse spostato» nei rami, e dentro i cicli).</td></tr>
+    <tr><td>parametro normale</td><td><code>const T&amp;</code></td><td>Nessuna copia, nessuna modifica.</td></tr>
+    <tr><td><code>cambia</code></td><td><code>T&amp;</code></td><td>Una sola via di modifica per volta: <code>f(cambia x, cambia x)</code> è un errore.</td></tr>
+    <tr><td><code>prendi</code></td><td>parametro per valore</td><td>La funzione possiede il valore e lo distrugge alla fine.</td></tr>
+    <tr><td><code>quando finisce</code></td><td>distruttore (RAII)</td><td>Parte subito, in ordine inverso, anche con <code>ritorna</code> anticipato ed errori; mai due volte.</td></tr>
+    <tr><td><code>T?</code> e <code>niente</code></td><td>(puntatore nullo)</td><td>Non esistono valori nulli nascosti: il tipo lo dice e il compilatore obbliga a controllare.</td></tr>
+  </table></div>
+  <p>Non esistono riferimenti da tenere da parte (i prestiti durano quanto la chiamata), quindi non esistono puntatori «appesi» e non servono le annotazioni di durata di Rust. Mentre scorri una lista con <code>per ogni</code>, quella lista non si può cambiare: niente elementi saltati o doppi.</p>
+  <div class="note warm">Sincerità: oggi Pepino si traduce in JavaScript, dove la memoria la libera il browser. Le regole però sono rispettate alla lettera (copie vere, distruzione nel momento esatto, niente condivisioni), e sono proprio quelle che servono a un futuro compilatore nativo senza garbage collector.</div>
+</div></section>
+
+<section id="unita"><div class="wrap">
+  <h2>Unità di misura</h2>
+<pre>velocità = <span class="n">4 tile/s</span>
+tempo = <span class="n">3 s</span>
+strada = velocità * tempo        <span class="c"># una lunghezza: 12 tile, cioè 192 px</span>
+<span class="f">scrivi</span>(strada / <span class="n">1 tile</span>)             <span class="c"># 12: quanti tile</span>
+sbagliato = tempo + strada       <span class="c"># ERRORE: non si sommano un tempo e una lunghezza</span></pre>
+  <div class="scroll"><table>
+    <tr><th>Grandezza</th><th>Unità</th><th>Si conserva come</th></tr>
+    <tr><td>tempo</td><td><code>s</code>, <code>ms</code>, <code>min</code> (anche <code>secondi</code>, <code>minuti</code>)</td><td>secondi</td></tr>
+    <tr><td>lunghezza</td><td><code>px</code>, <code>tile</code></td><td>pixel (un tile = la dimensione dei tile del progetto; fuori dall'engine 16 px)</td></tr>
+    <tr><td>angolo</td><td><code>°</code>, <code>gradi</code>, <code>rad</code></td><td>gradi (anche <code>sen</code> e <code>cos</code> usano i gradi)</td></tr>
+  </table></div>
+  <p>Un numero senza unità va d'accordo con tutto: le unità servono a trovare gli errori, non a complicare i conti. Nei blocchi, una proprietà scritta <code>proprietà velocità = 4 tile/s</code> compare nell'Inspector in tile/s e nel codice vale già in pixel al secondo.</p>
+</div></section>
+
+<section id="aspetta"><div class="wrap">
+  <h2>Aspettare</h2>
+<pre><span class="k">quando inizia</span>:
+    <span class="k">ripeti</span> <span class="n">3</span> <span class="k">volte</span>:
+        oggetto.visibile = <span class="k">falso</span>
+        <span class="k">aspetta</span> <span class="n">0.2 s</span>
+        oggetto.visibile = <span class="k">vero</span>
+        <span class="k">aspetta</span> <span class="n">0.2 s</span>
+    <span class="k">aspetta finché</span> oggetto.x > <span class="n">100</span>     <span class="c"># aspetta che succeda qualcosa</span>
+    <span class="k">aspetta</span>                           <span class="c"># un fotogramma</span></pre>
+  <p>Una funzione che aspetta (o chiama funzioni che aspettano) continua da dove si era fermata, mentre il resto del gioco va avanti. Non si aspetta dove bisogna rispondere subito: in <code>quando aggiorna</code>, nelle condizioni, nelle funzioni veloci. Nel comando <code>pepino</code> l'attesa è vera: il programma si ferma per quel tempo.</p>
+</div></section>
+
+<section id="italiane"><div class="wrap">
+  <h2>Le parole italiane</h2>
+  <p class="lead">Cinque parole che il mondo conosce già: si scrivono uguali in un programma italiano e in uno inglese, e il pulsante che traduce le lascia come sono. Valgono solo dove servono, quindi <code>pizza = 3</code> resta una variabile qualsiasi. Si possono scrivere anche con l'iniziale maiuscola o tutte maiuscole (<code>MAMMA MIA!</code>).</p>
+  <div class="scroll"><table>
+    <tr><th>Parola</th><th>Che cosa fa</th></tr>
+    <tr><td><code>mamma mia! "…"</code></td><td>un errore grave: ferma il programma, nessun <code>tenta</code> lo copre (i <code>quando finisce</code> partono lo stesso)</td></tr>
+    <tr><td><code>pizza Tipo:</code></td><td>crea un valore un ingrediente per riga: i campi di un tipo, gli elementi di una <code>Lista</code>, le coppie di una <code>Mappa</code></td></tr>
+    <tr><td><code>spaghetti valore:</code></td><td>una catena di passi: ogni riga riceve il risultato della riga prima</td></tr>
+    <tr><td><code>bravo:</code></td><td>dopo <code>tenta … se errore</code>: parte solo se è andato tutto bene</td></tr>
+    <tr><td><code>cappuccino 2 s:</code></td><td>fa il blocco più tardi (o in parallelo, senza durata) e intanto il codice va avanti</td></tr>
+  </table></div>
+
+  <h3>mamma mia! — l'errore grave</h3>
+<pre><span class="k">funzione</span> <span class="f">pesca</span>(<span class="k">cambia</span> mazzo: <span class="t">Lista di Testo</span>) -> <span class="t">Testo</span>:
+    <span class="k">se</span> mazzo.vuota:
+        <span class="i">mamma mia!</span> <span class="s">"il mazzo è vuoto: qualcuno ha pescato troppo"</span>
+    <span class="k">ritorna</span> mazzo.togli_ultimo()</pre>
+  <p><code>fallisci</code> è l'errore da cui chi chiama può rimediare con <code>tenta</code>; <code>mamma mia!</code> vuol dire «questo non deve succedere mai». Il programma si ferma con <i>Mamma mia! il mazzo è vuoto… (riga 3)</i>; nell'engine si ferma il blocco e la Console dice script e riga. Anche da sola: <code>mamma mia!</code>. Il punto esclamativo serve solo qui: per dire «non» si scrive <code>non</code>.</p>
+
+  <h3>pizza — creare su più righe</h3>
+<pre>eroe = <span class="i">pizza</span> <span class="t">Personaggio</span>:
+    nome = <span class="s">"Lucia"</span>
+    vita = <span class="n">3</span>
+    zaino = <span class="i">pizza</span> <span class="t">Lista</span>:          <span class="c"># una pizza dentro l'altra</span>
+        <span class="s">"pozione"</span>
+        <span class="s">"chiave"</span>
+
+prezzi = <span class="i">pizza</span> <span class="t">Mappa di Testo a Numero</span>:
+    <span class="s">"margherita"</span> = <span class="n">6</span>
+    <span class="s">"diavola"</span> = <span class="n">7.5</span></pre>
+  <p>È la stessa cosa di <code>Personaggio(nome: …, vita: …)</code>, <code>[…]</code> e <code>{…}</code>, scritta un ingrediente per riga: comoda per i valori grandi (carte, nemici, tabelle). Il tipo scritto controlla gli ingredienti, e se manca un campo senza valore pronto Pepino lo dice. Siccome continua nelle righe sotto, va da sola alla fine della riga: dopo <code>=</code>, dopo <code>ritorna</code>, come valore di un campo.</p>
+
+  <h3>spaghetti — una catena di passi</h3>
+<pre><span class="k">funzione</span> <span class="f">in_euro</span>(n: <span class="t">Numero</span>) -> <span class="t">Testo</span>:
+    <span class="k">ritorna</span> <span class="s">"{arrotonda(n, 2)} €"</span>
+
+conto = <span class="i">spaghetti</span> ordini:
+    filtra(o => o.pagato)
+    trasforma(o => o.prezzo)
+    somma()
+    in_euro()                          <span class="c"># una funzione tua: riceve il valore come primo argomento</span>
+
+titolo = <span class="i">spaghetti</span> nomi:
+    ordina()                           <span class="c"># cambia il valore: si va avanti con quello cambiato</span>
+    inverti()
+    unisci(<span class="s">", "</span>)</pre>
+  <p>Ogni riga riceve il risultato della riga prima. Se il nome è un metodo del valore (<code>filtra</code>, <code>unisci</code>, un metodo del tuo tipo) si chiama su di lui; altrimenti è una funzione che riceve il valore come primo argomento: <code>sconto(10)</code> diventa <code>sconto(valore, 10)</code>. Un passo che non restituisce niente (<code>ordina</code>, <code>scrivi</code>, una funzione con <code>cambia</code>) lascia andare avanti lo stesso valore, magari cambiato. Le proprietà si scrivono senza parentesi (<code>lunghezza</code>), e anche i campi di un tipo.</p>
+  <p>Gli spaghetti non cambiano mai l'originale: <code>nomi</code> resta com'era. Il valore si copia solo se un passo lo cambia (così non nascono copie inutili, e nessun <code>quando finisce</code> parte per niente); con <code>spaghetti sposta nomi:</code> non si copia nemmeno allora.</p>
+
+  <h3>bravo — è andato tutto bene</h3>
+<pre><span class="k">tenta</span>:
+    età = <span class="f">numero</span>(<span class="f">chiedi</span>(<span class="s">"Quanti anni hai? "</span>))
+<span class="k">se errore</span> problema:
+    <span class="f">scrivi</span>(<span class="s">"Non è un numero: {problema}"</span>)
+<span class="i">bravo</span>:
+    <span class="f">scrivi</span>(<span class="s">"Tra dieci anni ne avrai {età + 10}"</span>)</pre>
+  <p><code>bravo</code> parte solo se il <code>tenta</code> è finito senza errori, e vede le variabili create dentro <code>tenta</code> (senza <code>bravo</code> finiscono con il blocco). Un errore dentro <code>bravo</code> non finisce nel <code>se errore</code>: il gestore non nasconde errori che non c'entrano. In inglese: <code>try: … if error problem: … bravo: …</code>.</p>
+
+  <h3>cappuccino — dopo, o in parallelo</h3>
+<pre><span class="k">blocco</span> <span class="t">Bomba</span> <span class="s">"Bomba"</span>:
+    <span class="k">proprietà</span> miccia = <span class="n">3 s</span>, <span class="s">"Miccia"</span>
+    <span class="k">quando tocca</span> altro:
+        <span class="i">cappuccino</span> miccia:             <span class="c"># tra 3 secondi…</span>
+            oggetto.distruggi()
+        <span class="f">suona</span>(<span class="s">"tic"</span>)                    <span class="c"># …ma questa riga parte subito</span>
+
+    <span class="k">quando inizia</span>:
+        <span class="i">cappuccino</span>:                    <span class="c"># in parallelo: lampeggia per sempre</span>
+            <span class="k">ripeti</span>:
+                oggetto.visibile = <span class="k">falso</span>
+                <span class="k">aspetta</span> <span class="n">0.2 s</span>
+                oggetto.visibile = <span class="k">vero</span>
+                <span class="k">aspetta</span> <span class="n">0.2 s</span></pre>
+  <p><code>aspetta</code> vuol dire «mi fermo io»; <code>cappuccino</code> vuol dire «lo faccio dopo (o a parte), e intanto vado avanti». La riga dopo il cappuccino parte sempre prima di lui. Dentro si può aspettare, e siccome chi lo ordina non aspetta, si può ordinare anche dove non si può aspettare (<code>quando aggiorna</code>); non nelle condizioni, in <code>quando finisce</code> e nelle funzioni di un tipo.</p>
+  <p>Le variabili locali usate dentro sono copie prese quando lo ordini: si leggono ma non si cambiano. I campi del blocco, le variabili di tutto il programma e gli oggetti dell'engine sono quelli veri. Nell'engine il cappuccino appartiene all'oggetto: se l'oggetto sparisce prima, non arriva (e le sue copie si distruggono). Nel comando <code>pepino</code> il programma finisce quando sono finiti anche i cappuccini; nelle prove il tempo passa subito.</p>
+  <p>Un esempio con tutte e cinque: <code>npm run pepino -- esegui samples/pepino/pizzeria.pep</code>.</p>
+</div></section>
+
+<section id="engine"><div class="wrap">
+  <h2>Nell'engine: i blocchi</h2>
+  <p>Nella scheda <b>Codice</b> il pulsante <b>+ Pepino</b> crea uno script. Ogni <code>blocco</code> diventa un blocco dell'Inspector (in «Aggiungi blocco» → Personalizzati), e le sue azioni, condizioni ed eventi si usano nelle Regole.</p>
+<pre><span class="k">blocco</span> <span class="t">Passeggia</span> <span class="s">"Passeggia"</span>:
+    <span class="k">descrizione</span> <span class="s">"Va avanti e indietro."</span>
+    <span class="k">richiede</span> Body                            <span class="c"># aggiunge il Corpo e rende «corpo» sempre presente</span>
+    <span class="k">proprietà</span> distanza = <span class="n">3 tile</span>, <span class="s">"Distanza"</span>, <span class="k">da</span> <span class="n">0</span> <span class="k">a</span> <span class="n">20</span>
+    <span class="k">proprietà</span> suono: <span class="t">Suono</span> = <span class="s">""</span>, <span class="s">"Suono del giro"</span>
+    <span class="k">evento</span> giro <span class="s">"Ha finito un giro"</span>
+
+    partenza = <span class="n">0</span>                              <span class="c"># la memoria del blocco</span>
+
+    <span class="k">quando inizia</span>: …      <span class="k">quando aggiorna</span>: …      <span class="k">quando fisica</span>: …      <span class="k">quando dopo</span>: …
+    <span class="k">quando finisce</span>: …     <span class="k">quando tocca</span> altro: …    <span class="k">quando evento</span> colpito: …
+
+    <span class="k">azione</span> salta(forza = <span class="n">3</span>) <span class="s">"Salta"</span>:
+        corpo.vy = -forza * <span class="n">1 tile/s</span>
+    <span class="k">condizione</span> lontano <span class="s">"È lontano"</span>:
+        <span class="k">ritorna</span> <span class="f">assoluto</span>(oggetto.x - partenza) > distanza
+    <span class="k">funzione</span> <span class="f">aiuto</span>(): …                      <span class="c"># funzioni interne del blocco</span></pre>
+  <p>Dentro un blocco <code>emetti giro</code> manda un evento alle Regole. Tipi delle proprietà: <code>Numero</code>, <code>Intero</code>, <code>Testo</code>, <code>TestoLungo</code>, <code>SiNo</code>, una <code>scelta</code> (diventa un menu), <code>Suono</code>, <code>Immagine</code>, <code>Modello</code>, <code>Etichetta</code>, <code>Gruppo</code>, <code>Colore</code>, <code>NomeScena</code>, <code>Variabile</code>, <code>Dialogo</code>, <code>Tasto</code>.</p>
+  <h3>Nomi pronti</h3>
+  <div class="scroll"><table>
+    <tr><th>Nome</th><th>Che cosa c'è</th></tr>
+    <tr><td><code>oggetto</code> / <code>object</code></td><td><code>x</code>, <code>y</code> (px), <code>z</code>, <code>nome</code>, <code>visibile</code>, <code>stato</code>, <code>direzione</code>, <code>scala_x</code>, <code>scala_y</code>, <code>centro_x</code>, <code>centro_y</code>, <code>etichette</code>, <code>corpo</code>; <code>ha_etichetta(e)</code>, <code>aggiungi_etichetta(e)</code>, <code>togli_etichetta(e)</code>, <code>ha_blocco(b)</code>, <code>emetti(ev)</code>, <code>distanza_da(altro)</code>, <code>più_vicino(e)</code>, <code>distruggi()</code></td></tr>
+    <tr><td><code>corpo</code> / <code>body</code></td><td><code>vx</code>, <code>vy</code> (px/s), <code>a_terra</code>, <code>sul_soffitto</code>, <code>muro_sinistra</code>, <code>muro_destra</code>, <code>su_scala</code>, <code>larghezza</code>, <code>altezza</code>; <code>tocca(e)</code>, <code>toccati(e)</code></td></tr>
+    <tr><td><code>scena</code> / <code>scene</code></td><td><code>tile</code>, <code>tempo</code>, <code>larghezza</code>, <code>altezza</code>, <code>nome</code>; <code>trova(nome)</code>, <code>trova_tutti(etichetta)</code>, <code>crea(modello, x, y)</code></td></tr>
+    <tr><td><code>gioco</code> / <code>game</code></td><td><code>in_pausa</code>; <code>variabile(n)</code>, <code>imposta(n, v)</code>, <code>premuto(tasto)</code>, <code>appena_premuto(tasto)</code>, <code>suona(s)</code>, <code>musica(m)</code>, <code>ferma_musica()</code>, <code>vai_a_scena(id)</code>, <code>ricomincia()</code>, <code>messaggio(testo, durata)</code></td></tr>
+    <tr><td><code>dt</code></td><td>i secondi del fotogramma (1/60 s)</td></tr>
+  </table></div>
+  <p>Nell'editor: colori, suggerimenti mentre scrivi, errori sottolineati, il pulsante per tradurre lo script, il JavaScript generato e il pulsante <b>Prove</b> che esegue le <code>prova</code> dello script. Se un blocco sbaglia a gioco avviato, si ferma solo lui e la Console dice script e riga.</p>
+</div></section>
+
+<section id="comando"><div class="wrap">
+  <h2>Il comando <code>pepino</code></h2>
+  <p>Lo stesso linguaggio funziona anche da solo, per programmi da terminale, giochi di testo, piccoli strumenti. Si costruisce con <code>npm run build:pepino</code> (un solo file, <code>dist/pepino/pepino.mjs</code>, che gira con Node) oppure si usa direttamente:</p>
+<pre>npm run pepino -- esegui samples/pepino/indovina.pep
+npm run pepino -- controlla gioco.pep       <span class="c"># solo gli errori</span>
+npm run pepino -- prova gioco.pep           <span class="c"># le prove</span>
+npm run pepino -- traduci gioco.pep en      <span class="c"># riscrive con le parole inglesi</span>
+npm run pepino -- js gioco.pep              <span class="c"># il JavaScript generato</span>
+npm run pepino -- nuovo ciao.pep            <span class="c"># un primo programma</span></pre>
+  <p>I comandi esistono anche in inglese (<code>run</code>, <code>check</code>, <code>test</code>, <code>translate</code>, <code>new</code>). Con <code>npm link</code> il comando <code>pepino</code> diventa disponibile ovunque.</p>
+  <h3>Più file, tastiera, file</h3>
+<pre><span class="k">usa</span> <span class="s">"forme.pep"</span>                  <span class="c"># prende tipi, scelte, funzioni e costanti da un altro file</span>
+nome = <span class="f">chiedi</span>(<span class="s">"Nome? "</span>)
+età = <span class="f">chiedi_numero</span>(<span class="s">"Età? "</span>)
+<span class="f">scrivi_file</span>(<span class="s">"note.txt"</span>, <span class="s">"Ciao {nome}"</span>)
+<span class="f">scrivi</span>(<span class="f">leggi_file</span>(<span class="s">"note.txt"</span>), <span class="f">esiste_file</span>(<span class="s">"altro.txt"</span>), <span class="f">argomenti</span>())
+
+<span class="k">prova</span> <span class="s">"la media"</span>:
+    <span class="k">controlla</span> <span class="f">media</span>([<span class="n">6</span>, <span class="n">8</span>]) = <span class="n">7</span></pre>
+  <p>Esempi pronti in <code>samples/pepino/</code>: <code>ciao</code>, <code>indovina</code>, <code>memoria</code>, <code>unita</code>, <code>hello_en</code>, <code>prove</code>, <code>pizzeria</code> (le parole italiane) e <code>rubrica/</code> (su due file).</p>
+</div></section>
+
+<section id="libreria"><div class="wrap">
+  <h2>Libreria</h2>
+  <h3>Funzioni</h3>
+  <div class="scroll"><table>
+    <tr><th>Italiano</th><th>English</th><th>Che cosa fa</th></tr>
+    <tr><td><code>scrivi(…)</code></td><td><code>print(…)</code></td><td>scrive i valori separati da spazi</td></tr>
+    <tr><td><code>testo(x)</code>, <code>numero(t)</code>, <code>intero(x)</code></td><td><code>text</code>, <code>number</code>, <code>int</code></td><td>conversioni</td></tr>
+    <tr><td><code>arrotonda(x, cifre)</code>, <code>arrotonda_giu</code>, <code>arrotonda_su</code>, <code>assoluto</code>, <code>radice</code>, <code>segno</code></td><td><code>round</code>, <code>floor</code>, <code>ceil</code>, <code>abs</code>, <code>sqrt</code>, <code>sign</code></td><td>numeri (tengono le unità)</td></tr>
+    <tr><td><code>min</code>, <code>max</code>, <code>limita(x, a, b)</code>, <code>interpola(a, b, t)</code>, <code>avvicina(x, meta, passo)</code></td><td><code>min</code>, <code>max</code>, <code>clamp</code>, <code>lerp</code>, <code>approach</code></td><td>utili nei giochi</td></tr>
+    <tr><td><code>sen</code>, <code>cos</code>, <code>tan</code>, <code>asen</code>, <code>acos</code>, <code>angolo(y, x)</code></td><td><code>sin</code>, <code>cos</code>, <code>tan</code>, <code>asin</code>, <code>acos</code>, <code>angle</code></td><td>in gradi</td></tr>
+    <tr><td><code>casuale()</code>, <code>casuale(1, 6)</code></td><td><code>random</code></td><td>tra 0 e 1, oppure intero tra due interi</td></tr>
+    <tr><td><code>lunghezza(x)</code>, <code>intervallo(a, b)</code>, <code>distanza(x1, y1, x2, y2)</code>, <code>tempo()</code></td><td><code>len</code>, <code>range</code>, <code>distance</code>, <code>time</code></td><td></td></tr>
+    <tr><td><code>chiedi</code>, <code>chiedi_numero</code>, <code>leggi_file</code>, <code>scrivi_file</code>, <code>aggiungi_al_file</code>, <code>esiste_file</code>, <code>argomenti</code></td><td><code>ask</code>, <code>ask_number</code>, <code>read_file</code>, <code>write_file</code>, <code>append_file</code>, <code>file_exists</code>, <code>args</code></td><td>solo con il comando <code>pepino</code></td></tr>
+    <tr><td><code>PI</code>, <code>INFINITO</code></td><td><code>PI</code>, <code>INFINITY</code></td><td>costanti</td></tr>
+  </table></div>
+  <h3>Liste</h3>
+  <p><code>lunghezza</code>/<code>length</code>, <code>vuota</code>/<code>empty</code>, <code>aggiungi</code>/<code>add</code>, <code>inserisci(pos, x)</code>/<code>insert</code>, <code>togli(pos)</code>/<code>remove_at</code>, <code>togli_ultimo</code>/<code>pop</code>, <code>togli_primo</code>/<code>pop_first</code>, <code>rimuovi(x)</code>/<code>remove</code>, <code>togli_se(f)</code>/<code>remove_if</code>, <code>contiene</code>/<code>contains</code>, <code>posizione</code>/<code>index_of</code>, <code>svuota</code>/<code>clear</code>, <code>ordina</code>/<code>sort</code>, <code>ordina_per(f)</code>/<code>sort_by</code>, <code>inverti</code>/<code>reverse</code>, <code>mescola</code>/<code>shuffle</code>, <code>filtra</code>/<code>filter</code>, <code>trasforma</code>/<code>map</code>, <code>trova</code>/<code>find</code>, <code>tutti</code>/<code>all</code>, <code>qualcuno</code>/<code>any</code>, <code>conta</code>/<code>count</code>, <code>conta_se</code>/<code>count_if</code>, <code>somma</code>/<code>sum</code>, <code>minimo</code>/<code>min</code>, <code>massimo</code>/<code>max</code>, <code>primo</code>/<code>first</code>, <code>ultimo</code>/<code>last</code>, <code>a_caso</code>/<code>pick</code>, <code>unisci(sep)</code>/<code>join</code>, <code>parte(da, a)</code>/<code>slice</code>, <code>copia</code>/<code>copy</code>.</p>
+  <h3>Mappe</h3>
+  <p><code>lunghezza</code>, <code>vuota</code>, <code>contiene(k)</code>/<code>has</code>, <code>prendi(k, predefinito)</code>/<code>get</code>, <code>togli(k)</code>/<code>remove</code>, <code>chiavi</code>/<code>keys</code>, <code>valori</code>/<code>values</code>, <code>svuota</code>/<code>clear</code>, <code>copia</code>/<code>copy</code>.</p>
+  <h3>Testi</h3>
+  <p><code>lunghezza</code>, <code>vuoto</code>, <code>maiuscolo</code>/<code>upper</code>, <code>minuscolo</code>/<code>lower</code>, <code>pulisci</code>/<code>trim</code>, <code>contiene</code>/<code>contains</code>, <code>inizia_con</code>/<code>starts_with</code>, <code>finisce_con</code>/<code>ends_with</code>, <code>dividi(sep)</code>/<code>split</code>, <code>sostituisci(a, b)</code>/<code>replace</code>, <code>parte(da, a)</code>/<code>slice</code>, <code>posizione</code>/<code>index_of</code>, <code>ripeti(n)</code>/<code>repeat</code>, <code>lettere</code>/<code>chars</code>.</p>
+</div></section>
+
+<section id="parole"><div class="wrap">
+  <h2>Italiano ↔ inglese</h2>
+  <p>Le parole si possono anche mescolare. Il programma è «in italiano» o «in inglese» a seconda delle parole che usa di più: in quella lingua arrivano i messaggi e si scrivono <code>vero</code>/<code>true</code>.</p>
+  <div class="scroll"><table>
+    <tr><th>Italiano</th><th>English</th><th>Italiano</th><th>English</th></tr>
+    <tr><td><code>se</code> / <code>altrimenti</code></td><td><code>if</code> / <code>else</code></td><td><code>funzione</code> / <code>ritorna</code></td><td><code>function</code> / <code>return</code></td></tr>
+    <tr><td><code>ripeti … volte</code></td><td><code>repeat … times</code></td><td><code>tipo</code> / <code>scelta</code></td><td><code>type</code> / <code>choice</code></td></tr>
+    <tr><td><code>mentre</code></td><td><code>while</code></td><td><code>questo</code></td><td><code>this</code></td></tr>
+    <tr><td><code>per ogni … in</code></td><td><code>for each … in</code></td><td><code>quando crea</code> / <code>quando finisce</code></td><td><code>on create</code> / <code>on end</code></td></tr>
+    <tr><td><code>per … da … a … passo</code></td><td><code>for … from … to … step</code></td><td><code>sposta</code> / <code>cambia</code> / <code>prendi</code></td><td><code>move</code> / <code>change</code> / <code>take</code></td></tr>
+    <tr><td><code>interrompi</code> / <code>continua</code> / <code>passa</code></td><td><code>break</code> / <code>continue</code> / <code>pass</code></td><td><code>costante</code></td><td><code>const</code></td></tr>
+    <tr><td><code>scegli</code> / <code>caso</code></td><td><code>match</code> / <code>case</code></td><td><code>tenta</code> / <code>se errore</code> / <code>fallisci</code></td><td><code>try</code> / <code>if error</code> / <code>fail</code></td></tr>
+    <tr><td><code>e</code> / <code>o</code> / <code>non</code></td><td><code>and</code> / <code>or</code> / <code>not</code></td><td><code>controlla</code> / <code>prova</code></td><td><code>check</code> / <code>test</code></td></tr>
+    <tr><td><code>vero</code> / <code>falso</code> / <code>niente</code></td><td><code>true</code> / <code>false</code> / <code>nothing</code></td><td><code>aspetta</code> / <code>finché</code></td><td><code>wait</code> / <code>until</code></td></tr>
+    <tr><td><code>usa</code></td><td><code>use</code></td><td><code>blocco</code> / <code>proprietà</code> / <code>evento</code></td><td><code>block</code> / <code>property</code> / <code>event</code></td></tr>
+    <tr><td><code>azione</code> / <code>condizione</code> / <code>emetti</code></td><td><code>action</code> / <code>condition</code> / <code>emit</code></td><td><code>quando inizia / aggiorna / fisica / dopo / tocca / evento</code></td><td><code>on start / update / physics / late / touch / event</code></td></tr>
+    <tr><td><code>Numero</code>, <code>Testo</code>, <code>SiNo</code>, <code>Lista di</code>, <code>Mappa di … a</code>, <code>Qualsiasi</code></td><td><code>Number</code>, <code>Text</code>, <code>YesNo</code>, <code>List of</code>, <code>Map of … to</code>, <code>Any</code></td><td><code>richiede</code> / <code>descrizione</code></td><td><code>requires</code> / <code>description</code></td></tr>
+    <tr><td colspan="2"><code>mamma mia!</code>, <code>pizza</code>, <code>spaghetti</code>, <code>bravo</code>, <code>cappuccino</code></td><td colspan="2">uguali nelle due lingue: la traduzione le lascia come sono</td></tr>
+  </table></div>
+</div></section>
+
+<section id="errori"><div class="wrap">
+  <h2>Errori gentili</h2>
+  <p>Pepino trova gli errori prima di partire e li scrive in italiano o in inglese, con la riga e un suggerimento quando può.</p>
+  <div class="err">Errore alla riga 2 di gioco.pep:
+  2 | scrivi(punto)
+    |        ^^^^^
+  Non conosco «punto»: forse volevi dire «punti»?</div>
+  <div class="err">«x» è stato spostato alla riga 3 (con «sposta»): non c'è più. Dagli un nuovo valore prima di usarlo.</div>
+  <div class="err">«nemico» potrebbe essere niente: controlla prima con «se nemico != niente:».</div>
+  <div class="err">Non puoi sommare un tempo (s) e una lunghezza (px): sono grandezze diverse.</div>
+  <div class="err">Non puoi cambiare «nemici» mentre lo stai scorrendo con «per ogni» (riga 9). Usa .togli_se(…) o una nuova lista.</div>
+  <div class="err">«lista» è solo prestato alla funzione, che può leggerlo ma non cambiarlo. Scrivi «cambia lista» nei parametri, oppure lavora su una copia: copia = lista.</div>
+</div></section>
+</main>
+
+<footer><div class="wrap">Pepino Language 0.1 · parte di Pepino Engine · codice in <code>src/lang/</code> (lexer, parser, controllo, generatore di JavaScript, libreria, comando <code>pepino</code>).</div></footer>
+</body>
+</html>

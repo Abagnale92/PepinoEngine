@@ -1,4 +1,4 @@
-import { getBlockDef, resolveProps } from "../core/block";
+import { getBlockDef, listRows, resolveProps } from "../core/block";
 import { mergeBlocks } from "../core/scene";
 import { getRuleItemDef, splitRuleKey } from "../rules/rules";
 import type { RuleItem } from "./format";
@@ -43,7 +43,16 @@ export function collectTexts(p: ProjectData): TextEntry[] {
       const def = getBlockDef(b.type);
       if (!def) continue;
       const props = resolveProps(def, b.props);
-      for (const [k, schema] of Object.entries(def.props)) if (schema.translatable) add(props[k], `${where} › ${def.label}`);
+      for (const [k, schema] of Object.entries(def.props)) {
+        if (schema.translatable) add(props[k], `${where} › ${def.label}`);
+        // Elenchi di righe (armi, carte…): anche i loro campi possono essere testi del gioco.
+        if (schema.type !== "list") continue;
+        for (const row of listRows(schema, props[k])) {
+          for (const [fk, f] of Object.entries(schema.fields ?? {})) if (f.translatable) add(row[fk], `${where} › ${def.label}`);
+        }
+      }
+      // Testi che il blocco scrive da solo (negozio, potenziamenti…).
+      for (const t of def.texts ?? []) add(t, `Pepino › ${def.label}`);
     }
   };
 
@@ -86,6 +95,10 @@ export function collectTexts(p: ProjectData): TextEntry[] {
     }
   }
   for (const c of p.cutscenes ?? []) ruleItems(c.steps ?? [], `Filmato «${c.name}»`);
+  for (const it of p.items ?? []) {
+    add(it.name, `Oggetto «${it.name}»`);
+    add(it.description, `Oggetto «${it.name}»`);
+  }
   for (const t of ENGINE_TEXTS) add(t, "Pepino › Pausa");
   return [...found].map(([text, where]) => ({ text, where: [...where] }));
 }

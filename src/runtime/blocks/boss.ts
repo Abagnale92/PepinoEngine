@@ -2,7 +2,7 @@ import { defineBlock, type BlockInstance } from "../core/block";
 import type { Entity } from "../core/entity";
 import { hexColor, overlaps, packColor, type Rect } from "../math";
 import { bodyCenter, nearestTagged } from "./targets";
-import { spawnImpact } from "./juice";
+import { spawnImpact } from "./spritefx";
 
 /**
  * Boss: un nemico con una "macchina a stati". Dorme finché non vede il bersaglio, poi si avvicina,

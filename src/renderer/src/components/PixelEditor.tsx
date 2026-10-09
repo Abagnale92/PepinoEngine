@@ -40,6 +40,7 @@ import {
   zoomBy,
   type PixelTool,
 } from "../pixel/store";
+import { Splitter, usePanelVar } from "./Splitter";
 
 const TOOLS: { id: PixelTool; icon: string; label: string; key: string }[] = [
   { id: "pencil", icon: "paint", label: N("Matita"), key: "B" },
@@ -131,6 +132,7 @@ function PixelStart() {
 
 function PixelWorkspace() {
   const s = usePixel((x) => x);
+  const sideVar = usePanelVar("--side-w", "paintSide");
   return (
     <div className="px-view">
       <div className="px-top">
@@ -157,7 +159,8 @@ function PixelWorkspace() {
           {T(" Salva immagine")}
         </button>
       </div>
-      <div className="px-main">
+      <div className="px-main" style={sideVar}>
+        <Splitter id="paintSide" edge="end" />
         <ToolColumn />
         <PixelCanvas />
         <SidePanel />

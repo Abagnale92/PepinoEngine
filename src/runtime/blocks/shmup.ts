@@ -39,7 +39,7 @@ defineBlock({
   label: "Scorrimento automatico",
   category: "Camera",
   description:
-    "La camera avanza da sola a velocità costante, come negli shoot'em up e nei runner. Mettilo su un oggetto vuoto: l'oggetto viaggia con lo schermo, quindi può portare anche le Particelle per le stelle.",
+    "La camera avanza da sola a velocità costante nella direzione scelta. Mettilo su un oggetto vuoto: l'oggetto viaggia con lo schermo, quindi può portare anche le Particelle per le stelle.",
   priority: 90,
   props: {
     direction: {
@@ -105,7 +105,7 @@ defineBlock({
   label: "Controller Navicella",
   category: "Movimento",
   description:
-    "Movimento libero in 8 direzioni per gli shoot'em up: la navicella non esce dallo schermo e, se lo schermo scorre da solo, viene portata avanti con lui.",
+    "Movimento libero in 8 direzioni dentro i bordi dello schermo: l'oggetto non esce mai dalla vista e, se lo schermo scorre da solo, viene portato avanti con lui.",
   requires: ["Body"],
   priority: 20,
   props: {
@@ -151,7 +151,7 @@ defineBlock({
       y /= len;
     }
     const slow = p.input === "player" && !!p.focus && self.game.input.isDown(p.focus);
-    const speed = (slow ? p.focusSpeed : p.speed) * self.scene.tileSize;
+    const speed = (slow ? p.focusSpeed : p.speed) * self.scene.tileSize * self.entity.boost("speed");
     b.vx = x * speed;
     b.vy = y * speed;
     if (x !== 0) e.facingX = x > 0 ? 1 : -1;
@@ -162,6 +162,19 @@ defineBlock({
     if (!b) return;
     const e = self.entity;
     const cam = self.scene.camera;
+    const d = self.data;
+    // Se lo scorrimento ha già mosso la camera in questo passo, la navicella la segue subito (niente ritardo).
+    if (self.props.followScroll) {
+      e.x += cam.x - d.camX;
+      e.y += cam.y - d.camY;
+      // Ferma, resta a pixel interi rispetto allo schermo: così non trema mentre lo schermo scorre.
+      if (e.intent.x === 0 && e.intent.y === 0) {
+        e.x = cam.x + Math.round(e.x - cam.x);
+        e.y = cam.y + Math.round(e.y - cam.y);
+      }
+    }
+    d.camX = cam.x;
+    d.camY = cam.y;
     const m = self.props.margin;
     const r = b.rect();
     const left = cam.x - cam.halfW + m;
@@ -204,7 +217,7 @@ defineBlock({
   label: "Traiettoria",
   category: "Movimento",
   description:
-    "Muove l'oggetto da solo lungo una traiettoria: dritto, a onda, in picchiata verso il bersaglio o in cerchio. Per i nemici degli shoot'em up e per tutto ciò che vola senza controller.",
+    "Muove l'oggetto da solo lungo una traiettoria: dritto, a onda, in picchiata verso il bersaglio o in cerchio. Per tutto ciò che si muove senza controller.",
   priority: 21,
   props: {
     pattern: {

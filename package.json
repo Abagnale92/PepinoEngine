@@ -4,6 +4,9 @@
   "description": "Pepino: engine 2D a blocchi visuali con export WebGL",
   "private": true,
   "main": "out/main/index.js",
+  "bin": {
+    "pepino": "dist/pepino/pepino.mjs"
+  },
   "author": "Peppe Abagnale",
   "scripts": {
     "dev": "npm run build:player && electron-vite dev",
@@ -13,7 +16,9 @@
     "build:player": "vite build --config vite.player.config.ts",
     "start": "electron-vite preview",
     "samples": "node scripts/gen-sample.mjs",
-    "export:demo": "npm run build:player && vite-node scripts/export-demo.ts",
+    "export:sample": "npm run build:player && vite-node scripts/export-sample.ts",
+    "build:pepino": "node scripts/build-pepino.mjs",
+    "pepino": "node scripts/build-pepino.mjs --quiet && node dist/pepino/pepino.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

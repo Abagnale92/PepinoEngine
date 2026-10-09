@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { COLLISION_TYPES, type CollisionType, type TilesetData } from "@runtime";
 import { currentScene, editProject, setState, useEditor, type BottomTab } from "../store";
 import { assetUrl, prefabUses, spriteOf, uniqueId } from "../projectOps";
-import { checkProject, importAssets, switchScene } from "../commands";
+import { checkProject, deleteAsset, importAssets, switchScene } from "../commands";
 import type { LogTarget } from "../store";
 import { api } from "../api";
 import { Icon } from "./Icon";
@@ -10,6 +10,7 @@ import { FrameThumb, loadImage } from "./thumbs";
 import { FontPreview } from "./FontPreview";
 import { startNewDrawing } from "../pixel/store";
 import { N, T, getEditorLang } from "../i18n";
+import { Splitter, usePanelVar } from "./Splitter";
 
 const TABS: [BottomTab, string, string][] = [
   ["tiles", N("Tileset"), "grid"],
@@ -109,6 +110,7 @@ function TilePalette({ url, tileset, selected, onSelect }: { url: string; tilese
 }
 
 function TilesetTab() {
+  const colVar = usePanelVar("--col-w", "tiles");
   const project = useEditor((s) => s.project)!;
   const scene = useEditor(currentScene);
   const baseUrl = useEditor((s) => s.baseUrl);
@@ -129,7 +131,9 @@ function TilesetTab() {
     });
 
   return (
-    <div className="tiles-tab">
+    <div className="tiles-tab" style={colVar}>
+      {/* 12 di margine + metà dei 16 di spazio tra le colonne */}
+      <Splitter id="tiles" offset={20} />
       <div className="tiles-side">
         <label className="mini-label">{T("Dipingi sul layer")}</label>
         <select value={layerId} onChange={(e) => setState({ layerId: e.target.value })}>
@@ -231,13 +235,26 @@ function AssetsTab() {
         <div
           key={a.id}
           className={`card${selection?.kind === "asset" && selection.id === a.id ? " on" : ""}`}
-          draggable={a.type === "image"}
+          draggable
           onDragStart={(e) => {
-            e.dataTransfer.setData("application/x-pepino-image", a.id);
+            // Le immagini si trascinano nella scena; tutti gli asset nei campi dei blocchi.
+            e.dataTransfer.setData(`application/x-pepino-${a.type}`, a.id);
             e.dataTransfer.effectAllowed = "copy";
           }}
           onClick={() => setState({ selection: { kind: "asset", id: a.id } })}
+          title={a.type === "image" ? T("Trascina nella scena o in un campo Immagine") : T("Trascina in un campo di un blocco")}
         >
+          <button
+            type="button"
+            className="card-del"
+            title={T("Elimina asset")}
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteAsset(a.id);
+            }}
+          >
+            <Icon name="trash" size={11} />
+          </button>
           <div className="card-thumb checker">
             {a.type === "image" ? (
               <FrameThumb url={assetUrl(baseUrl, a.src, a.rev)} sw={a.frameWidth} sh={a.frameHeight} frame={0} size={44} />

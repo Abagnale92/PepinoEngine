@@ -40,16 +40,16 @@ function knockdown(self: BlockInstance) {
 }
 
 /**
- * Beat 'em up: il personaggio cammina su un piano (x = avanti/indietro, y = profondità della strada)
+ * Il personaggio cammina su un piano (x = destra/sinistra, y = profondità)
  * e salta su un terzo asse, l'altezza. Il corpo resta a terra: così i colpi valgono solo tra chi è
- * alla stessa profondità, come in Final Fight. Un colpo forte lo manda a terra: vola, resta steso, si rialza.
+ * alla stessa profondità. Un colpo forte lo manda a terra: vola, resta steso, si rialza.
  */
 defineBlock({
   name: "BeatEmUpController",
   label: "Controller Beat 'em up",
   category: "Movimento",
   description:
-    "Cammina lungo la strada (avanti, indietro e in profondità) e salta con l'ombra a terra, come in Final Fight o Streets of Rage. I colpi forti lo mandano a terra e poi si rialza. Nella scena attiva «Ordina per Y».",
+    "Cammina su un piano con la profondità (destra, sinistra, avanti e indietro) e salta con l'ombra a terra. I colpi forti lo mandano a terra e poi si rialza. Nella scena attiva «Ordina per Y».",
   requires: ["Body"],
   priority: 20,
   props: {
@@ -137,7 +137,7 @@ defineBlock({
         y /= len;
       }
       const control = d.air ? p.airControl : 1;
-      const sx = p.speed * ts;
+      const sx = p.speed * ts * self.entity.boost("speed");
       const sy = p.depthSpeed * ts;
       const acc = (sx / Math.max(p.accelTime, 1e-3)) * control;
       const dec = (sx / Math.max(p.decelTime, 1e-3)) * control;

@@ -39,16 +39,21 @@ defineBlock({
   init(self) {
     const p = self.props;
     const origin = (self.entity.get("Sprite")?.props.origin as string | undefined) ?? "bottom";
-    let ox = -p.width / 2;
-    let oy = -p.height;
-    if (origin === "center") oy = -p.height / 2;
+    // Il corpo cresce con la scala dell'oggetto, come lo sprite.
+    const kx = Math.abs(self.entity.scaleX);
+    const ky = Math.abs(self.entity.scaleY);
+    const w = p.width * kx;
+    const h = p.height * ky;
+    let ox = -w / 2;
+    let oy = -h;
+    if (origin === "center") oy = -h / 2;
     else if (origin === "topleft") ox = oy = 0;
     self.entity.body = new BodyState(
       self.entity,
-      p.width,
-      p.height,
-      ox + p.offsetX,
-      oy + p.offsetY,
+      w,
+      h,
+      ox + p.offsetX * kx,
+      oy + p.offsetY * ky,
       p.group,
       new Set<string>(p.collidesWith ?? []),
       p.world,

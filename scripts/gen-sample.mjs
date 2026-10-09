@@ -1,14 +1,13 @@
-// Genera il progetto di esempio "Pepino Demo" in samples/demo:
-// pixel art (PNG), suoni e musica (WAV) e due scene: un livello platform e un villaggio top-down.
+// Genera i modelli di «Nuovo progetto» (samples/templates) con i loro asset (samples/templates/assets)
+// e poi gli eventuali giochi di esempio (scripts/<nome>/build.mjs, vedi in fondo).
 // Tutto è creato da codice, così il repository non dipende da asset esterni.
 import { deflateSync } from "node:zlib";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = join(ROOT, "samples", "demo");
-const ASSETS = join(OUT, "assets");
+const ASSETS = join(ROOT, "samples", "templates", "assets");
 mkdirSync(ASSETS, { recursive: true });
 
 let seed = 7;
@@ -276,55 +275,58 @@ tiles.save("tiles.png");
 
 // ---------------------------------------------------------------- Personaggi
 
+/** Colori di un personaggio a forma di cetriolo: quelli di Pepino e quelli dei suoi rivali. */
+const PICKLE_PAL = { fill: P.pickle, out: P.pickleOut, hi: P.pickleHi, dk: P.pickleDk };
+
 /**
  * Pepino, il cetriolo. (l, t, r, b) = corpo; legs = [x, y del piede]; arms = braccia abbassate.
  * hArms = braccia tese [x, y, lunghezza] con il pugno; hLegs = gambe tese [x, y, lunghezza] (calci).
+ * `pal` cambia i colori: lo stesso disegno serve anche per gli avversari.
  */
 function pickle(
   c,
   ox,
   oy,
-  { l = 3, t = 4, r = 12, b = 19, legs = [[5, 23], [9, 23]], view = "front", arms = [], lines = false, hArms = [], hLegs = [] } = {},
+  { l = 3, t = 4, r = 12, b = 19, legs = [[5, 23], [9, 23]], view = "front", arms = [], lines = false, hArms = [], hLegs = [], pal = PICKLE_PAL } = {},
 ) {
-  for (const [lx, foot] of legs) c.rect(ox + lx, oy + b + 1, 2, Math.max(0, foot - b), P.pickleOut);
+  for (const [lx, foot] of legs) c.rect(ox + lx, oy + b + 1, 2, Math.max(0, foot - b), pal.out);
   for (const [lx, ly, len] of hLegs) {
-    c.rect(ox + lx, oy + ly, len, 2, P.pickleOut);
-    c.rect(ox + lx + len - 1, oy + ly - 1, 1, 3, P.pickleOut);
+    c.rect(ox + lx, oy + ly, len, 2, pal.out);
+    c.rect(ox + lx + len - 1, oy + ly - 1, 1, 3, pal.out);
   }
-  shape(c, ox, oy, roundRect(l, t, r, b), P.pickle, P.pickleOut, [l, t, r, b]);
-  c.rect(ox + l + 2, oy + t + 2, 1, Math.max(0, b - t - 5), P.pickleHi);
+  shape(c, ox, oy, roundRect(l, t, r, b), pal.fill, pal.out, [l, t, r, b]);
+  c.rect(ox + l + 2, oy + t + 2, 1, Math.max(0, b - t - 5), pal.hi);
   for (const [bx, by] of [[l + 5, t + 9], [l + 3, t + 12], [r - 2, t + 7], [r - 3, b - 3]]) {
-    if (by < b && bx < r && bx > l) c.set(ox + bx, oy + by, P.pickleDk);
+    if (by < b && bx < r && bx > l) c.set(ox + bx, oy + by, pal.dk);
   }
   const w = r - l + 1;
   const ey = t + (b - t > 12 ? 4 : 3);
   if (view === "back") {
-    c.rect(ox + Math.floor((l + r) / 2), oy + t + 2, 1, b - t - 4, P.pickleDk);
+    c.rect(ox + Math.floor((l + r) / 2), oy + t + 2, 1, b - t - 4, pal.dk);
   } else if (view === "down") {
     for (const ex of [l + 1, r - 2]) {
       c.rect(ox + ex, oy + ey, 2, 3, P.white);
-      c.rect(ox + ex, oy + ey + 2, 2, 1, P.pickleOut);
+      c.rect(ox + ex, oy + ey + 2, 2, 1, pal.out);
     }
-    c.rect(ox + Math.floor((l + r) / 2), oy + ey + 5, 2, 1, P.pickleOut);
+    c.rect(ox + Math.floor((l + r) / 2), oy + ey + 5, 2, 1, pal.out);
   } else {
     const [e1, e2] = w >= 10 ? [3, 6] : [2, 5];
     for (const ex of [l + e1, l + e2]) {
       c.rect(ox + ex, oy + ey, 2, 3, P.white);
-      c.rect(ox + ex + 1, oy + ey + 1, 1, 2, P.pickleOut);
+      c.rect(ox + ex + 1, oy + ey + 1, 1, 2, pal.out);
     }
-    c.rect(ox + l + e2 - 1, oy + ey + 5, 2, 1, P.pickleOut);
+    c.rect(ox + l + e2 - 1, oy + ey + 5, 2, 1, pal.out);
   }
-  for (const [ax, ay] of arms) c.rect(ox + ax, oy + ay, 1, 3, P.pickleOut);
+  for (const [ax, ay] of arms) c.rect(ox + ax, oy + ay, 1, 3, pal.out);
   for (const [ax, ay, len] of hArms) {
-    c.rect(ox + ax, oy + ay, len, 1, P.pickleOut);
-    c.rect(ox + ax + len - 1, oy + ay - 1, 2, 3, P.pickleOut);
+    c.rect(ox + ax, oy + ay, len, 1, pal.out);
+    c.rect(ox + ax + len - 1, oy + ay - 1, 2, 3, pal.out);
   }
-  if (lines) for (const [lx, ly, lw] of [[0, 11, 3], [1, 14, 2], [0, 17, 3]]) c.rect(ox + lx, oy + ly, lw, 1, P.pickleHi);
+  if (lines) for (const [lx, ly, lw] of [[0, 11, 3], [1, 14, 2], [0, 17, 3]]) c.rect(ox + lx, oy + ly, lw, 1, pal.hi);
 }
 
 // 0-10: fermo, corsa, salto, caduta, dash, scale. 11-19: mosse del beat 'em up e reazioni ai colpi.
-const hero = new Pix(8 * 16, 3 * 24);
-[
+const HERO_FRAMES = [
   {},
   { t: 5 },
   { legs: [[4, 23], [10, 22]] },
@@ -345,8 +347,36 @@ const hero = new Pix(8 * 16, 3 * 24);
   { l: 1, r: 10, t: 5, legs: [[3, 23], [8, 22]], arms: [[0, 3], [11, 3]] }, // 17 colpito
   { l: 0, r: 15, t: 16, b: 22, legs: [] }, // 18 a terra
   { t: 9, b: 21, legs: [[5, 23], [9, 23]], arms: [[2, 12], [13, 12]] }, // 19 si rialza
-].forEach((f, i) => pickle(hero, (i % 8) * 16, Math.floor(i / 8) * 24, f));
+];
+const hero = new Pix(8 * 16, 3 * 24);
+HERO_FRAMES.forEach((f, i) => pickle(hero, (i % 8) * 16, Math.floor(i / 8) * 24, f));
 hero.save("pepino.png");
+
+/** Le animazioni del foglio di Pepino: le usano anche i personaggi disegnati con gli stessi fotogrammi. */
+const HERO_ANIMS = {
+  idle: { frames: [0, 1], fps: 2, loop: true },
+  run: { frames: [2, 3, 4, 5], fps: 10, loop: true },
+  walk: { frames: [2, 3, 4, 5], fps: 8, loop: true },
+  attack1: { frames: [11, 12, 12], fps: 12, loop: false },
+  attack2: { frames: [11, 13, 13], fps: 12, loop: false },
+  attack3: { frames: [14, 15, 15, 15, 15], fps: 12, loop: false },
+  airAttack: { frames: [16], fps: 1, loop: true },
+  hurt: { frames: [17], fps: 1, loop: true },
+  down: { frames: [18], fps: 1, loop: true },
+  getup: { frames: [19], fps: 1, loop: true },
+  jump: { frames: [6], fps: 1, loop: true },
+  fall: { frames: [7], fps: 1, loop: true },
+  dash: { frames: [8], fps: 1, loop: true },
+  climb: { frames: [9, 10], fps: 6, loop: true },
+};
+
+// Il rivale del picchiaduro: stesso disegno, colori da peperone.
+const PEPPER_PAL = { fill: "#d0525a", out: "#4a151c", hi: "#f59aa0", dk: "#8e2b35" };
+{
+  const rival = new Pix(8 * 16, 3 * 24);
+  HERO_FRAMES.forEach((f, i) => pickle(rival, (i % 8) * 16, Math.floor(i / 8) * 24, { ...f, pal: PEPPER_PAL }));
+  rival.save("peperone.png");
+}
 
 const heroTd = new Pix(6 * 16, 16);
 const tdBody = { l: 4, r: 11, t: 1, b: 12 };
@@ -724,8 +754,11 @@ function levelPlatform() {
           { type: "Animator", props: {} },
           { type: "CameraFollow", props: { mode: "platform" } },
           { type: "Health", props: { max: 3, variable: "vita", onDeath: "restart", hurtSound: "colpo" } },
+          { type: "PowerUps", props: {} },
         ],
       },
+      pickupAt("stella_colline", "Stella", "stella", cx(21), feet(9)),
+      pickupAt("calamita_colline", "Calamita", "calamita", cx(8), feet(13)),
       inst("slime", "Slime", cx(20), feet(13)),
       inst("slime", "Slime", cx(33), feet(13)),
       inst("slime", "Slime", cx(64), feet(13)),
@@ -844,7 +877,44 @@ function levelVillage() {
           { type: "CameraFollow", props: { mode: "topdown", deadzoneW: 1, deadzoneH: 1, offsetY: -0.5, lookahead: 0 } },
           { type: "Health", props: { max: 3, variable: "vita", onDeath: "restart", hurtSound: "colpo" } },
           { type: "Attack", enabled: false, props: { target: "nemico", damage: 1 } },
+          { type: "PowerUps", props: {} },
         ],
+      },
+      {
+        id: "zia_zucca",
+        name: "Zia Zucca",
+        x: cx(10),
+        y: feet(12),
+        tags: ["npc"],
+        blocks: [
+          { type: "Sprite", props: { image: "nonno", tint: "#ffc0dd" } },
+          { type: "Animator", props: {} },
+          {
+            type: "Shop",
+            props: {
+              title: "Bottega di Zia Zucca",
+              prompt: "C  Bottega",
+              items: [
+                { item: "pozione", price: 0 },
+                { item: "stivali", price: 0 },
+                { item: "scudo", price: 0 },
+                { item: "stella", price: 0 },
+              ],
+              buySound: "moneta",
+              failSound: "colpo",
+            },
+          },
+        ],
+      },
+      pickupAt("pozione_prato", "Pozione", "pozione", cx(5), feet(12)),
+      {
+        id: "hud_inventario",
+        name: "HUD · Inventario",
+        x: 4,
+        y: 156,
+        z: 100,
+        tags: ["interfaccia"],
+        blocks: [{ type: "Inventory", props: { slots: 4, size: 20, sound: "moneta" } }],
       },
       inst("slime_td", "Slime vagante", cx(9), feet(13)),
       inst("slime_td", "Slime vagante", cx(21), feet(12)),
@@ -1227,7 +1297,7 @@ const SPACE_PREFABS = [
     blocks: [
       { type: "Sprite", props: { image: "laser", flipWithFacing: false } },
       { type: "Body", props: { width: 3, height: 8, group: "proiettili", collidesWith: [], world: false } },
-      { type: "Projectile", props: { target: "nemico", damage: 1, lifetime: 1.2, destroyOnWall: false } },
+      { type: "Projectile", props: { target: "nemico", damage: 1, lifetime: 1.2, destroyOnWall: false, offscreen: true } },
     ],
   },
   {
@@ -1498,6 +1568,1085 @@ function levelDefense() {
   };
 }
 
+// ---- Oggetti dell'archivio: icone (16×16 in fila) e oggetti di base di tutti i progetti
+
+{
+  const o = new Pix(256, 16);
+  const at = (i) => i * 16;
+  // 0 pozione
+  o.rect(at(0) + 7, 1, 2, 1, P.wood);
+  o.rect(at(0) + 7, 2, 2, 3, "#cfe8ff");
+  shape(o, at(0), 0, ellipse(8, 10.5, 5, 4.5), "#e5695f", "#7a2e2e", [2, 5, 14, 15]);
+  o.set(at(0) + 6, 8, "#ffd0c8");
+  // 1 stivali veloci
+  shape(o, at(1), 0, (x, y) => (x >= 4 && x <= 8 && y >= 3 && y <= 13) || (x >= 4 && x <= 12 && y >= 10 && y <= 13), "#4a8fd6", "#1c3566", [0, 0, 15, 15]);
+  o.rect(at(1) + 9, 4, 4, 1, "#ffffff");
+  o.rect(at(1) + 10, 6, 3, 1, "#ffffff");
+  // 2 stella
+  shape(
+    o,
+    at(2),
+    0,
+    (x, y) => {
+      const dx = x + 0.5 - 8;
+      const dy = y + 0.5 - 8.5;
+      const a = Math.atan2(dy, dx);
+      return Math.hypot(dx, dy) <= 3.2 + 3.8 * Math.max(0, Math.cos(5 * (a + Math.PI / 2))) ** 1.5;
+    },
+    "#ffd84a",
+    "#9a7420",
+    [0, 0, 15, 15],
+  );
+  o.set(at(2) + 7, 8, "#1d2819");
+  o.set(at(2) + 9, 8, "#1d2819");
+  // 3 calamita
+  shape(o, at(3), 0, (x, y) => (y >= 3 && y <= 9 && ((x >= 3 && x <= 5) || (x >= 10 && x <= 12))) || (y >= 9 && y <= 13 && Math.hypot(x - 7.5, y - 8.5) <= 5 && Math.hypot(x - 7.5, y - 8.5) >= 2), "#e5695f", "#7a2e2e", [0, 0, 15, 15]);
+  o.rect(at(3) + 3, 2, 3, 2, "#cfd3dc");
+  o.rect(at(3) + 10, 2, 3, 2, "#cfd3dc");
+  // 4 scudo
+  shape(o, at(4), 0, (x, y) => y >= 2 && y <= 14 && Math.abs(x - 7.5) <= (y < 9 ? 5.5 : 5.5 - (y - 9) * 1.1), "#8fd3ff", "#2c67a8", [0, 0, 15, 15]);
+  o.rect(at(4) + 7, 4, 2, 8, "#ffffff");
+  o.rect(at(4) + 5, 6, 6, 2, "#ffffff");
+  // 5 fungo saltarello
+  shape(o, at(5), 0, (x, y) => ellipse(8, 7, 6.5, 4.5)(x, y) && y <= 8, "#e5695f", "#7a2e2e", [0, 1, 15, 9]);
+  o.rect(at(5) + 5, 4, 2, 2, "#ffffff");
+  o.rect(at(5) + 10, 5, 2, 2, "#ffffff");
+  shape(o, at(5), 0, roundRect(6, 9, 10, 14), "#f3e3c3", "#b8935d", [5, 8, 11, 15]);
+  // 6 munizioni
+  for (let x = 4; x <= 11; x += 2) {
+    o.rect(at(6) + x, 3, 1, 4, "#f0c43c");
+    o.set(at(6) + x, 2, "#b0772a");
+  }
+  shape(o, at(6), 0, roundRect(3, 7, 12, 13), "#6b8e4e", "#2f4a22", [2, 6, 13, 14]);
+  // 7 medikit
+  shape(o, at(7), 0, roundRect(2, 4, 13, 13), "#ffffff", "#8d8f9c", [1, 3, 14, 14]);
+  o.rect(at(7) + 7, 6, 2, 6, "#e5695f");
+  o.rect(at(7) + 5, 8, 6, 2, "#e5695f");
+  o.rect(at(7) + 6, 3, 4, 1, "#8d8f9c");
+  // 9 pila per la torcia
+  shape(o, at(9), 0, roundRect(5, 3, 10, 13), "#2c2e38", "#12141a", [4, 2, 11, 14]);
+  o.rect(at(9) + 6, 1, 4, 2, "#b5b7c3");
+  o.rect(at(9) + 6, 5, 4, 3, "#ffd84a");
+  o.rect(at(9) + 6, 9, 4, 1, "#8fd3ff");
+  // 10 fusibile
+  shape(o, at(10), 0, roundRect(3, 5, 12, 11), "#d9b57c", "#7a5230", [2, 4, 13, 12]);
+  o.rect(at(10) + 1, 7, 3, 2, "#b5b7c3");
+  o.rect(at(10) + 12, 7, 3, 2, "#b5b7c3");
+  o.rect(at(10) + 6, 7, 4, 2, "#e5695f");
+  // 8 lanciapeperoncini
+  shape(o, at(8), 0, (x, y) => y >= 6 && y <= 11 && x >= 2 && x <= 11, "#b03b3b", "#5e1c1c", [1, 5, 12, 12]);
+  shape(o, at(8), 0, (x, y) => y >= 4 && y <= 12 && x >= 10 && x <= 14, "#d0525a", "#7d2733", [9, 3, 15, 13]);
+  o.rect(at(8) + 4, 12, 3, 3, "#3c7d35");
+  o.save("oggetti.png");
+}
+
+const ITEM_ICONS = { id: "oggetti", type: "image", src: "assets/oggetti.png", frameWidth: 16, frameHeight: 16 };
+
+/** Oggetti di esempio presenti in tutti i progetti (tranne quello vuoto). */
+const BASE_ITEMS = [
+  { id: "pozione", name: "Pozione", icon: "oggetti", frame: 0, kind: "consumable", price: 3, max: 5, description: "Recupera un cuore.", effect: { type: "heal", amount: 1 } },
+  { id: "stivali", name: "Stivali veloci", icon: "oggetti", frame: 1, kind: "instant", price: 5, description: "Corri più veloce per 10 secondi.", effect: { type: "powerup", powerup: "speed", seconds: 10 } },
+  { id: "stella", name: "Stella", icon: "oggetti", frame: 2, kind: "instant", price: 8, description: "Invincibile per 8 secondi.", effect: { type: "powerup", powerup: "invincible", seconds: 8 } },
+  { id: "calamita", name: "Calamita", icon: "oggetti", frame: 3, kind: "instant", price: 4, description: "Attira le monete vicine per 12 secondi.", effect: { type: "powerup", powerup: "magnet", seconds: 12 } },
+  { id: "scudo", name: "Scudo", icon: "oggetti", frame: 4, kind: "instant", price: 6, description: "Para il prossimo colpo.", effect: { type: "powerup", powerup: "shield", seconds: 0 } },
+  { id: "fungo", name: "Fungo saltarello", icon: "oggetti", frame: 5, kind: "instant", price: 4, description: "Salti più in alto per 10 secondi.", effect: { type: "powerup", powerup: "jump", seconds: 10 } },
+];
+
+/** Oggetto dell'archivio messo nella scena: si vede la sua icona e si raccoglie toccandolo. */
+const pickupAt = (id, name, item, x, y) => ({
+  id,
+  name,
+  x,
+  y,
+  blocks: [
+    { type: "Body", props: { width: 12, height: 12, group: "raccoglibili", collidesWith: [], world: false } },
+    { type: "ItemPickup", props: { item, sound: "moneta" } },
+  ],
+});
+
+// ---- Il labirinto degli slime: gioco in prima persona (modello di progetto)
+
+/** L'arma vista in prima persona: una sparasemi tenuta da una mano-cetriolo; `firing` = con la vampata. */
+function drawWeapon(c, ox, firing) {
+  shape(c, ox, 0, ellipse(24, 37, 11, 7), P.pickle, P.pickleOut, [12, 29, 36, 39]);
+  shape(c, ox, 0, (x, y) => y >= 9 && y <= 33 && Math.abs(x - 23.5) <= 3.5 + (y - 9) * 0.06, "#5f6170", "#2c2e38", [16, 8, 31, 34]);
+  c.rect(ox + 20, 8, 8, 3, "#8d8f9c");
+  c.rect(ox + 22, 14, 1, 16, "#b5b7c3");
+  c.rect(ox + 18, 26, 12, 2, "#2c2e38");
+  if (firing) {
+    blob(c, ox, 0, 24, 5, 7, 5, "#ffd84a");
+    blob(c, ox, 0, 24, 5, 3.5, 2.5, "#ffffff");
+  }
+}
+{
+  const a = new Pix(96, 40);
+  drawWeapon(a, 0, false);
+  drawWeapon(a, 48, true);
+  a.save("arma_semi.png");
+}
+
+/** La seconda arma: un lanciapeperoncini tozzo e rosso, con la bocca larga. */
+function drawPepperGun(c, ox, firing) {
+  shape(c, ox, 0, ellipse(24, 37, 11, 7), P.pickle, P.pickleOut, [12, 29, 36, 39]);
+  shape(c, ox, 0, (x, y) => y >= 12 && y <= 34 && Math.abs(x - 23.5) <= 6.5, "#b03b3b", "#5e1c1c", [16, 11, 31, 35]);
+  shape(c, ox, 0, (x, y) => y >= 6 && y <= 13 && Math.abs(x - 23.5) <= 9.5 - (y - 6) * 0.35, "#d0525a", "#7d2733", [13, 5, 34, 14]);
+  c.rect(ox + 18, 18, 12, 2, "#5e1c1c");
+  c.rect(ox + 18, 24, 12, 2, "#5e1c1c");
+  c.rect(ox + 22, 30, 4, 4, "#f59aa0");
+  if (firing) {
+    blob(c, ox, 0, 24, 4, 10, 6, "#ff8a3c");
+    blob(c, ox, 0, 24, 4, 6, 3.5, "#ffd84a");
+    blob(c, ox, 0, 24, 4, 3, 2, "#ffffff");
+  }
+}
+{
+  const a = new Pix(96, 40);
+  drawPepperGun(a, 0, false);
+  drawPepperGun(a, 48, true);
+  a.save("arma_pepe.png");
+}
+
+const FP_ASSETS = [
+  { id: "arma_semi", type: "image", src: "assets/arma_semi.png", frameWidth: 48, frameHeight: 40 },
+  { id: "arma_pepe", type: "image", src: "assets/arma_pepe.png", frameWidth: 48, frameHeight: 40 },
+  { id: "sparo", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 700, freqEnd: 160, sustain: 0.03, decay: 0.12, volume: 0.3, crush: 0.3 }) },
+  { id: "sparo_pepe", type: "audio", src: "", sfx: sfxData({ wave: "saw", freq: 320, freqEnd: 60, sustain: 0.05, decay: 0.2, volume: 0.35, crush: 0.5 }) },
+  { id: "cambio_arma", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 200, freqEnd: 520, sustain: 0.02, decay: 0.07, volume: 0.25 }) },
+  { id: "vuoto", type: "audio", src: "", sfx: sfxData({ freq: 1400, freqEnd: 1300, sustain: 0.01, decay: 0.03, volume: 0.2 }) },
+];
+
+const FP_ITEMS = [
+  { id: "munizioni", name: "Munizioni", icon: "oggetti", frame: 6, kind: "instant", price: 3, description: "Dieci semi per la sparasemi.", effect: { type: "variable", variable: "munizioni", amount: 10 } },
+  { id: "medikit", name: "Medikit", icon: "oggetti", frame: 7, kind: "instant", price: 5, description: "Recupera due cuori.", effect: { type: "heal", amount: 2 } },
+  {
+    id: "lanciapeperoncini",
+    name: "Lanciapeperoncini",
+    icon: "oggetti",
+    frame: 8,
+    kind: "instant",
+    price: 12,
+    description: "La seconda arma: peperoncini che bruciano.",
+    effect: { type: "variable", variable: "arma2", amount: 1 },
+  },
+];
+
+const FP_PREFABS = [
+  {
+    id: "slime_fp",
+    name: "Slime del labirinto",
+    tags: ["nemico"],
+    blocks: [
+      { type: "Sprite", props: { image: "slime", tint: "#c8ffb0" } },
+      { type: "Body", props: { width: 12, height: 10, group: "nemici", collidesWith: ["giocatore"] } },
+      { type: "TopDownController", props: { input: "ai", speed: 1.7, directions: "8" } },
+      { type: "Chaser", props: { target: "giocatore", seeRange: 7, loseRange: 11 } },
+      { type: "Attack", props: { mode: "auto", target: "giocatore", damage: 1, cooldown: 1.1, reach: 9, width: 14, height: 14, slash: false } },
+      { type: "Health", props: { max: 3, invulnerability: 0.1, knockback: 2 } },
+      { type: "SpriteFX", props: { onHurt: "hit", onDeath: "vanish", onJump: "none", onLand: "none" } },
+      { type: "Animator", props: {} },
+    ],
+  },
+  {
+    id: "sputasemi_fp",
+    name: "Sputasemi del labirinto",
+    tags: ["nemico"],
+    blocks: [
+      { type: "Sprite", props: { image: "sputasemi" } },
+      { type: "Body", props: { width: 12, height: 13, group: "nemici", collidesWith: ["giocatore"], world: false } },
+      { type: "Health", props: { max: 2, invulnerability: 0.1, knockback: 0 } },
+      { type: "Shooter", props: { projectile: "seme", mode: "auto", aim: "target", target: "giocatore", range: 8, interval: 2.4, speed: 4, offsetX: 0, offsetY: -8 } },
+      { type: "SpriteFX", props: { onHurt: "hit", onDeath: "vanish", onJump: "none", onLand: "none" } },
+      { type: "Animator", props: {} },
+    ],
+  },
+];
+
+/** Legenda: # muro di pietra, o pilastro, P giocatore, s slime, t sputasemi, a munizioni, h medikit, k stella, w lanciapeperoncini, E uscita. */
+const FP_MAP = [
+  "####################",
+  "#P....#............#",
+  "#.....#....s.......#",
+  "#..................#",
+  "#.....#.....########",
+  "###.###.....#......#",
+  "#.......a...#..s...#",
+  "#...........#......#",
+  "#..o....s...#...h..#",
+  "#......######......#",
+  "#......#....s......#",
+  "#..t...#........w..#",
+  "#......#.......k...#",
+  "#...s.......#......#",
+  "#......#....#....E.#",
+  "####################",
+];
+
+function levelMaze() {
+  const H = FP_MAP.length;
+  const W = FP_MAP[0].length;
+  const floor = new Array(W * H).fill(-1);
+  const walls = new Array(W * H).fill(-1);
+  const entities = [];
+  let n = 0;
+  // I piedi un po' sotto il centro della cella: il corpo (alto 10 px) resta al centro.
+  const at = (c, r) => ({ x: cx(c), y: mid(r) + 5 });
+  FP_MAP.forEach((row, r) =>
+    [...row].forEach((ch, c) => {
+      const i = r * W + c;
+      if (ch === "#") walls[i] = 13;
+      else if (ch === "o") walls[i] = 15;
+      else floor[i] = 10;
+      const p = at(c, r);
+      const id = (base) => `${base}_${++n}`;
+      if (ch === "P") {
+        entities.push({
+          id: "giocatore_fp",
+          name: "Pepino",
+          ...p,
+          tags: ["giocatore"],
+          blocks: [
+            { type: "Body", props: { width: 10, height: 10, group: "giocatore", collidesWith: ["nemici", "raccoglibili", "trigger"] } },
+            { type: "FirstPersonController", props: { speed: 3.5, turn: 150, startAngle: 0 } },
+            { type: "FirstPersonView", props: {} },
+            {
+              type: "FirstPersonWeapon",
+              props: {
+                weapons: [
+                  { name: "Sparasemi", image: "arma_semi", idleFrame: 0, fireFrame: 1, scale: 2, damage: 1, interval: 0.35, range: 12, ammo: "munizioni", unlock: "", sound: "sparo", emptySound: "vuoto" },
+                  { name: "Lanciapeperoncini", image: "arma_pepe", idleFrame: 0, fireFrame: 1, scale: 2, damage: 3, interval: 0.7, range: 9, ammo: "peperoncini", unlock: "arma2", sound: "sparo_pepe", emptySound: "vuoto" },
+                ],
+              },
+            },
+            { type: "Health", props: { max: 5, variable: "vita", onDeath: "restart", hurtSound: "colpo", knockback: 3, invulnerability: 0.8 } },
+            { type: "PowerUps", props: {} },
+          ],
+        });
+      }
+      if (ch === "s") entities.push(inst("slime_fp", "Slime", p.x, p.y));
+      if (ch === "t") entities.push(inst("sputasemi_fp", "Sputasemi", p.x, p.y));
+      if (ch === "a") entities.push(pickupAt(id("munizioni"), "Munizioni", "munizioni", p.x, p.y));
+      if (ch === "h") entities.push(pickupAt(id("medikit"), "Medikit", "medikit", p.x, p.y));
+      if (ch === "k") entities.push(pickupAt(id("stella"), "Stella", "stella", p.x, p.y));
+      if (ch === "w") entities.push(pickupAt(id("lanciapeperoncini"), "Lanciapeperoncini", "lanciapeperoncini", p.x, p.y));
+      if (ch === "E") entities.push({ ...inst("porta", "Uscita", p.x, p.y + 3, [{ type: "SceneExit", props: { scene: "fine" } }]), id: "uscita" });
+    }),
+  );
+  entities.push(
+    { id: "hud_vita_fp_testo", name: "HUD · Vita", x: 8, y: 6, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Vita", size: 8, outline: true } }] },
+    { id: "hud_vita_fp", name: "HUD · Barra vita", x: 32, y: 8, z: 100, tags: ["interfaccia"], blocks: [{ type: "Bar", props: { variable: "vita", max: 5, width: 40, height: 5 } }] },
+    {
+      id: "hud_munizioni_fp",
+      name: "HUD · Munizioni",
+      x: 8,
+      y: 18,
+      z: 100,
+      tags: ["interfaccia"],
+      blocks: [{ type: "Text", props: { text: "Semi {munizioni} · Peperoncini {peperoncini}", size: 8, outline: true } }],
+    },
+    { id: "hud_punti_fp", name: "HUD · Punti", x: 8, y: 30, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Punti {punti}", size: 8, outline: true } }] },
+  );
+  return {
+    id: "labirinto",
+    name: "Il labirinto degli slime",
+    width: W,
+    height: H,
+    background: "#1b1f14",
+    ySort: false,
+    openBottom: false,
+    music: "musica",
+    layers: [makeLayer("pavimento", "Pavimento", W, H, floor, -20, false), makeLayer("muri", "Muri", W, H, walls, 0, true)],
+    entities,
+    rules: [
+      rule("fp_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [
+        say("↑ ↓ cammina · ← → gira · X + ← → passo di lato · V spara · E cambia arma. Trova l'uscita!", 4),
+      ]),
+      rule("fp_punti", "Uno slime sconfitto vale 10 punti", { type: "event", params: { target: "#nemico", event: "died" } }, [], [
+        { type: "var.add", params: { amount: 10, variable: "punti" } },
+      ]),
+      // La seconda arma: l'oggetto mette «arma2» a 1, la Regola dà i peperoncini e la fa prendere in mano.
+      rule("fp_arma2", "Trovato il lanciapeperoncini", { type: "item.used", params: { item: "lanciapeperoncini" } }, [], [
+        { type: "var.set", params: { variable: "peperoncini", value: "8" } },
+        { type: "audio.play", params: { sound: "cambio_arma" } },
+        { type: "block.action", params: { target: "@giocatore_fp", action: "FirstPersonWeapon.select", args: { weapon: 2 } } },
+        say("Lanciapeperoncini! Premi E per cambiare arma.", 3),
+      ]),
+    ],
+  };
+}
+
+/** Fine del labirinto: «Ricomincia» rimette vita, munizioni e punti come all'inizio. */
+function mazeEnd() {
+  const s = retext(retext(levelEnd("labirinto"), "titolo_fine", "Sei uscito dal labirinto!"), "monete_fine", "Punti: {punti}");
+  s.rules[0].actions.push(
+    { type: "var.set", params: { variable: "vita", value: "5" } },
+    { type: "var.set", params: { variable: "munizioni", value: "20" } },
+    { type: "var.set", params: { variable: "peperoncini", value: "0" } },
+    { type: "var.set", params: { variable: "arma2", value: "0" } },
+    { type: "var.set", params: { variable: "punti", value: "0" } },
+  );
+  return s;
+}
+
+// ---- Il concerto dell'orto: gioco a ritmo (modello di progetto)
+
+/**
+ * Le note della canzone: 8 gruppi da 8 ottavi (a 120 bpm sono 16 secondi, come due giri di musica.wav).
+ * I primi otto posti sono vuoti: danno il tempo di prepararsi senza sfasare la musica.
+ */
+const RHYTHM_PATTERN = ["--------", "1-2-3-4-", "1-1-2-2-", "3-4-3-4-", "1-3-2-4-", "1-2-3-4-", "4-3-2-1-", "1-1-4-4-"].join("");
+
+const RH_ASSETS = [
+  { id: "nota_ok", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 880, freqEnd: 1320, sustain: 0.01, decay: 0.06, volume: 0.22 }) },
+  { id: "nota_no", type: "audio", src: "", sfx: sfxData({ wave: "noise", freq: 200, freqEnd: 80, sustain: 0.02, decay: 0.1, volume: 0.2 }) },
+];
+
+/** Il palco: Pepino balla di lato mentre le note scendono al centro. */
+function levelStage() {
+  const W = 20;
+  const H = 11;
+  const fondo = new Array(W * H).fill(-1);
+  const palco = new Array(W * H).fill(-1);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < W; x++) fondo[y * W + x] = 13;
+  for (const [x, y] of [[1, 1], [4, 3], [8, 1], [12, 2], [16, 4], [18, 1]]) fondo[y * W + x] = 21;
+  for (let y = 8; y < H; y++) for (let x = 0; x < W; x++) palco[y * W + x] = 2;
+  return {
+    id: "palco",
+    name: "Il concerto dell'orto",
+    width: W,
+    height: H,
+    background: "#150f24",
+    ySort: false,
+    openBottom: false,
+    music: "musica",
+    layers: [makeLayer("fondo", "Fondo", W, H, fondo, -10, false), makeLayer("palco", "Palco", W, H, palco, 0, true)],
+    entities: [
+      {
+        id: "pepino_dj",
+        name: "Pepino",
+        x: cx(2),
+        y: feet(7),
+        blocks: [
+          { type: "Sprite", props: { image: "pepino", shadow: true } },
+          { type: "SpriteFX", props: { idle: "pulse", idleSpeed: 2, onJump: "none", onLand: "none", onHurt: "none", onDeath: "none" } },
+        ],
+      },
+      {
+        id: "nonno_dj",
+        name: "Nonno Cetriolo",
+        x: cx(17),
+        y: feet(7),
+        blocks: [
+          { type: "Sprite", props: { image: "nonno", shadow: true } },
+          { type: "SpriteFX", props: { idle: "breathe", onJump: "none", onLand: "none", onHurt: "none", onDeath: "none" } },
+        ],
+      },
+      {
+        id: "canzone",
+        name: "Canzone",
+        x: 0,
+        y: 0,
+        z: 100,
+        blocks: [
+          {
+            type: "RhythmTrack",
+            props: {
+              lanes: 4,
+              bpm: 120,
+              perBeat: 2,
+              pattern: RHYTHM_PATTERN,
+              delay: 0,
+              speed: 110,
+              perfectWindow: 70,
+              goodWindow: 150,
+              scoreVar: "punti",
+              comboVar: "combo",
+              missVar: "mancate",
+              hitSound: "nota_ok",
+              missSound: "nota_no",
+              lineY: 150,
+            },
+          },
+        ],
+      },
+    ],
+    rules: [
+      rule("rh_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [
+        say("← ↓ ↑ → quando la nota tocca la linea. Non perdere il ritmo!", 3),
+      ]),
+      rule("rh_fine", "Finita la canzone si vede il risultato", { type: "event", params: { target: "@canzone", event: "finished" } }, [], [
+        { type: "wait", params: { seconds: 1.5 } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.5 } },
+      ]),
+    ],
+  };
+}
+
+/** Fine del concerto: «Ricomincia» azzera punti e combo. */
+function stageEnd() {
+  const s = retext(retext(levelEnd("palco"), "titolo_fine", "Concerto finito!"), "monete_fine", "Punti: {punti} · Note mancate: {mancate}");
+  s.rules[0].actions.push(
+    { type: "var.set", params: { variable: "punti", value: "0" } },
+    { type: "var.set", params: { variable: "combo", value: "0" } },
+    { type: "var.set", params: { variable: "mancate", value: "0" } },
+  );
+  return s;
+}
+
+// ---- La serra abbandonata: gioco della paura (modello di progetto)
+
+/** L'Ombra: una sagoma scura con due occhi gialli, che ondeggia. */
+{
+  const c = new Pix(32, 24);
+  for (const ox of [0, 16]) {
+    const wob = ox ? 1 : 0;
+    shape(
+      c,
+      ox,
+      0,
+      (x, y) => y >= 4 && y <= 22 && Math.abs(x - 8 + (y > 14 ? wob : -wob)) <= 2 + (y - 4) * 0.22,
+      "#191a24",
+      "#0a0b10",
+      [1, 3, 14, 23],
+    );
+    shape(c, ox, 0, ellipse(8, 6, 4, 3.5), "#191a24", "#0a0b10", [3, 2, 13, 10]);
+    c.rect(ox + 5, 6, 2, 2, "#ffd84a");
+    c.rect(ox + 9, 6, 2, 2, "#ffd84a");
+  }
+  c.save("ombra.png");
+}
+
+const HR_ASSETS = [
+  {
+    id: "ombra",
+    type: "image",
+    src: "assets/ombra.png",
+    frameWidth: 16,
+    frameHeight: 24,
+    animations: { idle: { frames: [0, 1], fps: 3, loop: true }, walk: { frames: [0, 1], fps: 6, loop: true } },
+  },
+  { id: "cigolio", type: "audio", src: "", sfx: sfxData({ wave: "saw", freq: 180, freqEnd: 90, sustain: 0.08, decay: 0.3, volume: 0.18, vibrato: 0.4, vibratoSpeed: 6 }) },
+  { id: "spavento", type: "audio", src: "", sfx: sfxData({ wave: "noise", freq: 900, freqEnd: 100, sustain: 0.05, decay: 0.4, volume: 0.3 }) },
+  { id: "interruttore", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 900, freqEnd: 1400, sustain: 0.01, decay: 0.05, volume: 0.2 }) },
+];
+
+const HR_PREFABS = [
+  {
+    id: "ombra_mostro",
+    name: "Ombra",
+    tags: ["mostro", "nemico"],
+    blocks: [
+      { type: "Sprite", props: { image: "ombra", shadow: false } },
+      { type: "Body", props: { width: 10, height: 8, group: "nemici", collidesWith: ["giocatore"] } },
+      { type: "TopDownController", props: { input: "ai", speed: 1.2, directions: "8" } },
+      { type: "Stalker", props: { target: "giocatore", seeRange: 6, fov: 120, hearRange: 5, hearSpeed: 2, wanderSpeed: 1.1, chaseSpeed: 2.4, patience: 4 } },
+      { type: "ContactDamage", props: { target: "giocatore", amount: 1, stompable: false } },
+      { type: "Animator", props: {} },
+      { type: "SpriteFX", props: { idle: "float", onJump: "none", onLand: "none", onHurt: "none", onDeath: "none" } },
+    ],
+  },
+  {
+    id: "fusibile",
+    name: "Fusibile",
+    tags: ["fusibile", "raccoglibile"],
+    blocks: [
+      { type: "Sprite", props: { image: "oggetti", frame: 10, origin: "center", flipWithFacing: false } },
+      { type: "Body", props: { width: 10, height: 10, group: "raccoglibili", collidesWith: ["giocatore"], world: false } },
+      { type: "Collectible", props: { variable: "fusibili", amount: 1, sound: "moneta" } },
+      { type: "Light", props: { radius: 1.2, color: "#ffd84a", intensity: 0.7, flicker: 0.3, offsetY: 0 } },
+    ],
+  },
+  {
+    id: "pila",
+    name: "Pila",
+    tags: ["pila", "raccoglibile"],
+    blocks: [
+      { type: "Sprite", props: { image: "oggetti", frame: 9, origin: "center", flipWithFacing: false } },
+      { type: "Body", props: { width: 10, height: 10, group: "raccoglibili", collidesWith: ["giocatore"], world: false } },
+      { type: "Collectible", props: { variable: "", amount: 0, sound: "moneta" } },
+      { type: "Light", props: { radius: 1, color: "#8fd3ff", intensity: 0.5, flicker: 0, offsetY: 0 } },
+    ],
+  },
+  {
+    id: "armadio",
+    name: "Armadio",
+    tags: ["nascondiglio"],
+    blocks: [
+      { type: "Sprite", props: { image: "door", flipWithFacing: false } },
+      { type: "HidingSpot", props: { target: "giocatore", range: 1.2, command: "action", hideTag: "nascosto", sound: "cigolio" } },
+    ],
+  },
+];
+
+/** Legenda: # muro, P giocatore, m ombra, f fusibile, b pila, a armadio, U uscita. */
+const HR_MAP = [
+  "######################",
+  "#P.....#......#......#",
+  "#......#...b..#...f..#",
+  "#..a...#......#......#",
+  "#......#..#####...####",
+  "#####..#..#......#...#",
+  "#......#..#..a...#...#",
+  "#...f..#..#......#.b.#",
+  "#......+..+......#...#",
+  "#......#..#####..#...#",
+  "####...#......#..#...#",
+  "#......#...m..#..+...#",
+  "#..a...#......#......#",
+  "#......####...#...f..#",
+  "#.................U..#",
+  "######################",
+];
+
+function levelHaunted() {
+  const H = HR_MAP.length;
+  const W = HR_MAP[0].length;
+  const pavimento = new Array(W * H).fill(-1);
+  const muri = new Array(W * H).fill(-1);
+  const entities = [];
+  let n = 0;
+  const at = (c, r) => ({ x: cx(c), y: mid(r) + 4 });
+  HR_MAP.forEach((row, r) =>
+    [...row].forEach((ch, c) => {
+      const i = r * W + c;
+      if (ch === "#") muri[i] = 13;
+      else pavimento[i] = 19;
+      const p = at(c, r);
+      const id = (base) => `${base}_${++n}`;
+      if (ch === "P") {
+        entities.push({
+          id: "giocatore_hr",
+          name: "Pepino",
+          ...p,
+          tags: ["giocatore"],
+          blocks: [
+            { type: "Sprite", props: { image: "pepino_td" } },
+            { type: "Body", props: { width: 10, height: 7, group: "giocatore", collidesWith: ["nemici", "raccoglibili", "trigger"] } },
+            { type: "TopDownController", props: { directions: "8", speed: 3.2 } },
+            { type: "Animator", props: {} },
+            { type: "CameraFollow", props: { mode: "topdown", deadzoneW: 1, deadzoneH: 1, offsetY: -0.5, lookahead: 0 } },
+            { type: "Flashlight", props: { range: 5.5, spread: 1.8, halo: 1.2, command: "item", battery: "batteria", drain: 1.5 } },
+            { type: "Sanity", props: { variable: "coraggio", max: 100, darkLoss: 3, fearLoss: 10, fearRange: 4, monster: "mostro", recover: 2, low: 35 } },
+            { type: "Health", props: { max: 3, variable: "vita", onDeath: "restart", hurtSound: "spavento", invulnerability: 1.5, knockback: 6 } },
+            { type: "SpriteFX", props: { onHurt: "hit", onJump: "none", onLand: "none", onDeath: "vanish" } },
+          ],
+        });
+      }
+      if (ch === "m") entities.push(inst("ombra_mostro", "Ombra", p.x, p.y));
+      if (ch === "f") entities.push(inst("fusibile", "Fusibile", p.x, p.y));
+      if (ch === "b") entities.push(inst("pila", "Pila", p.x, p.y));
+      if (ch === "a") entities.push({ ...inst("armadio", "Armadio", p.x, p.y + 4), id: id("armadio") });
+      if (ch === "U") {
+        entities.push({
+          id: "cancello",
+          name: "Cancello",
+          ...p,
+          tags: ["uscita"],
+          blocks: [
+            { type: "Sprite", props: { image: "door", flipWithFacing: false } },
+            { type: "Body", props: { width: 12, height: 16, group: "trigger", collidesWith: ["giocatore"], world: false } },
+          ],
+        });
+      }
+    }),
+  );
+  entities.push(
+    { id: "hud_vita_hr", name: "HUD · Vita", x: 8, y: 6, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Vita", size: 7, outline: true } }] },
+    { id: "hud_vita_bar_hr", name: "HUD · Barra vita", x: 30, y: 8, z: 100, tags: ["interfaccia"], blocks: [{ type: "Bar", props: { variable: "vita", max: 3, width: 36, height: 5 } }] },
+    { id: "hud_coraggio_hr", name: "HUD · Coraggio", x: 8, y: 16, z: 100, tags: ["interfaccia"], blocks: [{ type: "Text", props: { text: "Coraggio", size: 7, outline: true } }] },
+    {
+      id: "hud_coraggio_bar_hr",
+      name: "HUD · Barra coraggio",
+      x: 46,
+      y: 18,
+      z: 100,
+      tags: ["interfaccia"],
+      blocks: [{ type: "Bar", props: { variable: "coraggio", max: 100, width: 36, height: 5, color: "#b452e0" } }],
+    },
+    {
+      id: "hud_batteria_hr",
+      name: "HUD · Batteria",
+      x: 8,
+      y: 26,
+      z: 100,
+      tags: ["interfaccia"],
+      blocks: [{ type: "Text", props: { text: "Torcia {batteria}%", size: 7, outline: true } }],
+    },
+    {
+      id: "hud_fusibili_hr",
+      name: "HUD · Fusibili",
+      x: 240,
+      y: 6,
+      z: 100,
+      tags: ["interfaccia"],
+      blocks: [{ type: "Text", props: { text: "Fusibili {fusibili}/3", size: 7, outline: true } }],
+    },
+  );
+  return {
+    id: "serra",
+    name: "La serra abbandonata",
+    width: W,
+    height: H,
+    background: "#05060a",
+    ambient: "#191c26",
+    ySort: true,
+    openBottom: false,
+    layers: [makeLayer("pavimento", "Pavimento", W, H, pavimento, -10, false), makeLayer("muri", "Muri", W, H, muri, 0, true)],
+    entities,
+    rules: [
+      rule("hr_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [
+        say("Q accende e spegne la torcia · C per nasconderti negli armadi. Trova 3 fusibili e scappa dal cancello!", 5),
+      ]),
+      rule("hr_pila", "Le pile ricaricano la torcia", { type: "event", params: { target: "#pila", event: "collected" } }, [], [
+        { type: "block.action", params: { target: "@giocatore_hr", action: "Flashlight.charge", args: { amount: 40 } } },
+        { type: "audio.play", params: { sound: "interruttore" } },
+        say("Pila nuova!", 1.5),
+      ]),
+      rule("hr_fusibile", "Tutti i fusibili trovati", { type: "event", params: { target: "#fusibile", event: "collected" } }, [
+        { type: "var.compare", params: { variable: "fusibili", op: ">=", value: "3" } },
+      ], [say("Hai tutti i fusibili: il cancello si apre!", 3)]),
+      rule("hr_uscita", "Il cancello si apre solo con tre fusibili", { type: "contact", params: { target: "@cancello", other: "#giocatore" } }, [
+        { type: "var.compare", params: { variable: "fusibili", op: ">=", value: "3" } },
+      ], [{ type: "scene.goto", params: { scene: "fine", fade: 0.6 } }]),
+      rule("hr_chiuso", "Senza fusibili il cancello resta chiuso", { type: "contact", params: { target: "@cancello", other: "#giocatore" } }, [
+        { type: "var.compare", params: { variable: "fusibili", op: "<", value: "3" } },
+      ], [say("Il cancello è bloccato: mancano dei fusibili.", 2)]),
+      rule("hr_paura", "Senza coraggio si scappa via", { type: "event", params: { target: "@giocatore_hr", event: "empty" } }, [], [
+        { type: "audio.play", params: { sound: "spavento" } },
+        say("Troppa paura!", 1.5, true),
+        { type: "scene.restart", params: { fade: 0.6 } },
+      ]),
+    ],
+  };
+}
+
+/** Fine della serra: «Ricomincia» rimette fusibili, batteria e coraggio. */
+function hauntedEnd() {
+  const s = retext(retext(levelEnd("serra"), "titolo_fine", "Sei uscito dalla serra!"), "monete_fine", "Il nonno non ci crederà mai.");
+  s.rules[0].actions.push(
+    { type: "var.set", params: { variable: "fusibili", value: "0" } },
+    { type: "var.set", params: { variable: "batteria", value: "100" } },
+    { type: "var.set", params: { variable: "coraggio", value: "100" } },
+    { type: "var.set", params: { variable: "vita", value: "3" } },
+  );
+  return s;
+}
+
+// ---- Il torneo dell'orto: duelli a carte (modello di progetto)
+
+/** Il mazzo di Pepino: le prime quattro carte sono già nel mazzo, il peperoncino si impara vincendo. */
+const CARD_DECK = [
+  { name: "Zappata", cost: 1, effect: "attack", value: 4, copies: 4, color: "#c2504a" },
+  { name: "Foglia dura", cost: 1, effect: "shield", value: 4, copies: 3, color: "#4a8fd6" },
+  { name: "Innaffiata", cost: 1, effect: "heal", value: 3, copies: 2, color: "#6cc24a" },
+  { name: "Buona idea", cost: 0, effect: "draw", value: 2, copies: 1, color: "#b452e0" },
+  { name: "Peperoncino", cost: 2, effect: "attack", value: 9, copies: 0, color: "#ff8a3c" },
+];
+
+const CARD_ASSETS = [
+  { id: "carta_giocata", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 520, freqEnd: 780, sustain: 0.02, decay: 0.08, volume: 0.22 }) },
+];
+
+/** Un duello: l'avversario in mezzo al tavolo e il blocco che gestisce le carte. */
+function cardDuel(id, name, sceneName, rival, rivalHp, rivalImage, tint, moves, rules) {
+  const W = 20;
+  const H = 11;
+  const tavolo = new Array(W * H).fill(-1);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) tavolo[y * W + x] = 2;
+  return {
+    id,
+    name: sceneName,
+    width: W,
+    height: H,
+    background: "#1b1420",
+    ySort: false,
+    openBottom: false,
+    music: "musica",
+    layers: [makeLayer("tavolo", "Tavolo", W, H, tavolo, -10, false)],
+    entities: [
+      {
+        id: `${id}_rivale`,
+        name: rival,
+        x: 160,
+        y: 78,
+        scaleX: 2,
+        scaleY: 2,
+        blocks: [
+          { type: "Sprite", props: { image: rivalImage, origin: "center", tint, flipWithFacing: false } },
+          { type: "SpriteFX", props: { idle: "breathe", onJump: "none", onLand: "none", onHurt: "none", onDeath: "none" } },
+        ],
+      },
+      {
+        id: `${id}_tavolo`,
+        name: "Duello",
+        x: 0,
+        y: 0,
+        z: 100,
+        blocks: [
+          {
+            type: "CardBattle",
+            props: {
+              hp: 24,
+              enemyName: rival,
+              enemyHp: rivalHp,
+              energy: 3,
+              handSize: 4,
+              deck: CARD_DECK,
+              enemyDeck: moves,
+              deckVar: "carte",
+              hpVar: "vita",
+              enemyHpVar: "vita_nemico",
+              wonVar: "vinto",
+              playSound: "carta_giocata",
+            },
+          },
+        ],
+      },
+    ],
+    rules,
+  };
+}
+
+function levelCards1() {
+  return cardDuel(
+    "duello1",
+    "duello1",
+    "Sfida al Cavolo Nero",
+    "Cavolo Nero",
+    20,
+    "slime",
+    "#7a5ba8",
+    [
+      { name: "Zampata", cost: 0, effect: "attack", value: 5, copies: 3, color: "#c2504a" },
+      { name: "Corazza", cost: 0, effect: "shield", value: 4, copies: 1, color: "#4a8fd6" },
+      { name: "Morso", cost: 0, effect: "attack", value: 8, copies: 1, color: "#8e2b35" },
+    ],
+    [
+      rule("cd_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [
+        say("← → scegli la carta · C la giochi · X chiude il turno. Puoi anche cliccare!", 4),
+      ]),
+      rule("cd_vinto", "Vinto: si impara una carta nuova", { type: "event", params: { target: "@duello1_tavolo", event: "won" } }, [], [
+        { type: "wait", params: { seconds: 1.5 } },
+        { type: "block.action", params: { target: "@duello1_tavolo", action: "CardBattle.addCard", args: { card: "Peperoncino" } } },
+        say("Hai imparato il Peperoncino!", 2.5, true),
+        { type: "scene.goto", params: { scene: "duello2", fade: 0.5 } },
+      ]),
+      rule("cd_perso", "Perso: si ricomincia", { type: "event", params: { target: "@duello1_tavolo", event: "lost" } }, [], [
+        { type: "wait", params: { seconds: 1.5 } },
+        { type: "scene.goto", params: { scene: "sconfitta", fade: 0.5 } },
+      ]),
+    ],
+  );
+}
+
+function levelCards2() {
+  return cardDuel(
+    "duello2",
+    "duello2",
+    "Finale con la Barbabietola",
+    "Barbabietola",
+    28,
+    "boss",
+    "#d0525a",
+    [
+      { name: "Testata", cost: 0, effect: "attack", value: 7, copies: 3, color: "#c2504a" },
+      { name: "Radici", cost: 0, effect: "shield", value: 6, copies: 1, color: "#4a8fd6" },
+      { name: "Zuccherino", cost: 0, effect: "heal", value: 4, copies: 1, color: "#6cc24a" },
+    ],
+    [
+      rule("cd2_inizio", "L'ultimo avversario", { type: "scene.start", params: {} }, [], [say("Ultimo duello: usa il Peperoncino al momento giusto!", 3)]),
+      rule("cd2_vinto", "Torneo vinto", { type: "event", params: { target: "@duello2_tavolo", event: "won" } }, [], [
+        { type: "wait", params: { seconds: 1.5 } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.5 } },
+      ]),
+      rule("cd2_perso", "Perso: si ricomincia", { type: "event", params: { target: "@duello2_tavolo", event: "lost" } }, [], [
+        { type: "wait", params: { seconds: 1.5 } },
+        { type: "scene.goto", params: { scene: "sconfitta", fade: 0.5 } },
+      ]),
+    ],
+  );
+}
+
+/** Schermata di sconfitta: si riparte dal primo duello, senza le carte imparate. */
+function cardsLost() {
+  const s = retext(retext(levelEnd("duello1"), "titolo_fine", "Ti hanno battuto!"), "monete_fine", "Riprova: le carte imparate si perdono.");
+  s.id = "sconfitta";
+  s.name = "Sconfitta";
+  s.rules[0].actions.push({ type: "var.set", params: { variable: "carte", value: "" } });
+  return s;
+}
+
+/** Fine del torneo. */
+function cardsEnd() {
+  const s = retext(retext(levelEnd("duello1"), "titolo_fine", "Torneo vinto!"), "monete_fine", "Il Peperoncino resta nel tuo mazzo.");
+  s.rules[0].actions.push({ type: "var.set", params: { variable: "carte", value: "" } });
+  return s;
+}
+
+// ---- Le cantine del nonno: sotterranei a caso (modello di progetto)
+
+/** La scala che porta al piano di sotto e uno scrigno chiuso. */
+{
+  const c = new Pix(32, 16);
+  // 0: scala nel pavimento
+  shape(c, 0, 0, roundRect(2, 3, 13, 15), "#2a2f3a", "#12151c", [1, 2, 14, 15]);
+  for (let i = 0; i < 4; i++) {
+    c.rect(3, 5 + i * 3, 10, 2, i % 2 ? "#5f6170" : "#8d8f9c");
+    c.rect(3, 7 + i * 3, 10, 1, "#1b1e26");
+  }
+  // 1: scrigno
+  shape(c, 16, 0, roundRect(2, 6, 13, 14), P.wood, P.woodDk, [1, 5, 14, 15]);
+  shape(c, 16, 0, (x, y) => y >= 3 && y <= 6 && x >= 2 && x <= 13, P.woodHi, P.woodDk, [1, 2, 14, 7]);
+  c.rect(16 + 7, 8, 2, 3, P.coin);
+  c.save("sotterraneo.png");
+}
+
+const RL_ASSETS = [
+  { id: "sotterraneo", type: "image", src: "assets/sotterraneo.png", frameWidth: 16, frameHeight: 16 },
+  { id: "scalino", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 330, freqEnd: 110, sustain: 0.03, decay: 0.16, volume: 0.28 }) },
+];
+
+const RL_PREFABS = [
+  {
+    id: "scala_giu",
+    name: "Scala per il piano dopo",
+    tags: ["scala"],
+    blocks: [
+      { type: "Sprite", props: { image: "sotterraneo", frame: 0, origin: "center", flipWithFacing: false } },
+      { type: "Body", props: { width: 14, height: 14, group: "trigger", collidesWith: ["giocatore"], world: false } },
+      { type: "FloorExit", props: { target: "giocatore", floorVar: "piano", fade: 0.4, sound: "scalino" } },
+    ],
+  },
+  {
+    id: "scrigno",
+    name: "Scrigno",
+    tags: ["raccoglibile"],
+    blocks: [
+      { type: "Sprite", props: { image: "sotterraneo", frame: 1, origin: "center", flipWithFacing: false } },
+      { type: "Body", props: { width: 12, height: 12, group: "raccoglibili", collidesWith: ["giocatore"], world: false } },
+      { type: "Collectible", props: { variable: "monete", amount: 5, sound: "moneta" } },
+    ],
+  },
+  {
+    id: "pozione_terra",
+    name: "Pozione nel sotterraneo",
+    tags: ["raccoglibile"],
+    blocks: [
+      { type: "Body", props: { width: 12, height: 12, group: "raccoglibili", collidesWith: ["giocatore"], world: false } },
+      { type: "ItemPickup", props: { item: "pozione", sound: "moneta" } },
+    ],
+  },
+  {
+    id: "slime_cantina",
+    name: "Slime di cantina",
+    tags: ["nemico"],
+    blocks: [
+      { type: "Sprite", props: { image: "slime", tint: "#b0a2ff" } },
+      { type: "Body", props: { width: 12, height: 8, group: "nemici", collidesWith: ["giocatore"] } },
+      { type: "TopDownController", props: { input: "ai", speed: 1.6, directions: "8" } },
+      { type: "Chaser", props: { target: "giocatore", seeRange: 5, loseRange: 9 } },
+      { type: "Patrol", props: { axis: "horizontal", turnAtEdges: false } },
+      { type: "Health", props: { max: 2, invulnerability: 0.3, knockback: 6 } },
+      { type: "ContactDamage", props: { target: "giocatore", stompable: false } },
+      { type: "SpriteFX", props: { onHurt: "hit", onDeath: "vanish", onJump: "none", onLand: "none" } },
+      { type: "Animator", props: {} },
+    ],
+  },
+];
+
+/** Una cantina generata dal computer: il layer parte vuoto, ci pensa il blocco a scavarlo. */
+function levelDungeon() {
+  const W = 26;
+  const H = 18;
+  return {
+    id: "sotterraneo",
+    name: "Le cantine del nonno",
+    width: W,
+    height: H,
+    background: "#0e1014",
+    ySort: true,
+    openBottom: false,
+    music: "musica",
+    layers: [makeLayer("cantina", "Cantina", W, H, new Array(W * H).fill(13), 0, true)],
+    entities: [
+      {
+        id: "giocatore_rl",
+        name: "Pepino",
+        x: cx(2),
+        y: mid(2),
+        tags: ["giocatore"],
+        blocks: [
+          { type: "Sprite", props: { image: "pepino_td" } },
+          { type: "Body", props: { width: 10, height: 7, group: "giocatore", collidesWith: ["nemici", "raccoglibili", "trigger"] } },
+          { type: "TopDownController", props: { directions: "8", speed: 4 } },
+          { type: "Animator", props: {} },
+          { type: "CameraFollow", props: { mode: "topdown", deadzoneW: 1, deadzoneH: 1, offsetY: -0.5, lookahead: 0 } },
+          { type: "Health", props: { max: 3, variable: "vita", onDeath: "restart", hurtSound: "colpo", invulnerability: 1 } },
+          { type: "Attack", props: { target: "nemico", damage: 1, reach: 12, width: 16, height: 14, sound: "colpo" } },
+          { type: "PowerUps", props: {} },
+          { type: "MiniMap", props: { size: 48, corner: "topright", mark: "nemico" } },
+          { type: "SpriteFX", props: { onHurt: "hit", onJump: "none", onLand: "none", onDeath: "vanish" } },
+        ],
+      },
+      {
+        id: "regia_cantina",
+        name: "Generatore del sotterraneo",
+        x: 0,
+        y: 0,
+        blocks: [
+          {
+            type: "DungeonGenerator",
+            props: {
+              rooms: 8,
+              roomMin: 3,
+              roomMax: 6,
+              floorTile: 10,
+              wallTile: 13,
+              seed: 0,
+              player: "giocatore",
+              exit: "scala_giu",
+              floorVar: "piano",
+              spawns: [
+                { prefab: "slime_cantina", count: 3, perFloor: 1 },
+                { prefab: "scrigno", count: 2, perFloor: 0.5 },
+                { prefab: "pozione_terra", count: 1, perFloor: 0 },
+              ],
+            },
+          },
+        ],
+      },
+      ...hud(),
+      {
+        id: "hud_piano",
+        name: "HUD · Piano",
+        x: 150,
+        y: 4,
+        z: 100,
+        tags: ["interfaccia"],
+        blocks: [{ type: "Text", props: { text: "Piano {piano}", size: 7, outline: true } }],
+      },
+    ],
+    rules: [
+      rule("rl_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [
+        say("Frecce per muoverti · V colpisci · trova la scala e scendi. Ogni piano è diverso!", 4),
+      ]),
+      rule("rl_moneta", "Uno slime sconfitto lascia una moneta", { type: "event", params: { target: "#nemico", event: "died" } }, [], [
+        { type: "var.add", params: { amount: 1, variable: "monete" } },
+      ]),
+      rule("rl_caduta", "Se la vita finisce si riparte dal primo piano", { type: "event", params: { target: "@giocatore_rl", event: "died" } }, [], [
+        { type: "var.set", params: { variable: "piano", value: "1" } },
+        { type: "var.set", params: { variable: "monete", value: "0" } },
+      ]),
+      rule("rl_scesi", "Ogni piano nuovo ridà un cuore", { type: "scene.start", params: {} }, [{ type: "var.compare", params: { variable: "piano", op: ">", value: "1" } }], [
+        { type: "block.action", params: { target: "@giocatore_rl", action: "Health.heal", args: { amount: 1 } } },
+        say("Piano {piano}!", 2),
+      ]),
+    ],
+  };
+}
+
+// ---- Sfida sul tetto: picchiaduro uno contro uno (modello di progetto)
+
+const VS_ASSETS = [
+  { id: "peperone", type: "image", src: "assets/peperone.png", frameWidth: 16, frameHeight: 24, animations: HERO_ANIMS },
+  { id: "parata", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 900, freqEnd: 300, sustain: 0.01, decay: 0.08, volume: 0.25, crush: 0.4 }) },
+  { id: "pugno", type: "audio", src: "", sfx: sfxData({ wave: "noise", freq: 400, freqEnd: 120, sustain: 0.01, decay: 0.09, volume: 0.28 }) },
+  { id: "colpito", type: "audio", src: "", sfx: sfxData({ wave: "square", freq: 240, freqEnd: 90, sustain: 0.02, decay: 0.14, volume: 0.3, crush: 0.5 }) },
+];
+
+/** Le animazioni del picchiaduro che non hanno un disegno tutto loro: si appoggiano a quelle che ci sono. */
+const VS_STATES = { walkBack: "walk", guard: "idle", crouch: "getup", hurt: "hurt" };
+
+/** Un lottatore: corpo, controller, combo di colpi, salute e animazioni. */
+function fighterEntity(id, name, image, x, tags, opponent, ai) {
+  return {
+    id,
+    name,
+    x,
+    y: feet(7),
+    tags,
+    blocks: [
+      { type: "Sprite", props: { image, shadow: true } },
+      { type: "Body", props: { width: 11, height: 20, group: ai ? "nemici" : "giocatore", collidesWith: ai ? ["giocatore"] : ["nemici"] } },
+      { type: "FighterController", props: { input: ai ? "ai" : "player", opponent, speed: 4, backSpeed: 3, jumpHeight: 2.6, guardSound: "parata" } },
+      {
+        type: "Combo",
+        props: {
+          mode: ai ? "ai" : "player",
+          target: ai ? "giocatore" : "avversario",
+          moves: 3,
+          m1Damage: 1,
+          m2Damage: 1,
+          m3Damage: 2,
+          m3Push: 4,
+          finisherKnockdown: false,
+          airKnockdown: false,
+          sound: "pugno",
+          hitSound: "colpito",
+        },
+      },
+      { type: "Health", props: { max: 10, invulnerability: 0.15, knockback: 3, onDeath: "none", hurtSound: "colpito" } },
+      { type: "SpriteFX", props: { onHurt: "hit", onJump: "none", onLand: "squash", onDeath: "none" } },
+      { type: "Animator", props: { map: VS_STATES } },
+      ...(ai ? [{ type: "FighterAI", props: { target: "giocatore", reach: 20, aggression: 0.55, think: 0.3, jumpChance: 0.12 } }] : []),
+    ],
+  };
+}
+
+/** Il tetto al tramonto: due lottatori, la regia dell'incontro e il pubblico di finestre illuminate. */
+function levelArena() {
+  const W = 20;
+  const H = 11;
+  const sfondo = new Array(W * H).fill(-1);
+  const suolo = new Array(W * H).fill(-1);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < W; x++) sfondo[y * W + x] = 13;
+  for (const [x, y] of [[2, 2], [5, 4], [9, 2], [13, 5], [17, 3], [7, 6], [15, 1]]) sfondo[y * W + x] = 21;
+  for (let y = 8; y < H; y++) for (let x = 0; x < W; x++) suolo[y * W + x] = 2;
+  return {
+    id: "arena",
+    name: "Sfida sul tetto",
+    width: W,
+    height: H,
+    background: "#241a2e",
+    ySort: false,
+    openBottom: false,
+    music: "musica",
+    layers: [makeLayer("sfondo", "Sfondo", W, H, sfondo, -10, false), makeLayer("tetto", "Tetto", W, H, suolo, 0, true)],
+    entities: [
+      fighterEntity("pepino_vs", "Pepino", "pepino", cx(4), ["giocatore"], "avversario", false),
+      fighterEntity("peperone_vs", "Peperone", "peperone", cx(15), ["avversario", "nemico"], "giocatore", true),
+      {
+        id: "regia",
+        name: "Regia dell'incontro",
+        x: 0,
+        y: 0,
+        z: 100,
+        blocks: [
+          {
+            type: "FightMatch",
+            props: { fighter1: "giocatore", fighter2: "avversario", name1: "Pepino", name2: "Peperone", rounds: 2, time: 60, winner: "vincitore" },
+          },
+        ],
+      },
+    ],
+    rules: [
+      rule("vs_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [
+        say("← → muoviti · tieni indietro per parare · ↓ abbassati · Z salta · V colpisci (tre colpi in fila)", 4),
+      ]),
+      rule("vs_fine", "Quando l'incontro finisce si va alla schermata finale", { type: "event", params: { target: "@regia", event: "matchEnd" } }, [], [
+        { type: "wait", params: { seconds: 2 } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.5 } },
+      ]),
+    ],
+  };
+}
+
+/** Fine dell'incontro: «Ricomincia» rimette tutto com'era. */
+function arenaEnd() {
+  const s = retext(retext(levelEnd("arena"), "titolo_fine", "Incontro finito!"), "monete_fine", "Ci rivediamo sul tetto!");
+  s.rules[0].actions.push({ type: "var.set", params: { variable: "vincitore", value: "0" } });
+  return s;
+}
+
 // ---- Gran premio dei cetrioli: corse viste dall'alto (modello di progetto)
 
 /** Auto vista dall'alto con il muso a destra: è la direzione della rotazione 0. */
@@ -1691,6 +2840,230 @@ function levelRace() {
   };
 }
 
+// ---- La casa del nonno: avventura punta e clicca (modello di progetto)
+
+const HOUSE = {
+  wall: "#d8b48a", wallDk: "#c9a27a", skirt: "#7a5230", floor: "#b07a45", floorDk: "#8a5a3b", sky: "#8fd3ff",
+  gold: "#e0b040", goldDk: "#9a7420", pot: "#c8643c", potDk: "#8a3f22", rug: "#a84848", rugDk: "#7a2e2e", hat: "#5a4636",
+};
+
+{
+  const s = new Pix(320, 180);
+  // Parete a righe, battiscopa e pavimento a listoni.
+  s.rect(0, 0, 320, 136, HOUSE.wall);
+  for (let x = 4; x < 320; x += 12) s.rect(x, 0, 4, 136, HOUSE.wallDk);
+  s.rect(0, 136, 320, 4, HOUSE.skirt);
+  s.rect(0, 140, 320, 40, HOUSE.floor);
+  for (let y = 140, row = 0; y < 180; y += 8, row++) {
+    s.rect(0, y, 320, 1, HOUSE.floorDk);
+    for (let x = (row % 2) * 24; x < 320; x += 48) s.rect(x, y, 1, 8, HOUSE.floorDk);
+  }
+  shape(s, 0, 0, ellipse(150, 164, 60, 8), HOUSE.rug, HOUSE.rugDk, [88, 154, 212, 174]);
+  // Finestra sul giardino.
+  s.rect(38, 38, 56, 50, P.woodDk);
+  s.rect(42, 42, 48, 42, HOUSE.sky);
+  blob(s, 0, 0, 55, 52, 7, 3, "#ffffff");
+  blob(s, 0, 0, 62, 50, 5, 3, "#ffffff");
+  s.rect(42, 72, 48, 12, P.grass);
+  s.rect(42, 72, 48, 1, P.grassHi);
+  s.rect(65, 42, 2, 42, P.woodDk);
+  s.rect(42, 62, 48, 2, P.woodDk);
+  s.rect(34, 88, 64, 3, P.wood);
+  // Il ritratto del bisnonno, con i baffi.
+  s.rect(130, 48, 36, 38, HOUSE.gold);
+  s.rect(132, 50, 32, 34, HOUSE.goldDk);
+  s.rect(134, 52, 28, 30, "#3d5a3a");
+  shape(s, 0, 0, ellipse(148, 70, 7, 11), P.pickle, P.pickleOut, [138, 56, 158, 82]);
+  s.set(145, 66, P.ink);
+  s.set(151, 66, P.ink);
+  s.rect(144, 71, 8, 1, "#ffffff");
+  s.rect(145, 72, 6, 1, "#ffffff");
+  // Cassettiera.
+  s.rect(12, 110, 40, 28, P.woodDk);
+  s.rect(13, 111, 38, 26, P.wood);
+  for (const y of [114, 122, 130]) {
+    s.rect(15, y, 34, 6, P.woodDk);
+    s.rect(16, y + 1, 32, 4, P.woodHi);
+    s.rect(31, y + 2, 2, 2, HOUSE.gold);
+  }
+  s.rect(12, 138, 3, 2, P.woodDk);
+  s.rect(49, 138, 3, 2, P.woodDk);
+  // Vaso con la pianta.
+  s.rect(202, 110, 1, 16, P.leafDk);
+  blob(s, 0, 0, 203, 108, 8, 6, P.leaf);
+  blob(s, 0, 0, 199, 104, 4, 3, P.leafHi);
+  blob(s, 0, 0, 208, 111, 4, 3, P.leafDk);
+  shape(s, 0, 0, roundRect(196, 124, 210, 139), HOUSE.pot, HOUSE.potDk, [196, 124, 210, 139]);
+  s.rect(197, 127, 13, 1, HOUSE.potDk);
+  // Porta.
+  s.rect(265, 93, 34, 47, P.woodDk);
+  s.rect(268, 96, 28, 44, P.wood);
+  s.rect(271, 99, 22, 16, P.woodDk);
+  s.rect(272, 100, 20, 14, P.woodHi);
+  s.rect(271, 119, 22, 18, P.woodDk);
+  s.rect(272, 120, 20, 16, P.woodHi);
+  s.rect(290, 117, 3, 3, HOUSE.gold);
+  s.set(291, 121, P.ink);
+  s.save("stanza.png");
+}
+
+/** Il nonno visto di lato, rivolto a sinistra, con cappello, baffi e bastone. */
+function drawNonnoSide(c, ox, frame) {
+  shape(c, ox, 0, ellipse(8.5, 15.5, 5.5, 8.5), P.pickle, P.pickleOut, [0, 6, 15, 23]);
+  c.rect(ox + 4, 5, 10, 2, HOUSE.hat);
+  c.rect(ox + 6, 2, 6, 3, HOUSE.hat);
+  c.set(ox + 5, 10, frame ? P.pickleOut : P.ink);
+  c.rect(ox + 3, 13, 5, 1, "#ffffff");
+  c.rect(ox + 4, 14, 3, 1, "#ffffff");
+  c.rect(ox + 1, 13, 1, 11, P.woodDk);
+  c.rect(ox + 1, 13, 3, 1, P.woodDk);
+}
+{
+  const n = new Pix(32, 24);
+  drawNonnoSide(n, 0, 0);
+  drawNonnoSide(n, 16, 1);
+  n.save("nonno_lato.png");
+  const k = new Pix(16, 16);
+  shape(k, 0, 0, ellipse(5, 8, 3.6, 3.6), HOUSE.gold, HOUSE.goldDk, [0, 3, 10, 13]);
+  k.set(4, 7, HOUSE.goldDk);
+  k.rect(8, 7, 7, 2, HOUSE.gold);
+  k.rect(8, 7, 7, 1, "#fff0a0");
+  k.rect(12, 9, 1, 2, HOUSE.gold);
+  k.rect(14, 9, 1, 3, HOUSE.gold);
+  k.save("chiave.png");
+}
+
+const HOUSE_ASSETS = [
+  { id: "stanza", type: "image", src: "assets/stanza.png" },
+  {
+    id: "nonno_lato",
+    type: "image",
+    src: "assets/nonno_lato.png",
+    frameWidth: 16,
+    frameHeight: 24,
+    animations: { idle: { frames: [0, 0, 0, 0, 1], fps: 3, loop: true } },
+  },
+  { id: "chiave", type: "image", src: "assets/chiave.png" },
+];
+
+/** Oggetti dell'avventura: si tengono nell'inventario e si usano sui Punti cliccabili. */
+const HOUSE_ITEMS = [
+  { id: "moneta", name: "Moneta", icon: "coin", kind: "key", description: "Una moneta luccicante." },
+  { id: "chiave", name: "Chiave", icon: "chiave", kind: "key", description: "La chiave della porta di casa." },
+];
+
+const NONNO_CHIAVE = {
+  id: "nonno_chiave",
+  name: "Il nonno e la chiave",
+  lines: [
+    { id: "c1", speaker: "Nonno Cetriolo", portrait: "ritratti", portraitFrame: 1, text: "Pepino! Ho chiuso la porta e ho nascosto la chiave in un posto sicuro..." },
+    { id: "c2", speaker: "Nonno Cetriolo", portrait: "ritratti", portraitFrame: 1, text: "...ma non mi ricordo più dove! Alla mia età la memoria va a monete." },
+    { id: "c3", speaker: "Pepino", portrait: "ritratti", portraitFrame: 0, text: "Va a monete?" },
+    { id: "c4", speaker: "Nonno Cetriolo", portrait: "ritratti", portraitFrame: 1, text: "Dammi una moneta per il gelato e mi tornerà in mente tutto!" },
+  ],
+};
+
+function levelHouse() {
+  const W = 20;
+  const H = 12;
+  const FLOOR = 160; // la linea su cui cammina Pepino
+  const hotspot = (id, name, x, y, w, h, props = {}, extra = []) => ({
+    id,
+    name,
+    x,
+    y,
+    blocks: [...extra, { type: "Hotspot", props: { name, width: w, height: h, ...props } }],
+  });
+  const isVar = (variable, value) => ({ type: "var.compare", params: { variable, op: "==", value: String(value) } });
+  const clicked = (id, event = "clicked") => ({ type: "event", params: { target: `@${id}`, event } });
+  return {
+    id: "casa",
+    name: "La casa del nonno",
+    width: W,
+    height: H,
+    background: "#5a3a22",
+    ySort: false,
+    openBottom: false,
+    music: "musica",
+    layers: [makeLayer("vuoto", "Vuoto", W, H, new Array(W * H).fill(-1), 0, false)],
+    entities: [
+      { id: "sfondo_stanza", name: "Sfondo", x: 0, y: 0, z: -50, blocks: [{ type: "Sprite", props: { image: "stanza", origin: "topleft", flipWithFacing: false } }] },
+      hotspot("finestra", "Finestra", 66, 88, 56, 50, { description: "Fuori c'è il giardino. Devo trovare il modo di uscire!" }),
+      hotspot("quadro", "Quadro", 148, 86, 36, 38, { description: "Il bisnonno Cetriolo. Che bei baffi!" }),
+      hotspot("cassettiera", "Cassettiera", 32, 138, 40, 28, { description: "Calzini, calzini e ancora calzini. Niente chiave.", standX: 14 }),
+      hotspot("vaso", "Vaso", 203, 140, 18, 36, { standX: -14 }),
+      hotspot("porta", "Porta", 282, 140, 32, 46, {
+        description: "La porta è chiusa a chiave.",
+        needs: "chiave",
+        rightText: "La chiave gira... la porta si apre!",
+        wrongText: "Non entra nella serratura.",
+        standX: -20,
+      }),
+      hotspot("moneta_pavimento", "Moneta", 96, 166, 12, 12, { give: "moneta", description: "Una moneta! La metto in tasca.", sound: "moneta" }, [
+        { type: "Sprite", props: { image: "coin", flipWithFacing: false } },
+        { type: "Animator", props: {} },
+      ]),
+      {
+        id: "nonno_casa",
+        name: "Nonno Cetriolo",
+        x: 244,
+        y: FLOOR,
+        tags: ["npc"],
+        blocks: [
+          { type: "Sprite", props: { image: "nonno_lato", flipWithFacing: false } },
+          { type: "Animator", props: {} },
+          { type: "Hotspot", props: { name: "Nonno Cetriolo", width: 16, height: 24, standX: -22, needs: "moneta", wrongText: "No grazie, non mi serve." } },
+        ],
+      },
+      {
+        id: "pepino_casa",
+        name: "Pepino",
+        x: 120,
+        y: FLOOR,
+        tags: ["giocatore"],
+        blocks: [
+          { type: "Sprite", props: { image: "pepino" } },
+          { type: "Animator", props: {} },
+          { type: "PointClickMover", props: { mode: "horizontal", speed: 3.5 } },
+        ],
+      },
+      {
+        id: "inventario_hud",
+        name: "HUD · Inventario",
+        x: 4,
+        y: 4,
+        z: 100,
+        tags: ["interfaccia"],
+        blocks: [{ type: "Inventory", props: { slots: 5, size: 20, sound: "moneta" } }],
+      },
+    ],
+    rules: [
+      rule("pc_inizio", "Come si gioca", { type: "scene.start", params: {} }, [], [say("Clicca per camminare. Clicca le cose per guardarle, raccoglierle o usarle.", 4)]),
+      rule("pc_nonno_parla", "Il nonno racconta della chiave", clicked("nonno_casa"), [isVar("indizio", 0)], [
+        { type: "dialogue.start", params: { dialogue: "nonno_chiave", speaker: "@nonno_casa" } },
+      ]),
+      rule("pc_nonno_ricorda", "Il nonno ripete dov'è la chiave", clicked("nonno_casa"), [isVar("indizio", 1)], [say("Nel vaso, Pepino! La chiave è nel vaso.", 3)]),
+      rule("pc_moneta_al_nonno", "Con la moneta il nonno si ricorda", clicked("nonno_casa", "rightItem"), [], [
+        say("Grazie! Ora mi ricordo: la chiave è nel vaso!", 3),
+        { type: "var.set", params: { variable: "indizio", value: "1" } },
+      ]),
+      // L'ordine conta: la regola del vaso vuoto viene prima di quella che dà la chiave.
+      rule("pc_vaso_vuoto", "Nel vaso non c'è più niente", clicked("vaso"), [isVar("chiave_presa", 1)], [say("Ormai nel vaso c'è solo terra.", 2.5)]),
+      rule("pc_vaso", "Un vaso qualsiasi", clicked("vaso"), [isVar("indizio", 0)], [say("Un vaso con una pianta. È pieno di terra.", 2.5)]),
+      rule("pc_vaso_chiave", "La chiave è nel vaso", clicked("vaso"), [isVar("indizio", 1), isVar("chiave_presa", 0)], [
+        { type: "inventory.add", params: { item: "chiave", qty: 1 } },
+        { type: "var.set", params: { variable: "chiave_presa", value: "1" } },
+        { type: "audio.play", params: { sound: "moneta" } },
+        say("Nel vaso c'era la chiave!", 2.5),
+      ]),
+      rule("pc_porta", "Con la chiave si esce", clicked("porta", "rightItem"), [], [
+        { type: "wait", params: { seconds: 2 } },
+        { type: "scene.goto", params: { scene: "fine", fade: 0.6 } },
+      ]),
+    ],
+  };
+}
+
 // ---- Fine livello (usata dai modelli di progetto)
 function levelEnd(restartScene) {
   return {
@@ -1837,6 +3210,7 @@ function levelMenu() {
         blocks: [
           { type: "Sprite", props: { image: "slime", flipWithFacing: false } },
           { type: "Animator", props: {} },
+          { type: "Saltella", props: { altezza: 1, pausa: 1.5 } },
         ],
       },
     ],
@@ -1885,6 +3259,157 @@ const EN = {
   "Tempo {tempo}": "Time {tempo}",
   "Gara finita!": "Race over!",
   "Tempo: {tempo} s · Giro migliore: {migliore} s": "Time: {tempo} s · Best lap: {migliore} s",
+  "Clicca per camminare. Clicca le cose per guardarle, raccoglierle o usarle.": "Click to walk. Click things to look at them, pick them up or use them.",
+  Finestra: "Window",
+  Quadro: "Painting",
+  Cassettiera: "Chest of drawers",
+  Vaso: "Vase",
+  Porta: "Door",
+  Moneta: "Coin",
+  Chiave: "Key",
+  "Fuori c'è il giardino. Devo trovare il modo di uscire!": "The garden is outside. I have to find a way out!",
+  "Il bisnonno Cetriolo. Che bei baffi!": "Great-grandpa Pickle. What a moustache!",
+  "Calzini, calzini e ancora calzini. Niente chiave.": "Socks, socks and more socks. No key.",
+  "La porta è chiusa a chiave.": "The door is locked.",
+  "La chiave gira... la porta si apre!": "The key turns... the door opens!",
+  "Non entra nella serratura.": "It doesn't fit in the lock.",
+  "Una moneta! La metto in tasca.": "A coin! Into my pocket it goes.",
+  "No grazie, non mi serve.": "No thanks, I don't need that.",
+  "Non funziona.": "That doesn't work.",
+  "Usa {oggetto} con {punto}": "Use {oggetto} with {punto}",
+  "Nel vaso, Pepino! La chiave è nel vaso.": "In the vase, Pepino! The key is in the vase.",
+  "Grazie! Ora mi ricordo: la chiave è nel vaso!": "Thanks! Now I remember: the key is in the vase!",
+  "Ormai nel vaso c'è solo terra.": "Now there's only soil in the vase.",
+  "Un vaso con una pianta. È pieno di terra.": "A vase with a plant. It's full of soil.",
+  "Nel vaso c'era la chiave!": "The key was in the vase!",
+  "Pepino! Ho chiuso la porta e ho nascosto la chiave in un posto sicuro...": "Pepino! I locked the door and hid the key in a safe place...",
+  "...ma non mi ricordo più dove! Alla mia età la memoria va a monete.": "...but I can't remember where! At my age, memory runs on coins.",
+  "Va a monete?": "Runs on coins?",
+  "Dammi una moneta per il gelato e mi tornerà in mente tutto!": "Give me a coin for an ice cream and it'll all come back to me!",
+  "Sei uscito dalla casa!": "You got out of the house!",
+  // Oggetti, potenziamenti e negozio
+  Pozione: "Potion",
+  "Recupera un cuore.": "Restores one heart.",
+  "Stivali veloci": "Speed boots",
+  "Corri più veloce per 10 secondi.": "Run faster for 10 seconds.",
+  Stella: "Star",
+  "Invincibile per 8 secondi.": "Invincible for 8 seconds.",
+  Calamita: "Magnet",
+  "Attira le monete vicine per 12 secondi.": "Pulls nearby coins for 12 seconds.",
+  Scudo: "Shield",
+  "Para il prossimo colpo.": "Blocks the next hit.",
+  "Fungo saltarello": "Bouncy mushroom",
+  "Salti più in alto per 10 secondi.": "Jump higher for 10 seconds.",
+  "Una moneta luccicante.": "A shiny coin.",
+  "La chiave della porta di casa.": "The key to the front door.",
+  Velocità: "Speed",
+  "Super salto": "Super jump",
+  Invincibilità: "Invincibility",
+  "Più forza": "Strength",
+  "Salto in più": "Extra jump",
+  Esci: "Leave",
+  "Comprato!": "Bought!",
+  "Non ti bastano": "You can't afford it",
+  "Ne hai già il massimo": "You already have the maximum",
+  "Non si può usare adesso": "It can't be used now",
+  "↑ ↓ scegli · Azione compra · Esc esci": "↑ ↓ choose · Action buys · Esc leaves",
+  "Bottega di Zia Zucca": "Auntie Pumpkin's Shop",
+  "C  Bottega": "C  Shop",
+  Monete: "Coins",
+  // Prima persona
+  Munizioni: "Ammo",
+  "Dieci semi per la sparasemi.": "Ten seeds for the seed shooter.",
+  Medikit: "Medkit",
+  "Recupera due cuori.": "Restores two hearts.",
+  // Gioco a ritmo
+  "← ↓ ↑ → quando la nota tocca la linea. Non perdere il ritmo!": "← ↓ ↑ → when the note touches the line. Don't lose the beat!",
+  "Concerto finito!": "Show over!",
+  "Punti: {punti} · Note mancate: {mancate}": "Score: {punti} · Missed notes: {mancate}",
+  "Perfetto!": "Perfect!",
+  "Bene!": "Good!",
+  Mancata: "Missed",
+  Combo: "Combo",
+  "Pronti…": "Ready…",
+  "Finito!": "Done!",
+  // Gioco della paura
+  Ombra: "Shadow",
+  Fusibile: "Fuse",
+  Pila: "Battery",
+  Armadio: "Wardrobe",
+  Cancello: "Gate",
+  "Torcia {batteria}%": "Torch {batteria}%",
+  "Fusibili {fusibili}/3": "Fuses {fusibili}/3",
+  Coraggio: "Courage",
+  "Q accende e spegne la torcia · C per nasconderti negli armadi. Trova 3 fusibili e scappa dal cancello!":
+    "Q turns the torch on and off · C hides you in the wardrobes. Find 3 fuses and escape through the gate!",
+  "Pila nuova!": "Fresh battery!",
+  "Hai tutti i fusibili: il cancello si apre!": "You have all the fuses: the gate opens!",
+  "Il cancello è bloccato: mancano dei fusibili.": "The gate is locked: some fuses are missing.",
+  "Troppa paura!": "Too scared!",
+  "Sei uscito dalla serra!": "You got out of the greenhouse!",
+  "Il nonno non ci crederà mai.": "Grandpa will never believe it.",
+  // Gioco di carte
+  "Fine turno": "End turn",
+  "Il tuo turno": "Your turn",
+  "Hai vinto!": "You won!",
+  "Hai perso!": "You lost!",
+  "Non hai abbastanza energia": "Not enough energy",
+  Attacca: "Attacks",
+  "Si cura": "Heals",
+  "Si difende": "Defends",
+  Energia: "Energy",
+  Mazzo: "Deck",
+  Scarti: "Discard",
+  Colpisce: "Hits",
+  Cura: "Heals",
+  "Pesca carte": "Draws cards",
+  "Dà energia": "Gives energy",
+  Zampata: "Paw swipe",
+  Zappata: "Hoe hit",
+  "Foglia dura": "Tough leaf",
+  Innaffiata: "Watering",
+  "Buona idea": "Good idea",
+  Peperoncino: "Chilli",
+  "Cavolo Nero": "Black Cabbage",
+  Barbabietola: "Beetroot",
+  Corazza: "Armour",
+  Morso: "Bite",
+  Testata: "Headbutt",
+  Radici: "Roots",
+  Zuccherino: "Sugar lump",
+  "← → scegli la carta · C la giochi · X chiude il turno. Puoi anche cliccare!":
+    "← → pick the card · C plays it · X ends the turn. You can click too!",
+  "Hai imparato il Peperoncino!": "You learned the Chilli!",
+  "Ultimo duello: usa il Peperoncino al momento giusto!": "Last duel: play the Chilli at the right moment!",
+  "Torneo vinto!": "Tournament won!",
+  "Il Peperoncino resta nel tuo mazzo.": "The Chilli stays in your deck.",
+  "Ti hanno battuto!": "They beat you!",
+  "Riprova: le carte imparate si perdono.": "Try again: the cards you learned are lost.",
+  // Roguelike
+  "Piano {piano}": "Floor {piano}",
+  "Piano {piano}!": "Floor {piano}!",
+  "Frecce per muoverti · V colpisci · trova la scala e scendi. Ogni piano è diverso!":
+    "Arrows to move · V hits · find the stairs and go down. Every floor is different!",
+  // Picchiaduro 1 contro 1
+  Peperone: "Pepper",
+  Round: "Round",
+  "Lotta!": "Fight!",
+  "K.O.": "K.O.",
+  "Tempo scaduto": "Time up",
+  "Vince {0}!": "{0} wins!",
+  "Incontro finito!": "Match over!",
+  "Ci rivediamo sul tetto!": "See you on the roof!",
+  "← → muoviti · tieni indietro per parare · ↓ abbassati · Z salta · V colpisci (tre colpi in fila)":
+    "← → move · hold back to guard · ↓ crouch · Z jump · V hit (three hits in a row)",
+  "Semi {munizioni} · Peperoncini {peperoncini}": "Seeds {munizioni} · Peppers {peperoncini}",
+  Sparasemi: "Seed shooter",
+  Lanciapeperoncini: "Pepper launcher",
+  "La seconda arma: peperoncini che bruciano.": "The second weapon: peppers that burn.",
+  "Lanciapeperoncini! Premi E per cambiare arma.": "Pepper launcher! Press E to switch weapon.",
+  "↑ ↓ cammina · ← → gira · X + ← → passo di lato · V spara · E cambia arma. Trova l'uscita!":
+    "↑ ↓ walk · ← → turn · X + ← → sidestep · V shoots · E switches weapon. Find the exit!",
+  "Sei uscito dal labirinto!": "You got out of the maze!",
+  "Il nonno ti aspetta in giardino.": "Grandpa is waiting for you in the garden.",
   "Una piccola avventura fatta con Pepino": "A little adventure made with Pepino",
   "Nuova partita": "New game",
   Continua: "Continue",
@@ -1930,7 +3455,6 @@ const EN = {
 // ---------------------------------------------------------------- Script (blocchi in codice)
 
 const SCRIPT_FLUTTUA = `// Blocco scritto in JavaScript: fa salire e scendere dolcemente l'oggetto.
-// Nel demo lo usa il titolo del menù.
 Pepino.defineBlock({
   name: "Fluttua",
   label: "Fluttua",
@@ -1985,6 +3509,33 @@ def potenzia(self, force):
     self.props.force = force
 `;
 
+const SCRIPT_SALTELLA = `# Blocco scritto in Pepino Language: fa un saltello ogni tanto.
+# Il pulsante «In inglese» lo riscrive con le parole inglesi.
+blocco Saltella "Saltella":
+    descrizione "Fa un saltello ogni tanto (scritto in Pepino Language)."
+    proprietà altezza = 1 tile, "Altezza del salto", da 0 a 5
+    proprietà pausa = 1.5 s, "Pausa tra i salti", da 0 a 10
+    evento saltello "Ha fatto un saltello"
+
+    base_y = 0
+
+    quando inizia:
+        base_y = oggetto.y
+        ripeti:
+            aspetta pausa
+            salta()
+            emetti saltello
+
+    # Su e giù in mezzo secondo, un fotogramma alla volta.
+    funzione salta():
+        t = 0 s
+        mentre t < 0.5 s:
+            t += dt
+            oggetto.y = base_y - sen(limita(t / 0.5 s, 0, 1) * 180) * altezza
+            aspetta
+        oggetto.y = base_y
+`;
+
 // ---------------------------------------------------------------- Progetto
 
 const project = {
@@ -2011,8 +3562,10 @@ const project = {
     attack: ["Key:KeyV", "Key:KeyJ", "Pad:Y"],
     pause: ["Key:Escape", "Pad:Start"],
   },
-  variables: { monete: 0, vita: 3, missione: 0 },
+  variables: { monete: 0, vita: 3, missione: 0, inventario: "" },
+  items: BASE_ITEMS,
   assets: [
+    ITEM_ICONS,
     { id: "tiles", type: "image", src: "assets/tiles.png" },
     {
       id: "pepino",
@@ -2020,22 +3573,7 @@ const project = {
       src: "assets/pepino.png",
       frameWidth: 16,
       frameHeight: 24,
-      animations: {
-        idle: { frames: [0, 1], fps: 2, loop: true },
-        run: { frames: [2, 3, 4, 5], fps: 10, loop: true },
-        walk: { frames: [2, 3, 4, 5], fps: 8, loop: true },
-        attack1: { frames: [11, 12, 12], fps: 12, loop: false },
-        attack2: { frames: [11, 13, 13], fps: 12, loop: false },
-        attack3: { frames: [14, 15, 15, 15, 15], fps: 12, loop: false },
-        airAttack: { frames: [16], fps: 1, loop: true },
-        hurt: { frames: [17], fps: 1, loop: true },
-        down: { frames: [18], fps: 1, loop: true },
-        getup: { frames: [19], fps: 1, loop: true },
-        jump: { frames: [6], fps: 1, loop: true },
-        fall: { frames: [7], fps: 1, loop: true },
-        dash: { frames: [8], fps: 1, loop: true },
-        climb: { frames: [9, 10], fps: 6, loop: true },
-      },
+      animations: HERO_ANIMS,
     },
     {
       id: "pepino_td",
@@ -2232,6 +3770,7 @@ const project = {
   scripts: [
     { id: "fluttua", name: "Fluttua", language: "js", code: SCRIPT_FLUTTUA },
     { id: "molla", name: "Molla", language: "py", code: SCRIPT_MOLLA },
+    { id: "saltella", name: "Saltella", language: "pep", code: SCRIPT_SALTELLA },
   ],
   dialogues: [
     {
@@ -2264,10 +3803,10 @@ const project = {
   ],
 };
 
-writeFileSync(join(OUT, "project.json"), JSON.stringify(project, null, 2));
+// Il progetto qui sopra è la base dei modelli (asset, modelli, oggetti).
 
 // ---------------------------------------------------------------- Modelli per «Nuovo progetto»
-// Un gioco piccolo ma completo per genere. Usano gli asset della demo: l'editor li copia nel nuovo progetto.
+// Un gioco piccolo ma completo per genere. Usano gli asset di samples/templates/assets: l'editor li copia nel nuovo progetto.
 
 const TEMPLATES_DIR = join(ROOT, "samples", "templates");
 mkdirSync(TEMPLATES_DIR, { recursive: true });
@@ -2292,7 +3831,33 @@ const without = (s, entityIds, ruleIds = []) => ({
   rules: (s.rules ?? []).filter((r) => !ruleIds.includes(r.id)),
 });
 
+/** Progetto vuoto: una scena senza oggetti, con i layer pronti da dipingere. */
+function emptyScene() {
+  const W = 40;
+  const H = 17;
+  const empty = () => new Array(W * H).fill(-1);
+  return {
+    id: "scena",
+    name: "Scena 1",
+    width: W,
+    height: H,
+    background: "#8fd3ff",
+    layers: [makeLayer("sfondo", "Sfondo", W, H, empty(), -10, false), makeLayer("terreno", "Terreno", W, H, empty(), 0, true)],
+    entities: [],
+    rules: [],
+  };
+}
+
 const templates = {
+  vuoto: {
+    name: "Il mio gioco",
+    start: "scena",
+    touch: { mode: "auto", buttons: ["jump", "action"] },
+    scenes: [emptyScene()],
+    variables: {},
+    prefabs: null,
+    items: null,
+  },
   platform: {
     name: "Il mio platform",
     start: "livello1",
@@ -2341,7 +3906,84 @@ const templates = {
     assets: RACE_ASSETS,
     variables: { giro: 1, posizione: 4, tempo: 0, migliore: 0, monete: 0, vita: 3 },
   },
+  pointclick: {
+    name: "La mia avventura punta e clicca",
+    start: "casa",
+    touch: { mode: "off", buttons: [] },
+    scenes: [levelHouse(), houseEnd()],
+    assets: HOUSE_ASSETS,
+    items: HOUSE_ITEMS,
+    dialogues: [NONNO_CHIAVE],
+    variables: { inventario: "", indizio: 0, chiave_presa: 0, monete: 0, vita: 3 },
+  },
+  ritmo: {
+    name: "Il mio gioco a ritmo",
+    start: "palco",
+    touch: { mode: "auto", buttons: [] },
+    scenes: [levelStage(), stageEnd()],
+    assets: RH_ASSETS,
+    items: null,
+    variables: { punti: 0, combo: 0, mancate: 0, monete: 0, vita: 3 },
+  },
+  horror: {
+    name: "Il mio gioco della paura",
+    start: "serra",
+    touch: { mode: "auto", buttons: ["item", "action"] },
+    scenes: [levelHaunted(), hauntedEnd()],
+    assets: HR_ASSETS,
+    prefabs: HR_PREFABS,
+    items: null,
+    variables: { vita: 3, coraggio: 100, batteria: 100, fusibili: 0, monete: 0 },
+  },
+  carte: {
+    name: "Il mio gioco di carte",
+    start: "duello1",
+    touch: { mode: "off", buttons: [] },
+    scenes: [levelCards1(), levelCards2(), cardsEnd(), cardsLost()],
+    assets: CARD_ASSETS,
+    items: null,
+    variables: { vita: 24, vita_nemico: 20, vinto: 0, carte: "", monete: 0 },
+  },
+  roguelike: {
+    name: "Il mio roguelike",
+    start: "sotterraneo",
+    touch: { mode: "auto", buttons: ["attack", "action"] },
+    scenes: [levelDungeon()],
+    assets: RL_ASSETS,
+    prefabs: RL_PREFABS,
+    variables: { vita: 3, monete: 0, piano: 1, inventario: "" },
+  },
+  picchiaduro: {
+    name: "Il mio picchiaduro",
+    start: "arena",
+    touch: { mode: "auto", buttons: ["attack", "jump"] },
+    scenes: [levelArena(), arenaEnd()],
+    assets: VS_ASSETS,
+    items: null,
+    variables: { vita: 10, vincitore: 0, monete: 0, inventario: "" },
+  },
+  fps: {
+    name: "Il mio gioco in prima persona",
+    start: "labirinto",
+    touch: { mode: "auto", buttons: ["attack", "dash"] },
+    scenes: [levelMaze(), mazeEnd()],
+    assets: FP_ASSETS,
+    prefabs: FP_PREFABS,
+    items: FP_ITEMS,
+    variables: { vita: 5, munizioni: 20, peperoncini: 0, arma2: 0, punti: 0, monete: 0, inventario: "" },
+  },
 };
+
+/** Fine dell'avventura: «Ricomincia» svuota anche l'inventario e rimette la chiave nel vaso. */
+function houseEnd() {
+  const s = retext(retext(levelEnd("casa"), "titolo_fine", "Sei uscito dalla casa!"), "monete_fine", "Il nonno ti aspetta in giardino.");
+  s.rules[0].actions.push(
+    { type: "var.set", params: { variable: "inventario", value: "" } },
+    { type: "var.set", params: { variable: "indizio", value: "0" } },
+    { type: "var.set", params: { variable: "chiave_presa", value: "0" } },
+  );
+  return s;
+}
 
 for (const [id, t] of Object.entries(templates)) {
   const { scripts: _scripts, ...base } = project;
@@ -2349,10 +3991,13 @@ for (const [id, t] of Object.entries(templates)) {
     ...base,
     name: t.name,
     settings: { ...project.settings, startScene: t.start, touch: t.touch },
-    variables: t.variables ?? { monete: 0, vita: 3, missione: 0 },
-    // Asset e modelli propri del genere si aggiungono a quelli della demo.
+    variables: t.variables ?? { monete: 0, vita: 3, missione: 0, inventario: "" },
+    // Oggetti dell'archivio: quelli di base più quelli del genere (il progetto vuoto non ne ha).
+    items: t.items === null ? [] : [...(base.items ?? []), ...(t.items ?? [])],
+    // Asset e modelli propri del genere si aggiungono a quelli di base.
     assets: [...base.assets, ...(t.assets ?? [])],
-    prefabs: [...base.prefabs, ...(t.prefabs ?? [])],
+    // Il progetto vuoto non ha modelli (prefabs: null); gli altri aggiungono i loro a quelli di base.
+    prefabs: t.prefabs === null ? [] : [...base.prefabs, ...(t.prefabs ?? [])],
     scenes: t.scenes,
     dialogues: t.dialogues ?? [],
     rules: [],
@@ -2360,4 +4005,20 @@ for (const [id, t] of Object.entries(templates)) {
   writeFileSync(join(TEMPLATES_DIR, `${id}.json`), JSON.stringify(data, null, 2));
 }
 console.log(`Modelli di progetto generati in ${TEMPLATES_DIR}`);
-console.log(`Progetto demo generato in ${OUT}`);
+
+// ---------------------------------------------------------------- Giochi di esempio (facoltativi)
+// Ogni cartella scripts/<nome>/ con un build.mjs che esporta `example` ({ id, name: { it, en }, description })
+// e `build()` genera un gioco in samples/<id>/. L'indice samples/esempi.json alimenta il menu «Esempi» dell'editor.
+const examples = [];
+for (const dir of readdirSync(join(ROOT, "scripts"), { withFileTypes: true })) {
+  const file = join(ROOT, "scripts", dir.name, "build.mjs");
+  if (!dir.isDirectory() || !existsSync(file)) continue;
+  const mod = await import(pathToFileURL(file).href);
+  if (!mod.example || typeof mod.build !== "function") continue;
+  mod.build();
+  examples.push(mod.example);
+  console.log(`Esempio «${mod.example.name.it}» generato in samples/${mod.example.id}`);
+}
+const INDEX = join(ROOT, "samples", "esempi.json");
+if (examples.length) writeFileSync(INDEX, JSON.stringify(examples, null, 2));
+else rmSync(INDEX, { force: true });

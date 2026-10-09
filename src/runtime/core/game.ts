@@ -18,6 +18,14 @@ import type { ScreenEffect } from "../render/effects";
 
 export type LogLevel = "info" | "warn" | "error";
 
+/** Finestra in primo piano (negozio…): il gioco resta fermo finché è aperta. */
+export interface GamePanel {
+  update(dt: number, input: Input): void;
+  render(r: Renderer): void;
+  /** Vero quando la finestra si è chiusa: il gioco riparte. */
+  closed: boolean;
+}
+
 export interface GameOptions {
   /** Indirizzo da cui risolvere i percorsi degli asset (di solito quello di project.json). */
   baseUrl: string;
@@ -53,7 +61,7 @@ interface ActiveMessage extends Message {
 const MESSAGE_STYLE: TextStyle = { size: 8, color: "#f2f7ee", bold: false };
 
 /** Comandi che non arrivano al personaggio mentre scorre un filmato (dialoghi e messaggi li ricevono lo stesso). */
-export const LOCKED_ACTIONS: ReadonlySet<string> = new Set(["left", "right", "up", "down", "jump", "dash", "action", "attack"]);
+export const LOCKED_ACTIONS: ReadonlySet<string> = new Set(["left", "right", "up", "down", "jump", "dash", "action", "attack", "item", "nextItem"]);
 
 /**
  * Il gioco: carica gli asset, gestisce le scene e fa girare il loop a passo fisso (60 Hz).
@@ -95,6 +103,8 @@ export class Game {
   /** Traduzioni dei testi nella lingua del giocatore. */
   readonly i18n: Translator;
   private dialogueWrap: { key: string; lines: string[] } | null = null;
+  /** Finestra aperta sopra il gioco (negozio): lo ferma finché non si chiude. */
+  panel: GamePanel | null = null;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -143,6 +153,11 @@ export class Game {
     if (this.fade.pending) return;
     this.fade.target = Math.max(0, Math.min(1, target));
     this.fade.duration = Math.max(0.01, seconds);
+  }
+
+  /** Vero mentre si sta passando a un'altra scena (dissolvenza in corso). */
+  get changingScene(): boolean {
+    return !!this.fade.pending;
   }
 
   get fadeAlpha(): number {
@@ -225,7 +240,7 @@ export class Game {
   async start(onProgress?: (p: number) => void): Promise<void> {
     // Blocchi scritti negli script del progetto: vanno registrati prima di creare le scene.
     setScriptLogger((m) => this.log(m));
-    for (const r of loadScripts(this.project.scripts ?? [])) {
+    for (const r of loadScripts(this.project.scripts ?? [], { tileSize: this.project.settings.tileSize })) {
       if (r.error) this.log(`Script «${r.name}»${r.error.line ? `, riga ${r.error.line}` : ""}: ${r.error.message}`, "error");
     }
     await this.assets.loadAll(this.project, onProgress);
@@ -279,12 +294,22 @@ export class Game {
   // ---------- messaggi ----------
 
   showMessage(text: string, duration = 3, pause = false): void {
-    if (text) this.messages.push({ text, duration, pause });
+    if (!text) return;
+    // Lo stesso testo già a schermo o in attesa non si ripete (clic ripetuti, Regole che scattano di fila).
+    if (this.message?.text === text || this.messages.some((m) => m.text === text)) return;
+    this.messages.push({ text, duration, pause });
+  }
+
+  /** Un messaggio che prende il posto di quelli a tempo (a schermo o in attesa); quelli che fermano il gioco restano. */
+  replaceMessage(text: string, duration = 3): void {
+    this.messages = this.messages.filter((m) => m.pause);
+    if (this.message && !this.message.pause) this.message = null;
+    this.showMessage(text, duration);
   }
 
   /** Vero se il gioco è fermo per la pausa, un messaggio o un dialogo. */
   get isBlocked(): boolean {
-    return this.paused || !!this.message?.pause || this.dialogue.active;
+    return this.paused || !!this.message?.pause || this.dialogue.active || !!this.panel;
   }
 
   // ---------- salvataggi ----------
@@ -375,7 +400,7 @@ export class Game {
     // Durante un filmato Esc (o Start) lo salta, se si può; altrimenti mette in pausa come sempre.
     if (cutscene && cutscene.data.skippable !== false && this.input.pressed("pause") && !this.paused && !this.fade.pending) {
       this.scene!.rules.skipCutscene();
-    } else if (this.input.pressed("pause") && !this.message?.pause && !this.dialogue.active && !this.fade.pending) this.paused = !this.paused;
+    } else if (this.input.pressed("pause") && !this.message?.pause && !this.dialogue.active && !this.panel && !this.fade.pending) this.paused = !this.paused;
     if (this.freeze > 0) this.freeze -= dt;
     else if (!this.isBlocked) {
       this.input.masked = this.controlsLocked ? LOCKED_ACTIONS : null;
@@ -383,7 +408,10 @@ export class Game {
       this.input.masked = null;
     }
     // Il dialogo si aggiorna dal passo dopo quello in cui è partito (lo protegge anche la sua breve attesa).
-    if (this.dialogue.active) this.dialogue.update(dt, this.input);
+    if (this.panel && !this.paused) {
+      this.panel.update(dt, this.input);
+      if (this.panel.closed) this.panel = null;
+    } else if (this.dialogue.active) this.dialogue.update(dt, this.input, this.pointedChoice());
     else this.updateMessage(dt);
     this.input.endStep();
 
@@ -401,6 +429,20 @@ export class Game {
     if (b.amount !== b.target) b.amount = b.amount < b.target ? Math.min(b.target, b.amount + dt / 0.35) : Math.max(b.target, b.amount - dt / 0.35);
   }
 
+  /** Righe delle risposte del dialogo disegnate nell'ultimo fotogramma, per sceglierle col mouse o col tocco. */
+  private choiceRows: { x: number; y: number; w: number; h: number; n: number } | null = null;
+
+  /** La risposta sotto il puntatore (-1 = nessuna), solo se il puntatore si è appena mosso o ha cliccato. */
+  private pointedChoice(): number {
+    const ptr = this.input.pointer;
+    const rows = this.choiceRows;
+    if (!rows || !(ptr.moved || ptr.pressed)) return -1;
+    const v = this.renderer.toVirtual(ptr.x, ptr.y);
+    if (v.x < rows.x - 12 || v.x > rows.x + rows.w) return -1;
+    const i = Math.floor((v.y - rows.y) / rows.h);
+    return i >= 0 && i < rows.n ? i : -1;
+  }
+
   private updateMessage(dt: number): void {
     if (!this.message) {
       const next = this.messages.shift();
@@ -410,7 +452,7 @@ export class Game {
     }
     const m = this.message;
     const interactive = m.pause || m.duration <= 0;
-    const confirm = interactive && (this.input.pressed("action") || this.input.pressed("jump"));
+    const confirm = interactive && (this.input.pressed("action") || this.input.pressed("jump") || this.input.pointer.pressed);
     if (m.shown < m.text.length) {
       m.shown = confirm ? m.text.length : Math.min(m.text.length, m.shown + dt * 45);
       return;
@@ -433,6 +475,7 @@ export class Game {
       r.rect(0, 0, r.width, h, packColor(0, 0, 0, 1));
       r.rect(0, r.height - h, r.width, h, packColor(0, 0, 0, 1));
     }
+    if (this.panel) this.panel.render(r);
     if (this.dialogue.active) this.renderDialogue(r);
     else this.renderMessage(r);
     if (this.paused) this.renderPause(r);
@@ -531,6 +574,7 @@ export class Game {
       left -= ln.length + 1;
     });
     ty += lines.length * lineH + 4;
+    this.choiceRows = showChoices ? { x: textX, y: ty, w: W - textX - pad * 2, h: lineH, n: choices.length } : null;
     if (showChoices) {
       choices.forEach((c, i) => {
         const on = i === d.choice;

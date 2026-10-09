@@ -131,6 +131,10 @@ export class Input {
           if (this.keyQueue.has(name)) queued = true;
         } else if (kind === "Pad") {
           for (const p of pads) if (p && padActive(p, name)) isDown = true;
+        } else if (kind.startsWith("Pad")) {
+          // "Pad2:A" = solo il secondo gamepad collegato (giochi con più giocatori sullo stesso schermo).
+          const p = pads[Number(kind.slice(3)) - 1];
+          if (p && padActive(p, name)) isDown = true;
         }
       }
       if (isDown) this.down.add(action);
@@ -148,12 +152,19 @@ export class Input {
   }
 
   isDown(action: string): boolean {
-    return this.down.has(action) && !this.masked?.has(action);
+    return this.down.has(action) && !this.isMasked(action);
   }
 
   /** Vero solo nel passo in cui l'azione è stata premuta. */
   pressed(action: string): boolean {
-    return this.pressedNow.has(action) && !this.masked?.has(action);
+    return this.pressedNow.has(action) && !this.isMasked(action);
+  }
+
+  /** Le azioni di un giocatore ("p2.left") sono bloccate come quelle di sempre ("left"). */
+  private isMasked(action: string): boolean {
+    const m = this.masked;
+    if (!m) return false;
+    return m.has(action) || m.has(action.slice(action.indexOf(".") + 1));
   }
 
   axis(negative: string, positive: string): number {
@@ -178,6 +189,20 @@ export class Input {
     it.jumpPressed = this.pressed("jump");
     it.dashPressed = this.pressed("dash");
     it.actionPressed = this.pressed("action");
+  }
+
+  /**
+   * Comandi di un giocatore preciso (più giocatori sullo stesso schermo): le azioni si chiamano "p2.left", "p2.action"…
+   * `prefix` vuoto = i comandi di sempre.
+   */
+  readPlayerIntent(it: Intent, prefix: string): void {
+    if (!prefix) return this.readIntent(it);
+    it.x = this.axis(`${prefix}left`, `${prefix}right`);
+    it.y = this.axis(`${prefix}up`, `${prefix}down`);
+    it.jump = false;
+    it.jumpPressed = false;
+    it.dashPressed = false;
+    it.actionPressed = this.pressed(`${prefix}action`);
   }
 
   detach(): void {

@@ -1,4 +1,5 @@
 import { defineBlock } from "../core/block";
+import { boosted } from "../items/items";
 
 defineBlock({
   name: "ContactDamage",
@@ -32,10 +33,10 @@ defineBlock({
         if (p.stompSound) self.game.audio.play(p.stompSound);
         self.emit("stomped", other);
         const hp = self.entity.get("Health");
-        if (hp) hp.actions.damage(1, { x: other.worldX, y: other.worldY });
+        if (hp) hp.actions.damage(boosted(1, other), { x: other.worldX, y: other.worldY });
         else self.entity.destroy();
       } else if (!stomped.has(other)) {
-        other.get("Health")?.actions.damage(p.amount, { x: self.entity.worldX, y: self.entity.worldY });
+        other.get("Health")?.actions.damage(boosted(p.amount, self.entity), { x: self.entity.worldX, y: self.entity.worldY });
       }
     }
     for (const o of [...stomped]) if (!b.contacts.has(o as never)) stomped.delete(o);

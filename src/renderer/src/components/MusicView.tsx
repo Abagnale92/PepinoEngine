@@ -17,10 +17,13 @@ import {
   type Wave,
 } from "@runtime";
 import { editProject, getState, useEditor } from "../store";
-import { uniqueId } from "../projectOps";
+import { replaceSoundRefs, uniqueId } from "../projectOps";
+import { deleteAsset, saveProject } from "../commands";
 import { T, getEditorLang } from "../i18n";
+import { CommitInput } from "./fields";
 import { Icon } from "./Icon";
 import { playOnce, playSamples, playbackTime, previewNote, selectSound, stopSamples, usePlaying, useSelectedSound } from "../music/player";
+import { Splitter, usePanelVar } from "./Splitter";
 
 const slug = (s: string) =>
   s
@@ -49,6 +52,20 @@ function updSfx(id: string, fn: (s: SfxData) => void, merge?: string): void {
   }, merge);
 }
 
+function renameSound(from: string, name: string): void {
+  const p0 = getState().project;
+  if (!p0) return;
+  const to = uniqueId(slug(name) || from, new Set(p0.assets.filter((a) => a.id !== from).map((a) => a.id)));
+  if (to === from) return;
+  editProject((p) => {
+    const a = p.assets.find((x) => x.id === from);
+    if (!a) return;
+    a.id = to;
+    replaceSoundRefs(p, from, to);
+  });
+  selectSound(to);
+}
+
 function Slider(p: { label: string; value: number; min: number; max: number; step: number; unit?: string; onChange: (v: number) => void }) {
   return (
     <label className="mu-slider">
@@ -64,7 +81,9 @@ function Slider(p: { label: string; value: number; min: number; max: number; ste
 
 /** Scheda Musica: brani chiptune a 4 canali ed effetti sonori, salvati nel progetto come suoni. */
 export function MusicView() {
+  const listVar = usePanelVar("--list-w", "music");
   const project = useEditor((s) => s.project)!;
+  const dirty = useEditor((s) => s.dirty);
   const sel = useSelectedSound();
   const [name, setName] = useState("");
   const sounds = project.assets.filter((a): a is AudioAsset => a.type === "audio" && !!(a.song || a.sfx));
@@ -85,13 +104,23 @@ export function MusicView() {
     setName("");
   };
 
+  /** Tiene la versione attuale e ne apre una copia da modificare. */
+  const duplicate = (id: string) => {
+    const src = audioAsset(id);
+    if (!src) return;
+    const copy = uniqueId(id, new Set(project.assets.map((a) => a.id)));
+    editProject((p) => void p.assets.push({ ...structuredClone(src), id: copy }));
+    selectSound(copy);
+  };
+
   const remove = (id: string) => {
     stopSamples();
-    editProject((p) => void (p.assets = p.assets.filter((a) => a.id !== id)));
+    deleteAsset(id);
   };
 
   return (
-    <div className="mu-view">
+    <div className="mu-view" style={listVar}>
+      <Splitter id="music" />
       <aside className="mu-list">
         <div className="px-h">{T("Suoni creati")}</div>
         <input placeholder={T("Nome del nuovo suono")} value={name} onChange={(e) => setName(e.target.value)} />
@@ -119,13 +148,28 @@ export function MusicView() {
           <>
             <div className="mu-title">
               <Icon name={current.song ? "music" : "sound"} />
-              <b>{current.id}</b>
+              <span className="mu-name" title={T("Nome del suono: cambialo per rinominarlo")}>
+                <CommitInput value={current.id} onCommit={(v) => renameSound(current.id, v)} />
+              </span>
               <span className="px-spacer" />
+              <button type="button" className={`px-btn${dirty ? " primary" : ""}`} title={T("Scrive il progetto sul disco (Ctrl+S)")} onClick={() => void saveProject()}>
+                <Icon name="save" size={13} />
+                {dirty ? T(" Salva") : T(" Salvato")}
+              </button>
+              <button type="button" className="px-btn" title={T("Tiene questa versione e ne crea una copia da modificare")} onClick={() => duplicate(current.id)}>
+                <Icon name="copy" size={13} />
+                {T(" Salva una copia")}
+              </button>
               <button type="button" className="icon-btn" title={T("Elimina il suono")} onClick={() => remove(current.id)}>
                 <Icon name="trash" size={13} />
               </button>
             </div>
             {current.song ? <SongEditor key={current.id} asset={current} /> : <SfxEditor key={current.id} asset={current} />}
+            <p className="empty-hint">
+              {T(
+                "Il suono è già nel progetto con questo nome: «Salva» scrive il progetto sul disco, «Salva una copia» tiene questa versione e ne apre una copia da modificare.",
+              )}
+            </p>
             <p className="empty-hint">{T("Scegli questo suono nei campi audio dei blocchi (Suono salto, Suono…) o come Musica della scena.")}</p>
           </>
         ) : (
@@ -148,12 +192,17 @@ const BOTTOM = 36;
 const COLORS = ["#e5695f", "#f0b43c", "#4a8fd6", "#8cc480"];
 const NOTE_IT = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
 const NOTE_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+/** Righe delle note (dall'acuto al grave) e della batteria, con le loro altezze in pixel. */
+const NOTE_ROWS = Array.from({ length: TOP - BOTTOM + 1 }, (_, i) => TOP - i);
+const DRUM_ROWS = DRUMS.map((d) => d.pitch);
+const NOTE_H = 12;
+const DRUM_H = 16;
+/** Stessa larghezza per le due tastiere, così note e batteria restano allineate nel tempo. */
+const KEYS_W = 64;
 
 const noteName = (p: number) => `${(getEditorLang() === "en" ? NOTE_EN : NOTE_IT)[p % 12]}${Math.floor(p / 12) - 1}`;
 const isBlack = (p: number) => [1, 3, 6, 8, 10].includes(p % 12);
 const isDrums = (ch: SongChannel) => ch.wave === "drums";
-const rowsOf = (ch: SongChannel) => (isDrums(ch) ? DRUMS.map((d) => d.pitch) : Array.from({ length: TOP - BOTTOM + 1 }, (_, i) => TOP - i));
-const rowHeight = (ch: SongChannel) => (isDrums(ch) ? 22 : 12);
 
 function hexA(hex: string, a: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -175,11 +224,19 @@ function setup(c: HTMLCanvasElement, w: number, h: number): CanvasRenderingConte
 function SongEditor({ asset }: { asset: AudioAsset }) {
   const song = asset.song!;
   const [chi, setChi] = useState(0);
+  /** L'ultimo canale con le note scelto: resta sul piano roll anche quando si passa alla batteria. */
+  const [lastMel, setLastMel] = useState(0);
   const [noteLen, setNoteLen] = useState(2);
   const playing = usePlaying();
   const [playStep, setPlayStep] = useState<number | null>(null);
   const ch = song.channels[chi] ?? song.channels[0];
   const upd = (fn: (s: SongData) => void, merge?: string) => updSong(asset.id, fn, merge);
+  const drum = song.channels.findIndex(isDrums);
+  const mel = song.channels[lastMel] && !isDrums(song.channels[lastMel]) ? lastMel : song.channels.findIndex((c) => !isDrums(c));
+  const select = (i: number) => {
+    setChi(i);
+    if (!isDrums(song.channels[i])) setLastMel(i);
+  };
 
   useEffect(() => {
     if (!playing) return setPlayStep(null);
@@ -196,7 +253,7 @@ function SongEditor({ asset }: { asset: AudioAsset }) {
   useEffect(() => () => stopSamples(), []);
 
   return (
-    <div className="mu-editor">
+    <div className="mu-editor mu-song">
       <div className="mu-bar">
         <button type="button" className={`px-btn${playing ? " on" : ""}`} onClick={() => (playing ? stopSamples() : playSamples(renderSong(song), SAMPLE_RATE, song.loop))}>
           <Icon name={playing ? "stop" : "play"} size={13} />
@@ -237,7 +294,7 @@ function SongEditor({ asset }: { asset: AudioAsset }) {
             type="button"
             className={`mu-ch${i === chi ? " on" : ""}`}
             style={{ "--ch": COLORS[i % COLORS.length] } as CSSProperties}
-            onClick={() => setChi(i)}
+            onClick={() => select(i)}
           >
             <span className="mu-dot" />
             {c.name}
@@ -297,46 +354,68 @@ function SongEditor({ asset }: { asset: AudioAsset }) {
         </button>
       </div>
 
-      <PianoRoll song={song} chi={chi} noteLen={noteLen} playStep={playStep} assetId={asset.id} />
+      <SongGrid song={song} active={chi} mel={mel} drum={drum} noteLen={noteLen} playStep={playStep} assetId={asset.id} onSelect={select} />
+    </div>
+  );
+}
+
+interface GridProps {
+  song: SongData;
+  /** Canale scelto nelle schede. */
+  active: number;
+  noteLen: number;
+  playStep: number | null;
+  assetId: string;
+  onSelect: (i: number) => void;
+}
+
+/** Piano roll delle note con, sempre sotto, le righe della batteria: scorrono insieme nel tempo. */
+function SongGrid({ mel, drum, ...p }: GridProps & { mel: number; drum: number }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  // Parte dalla zona centrale della tastiera (Do4) quando si cambia strumento.
+  useEffect(() => {
+    if (wrap.current) wrap.current.scrollTop = Math.max(0, (TOP - 76) * NOTE_H - 20);
+  }, [mel]);
+  return (
+    <div className="mu-roll-wrap" ref={wrap}>
+      {mel >= 0 && <Roll {...p} ci={mel} rows={NOTE_ROWS} rh={NOTE_H} drums={false} />}
+      {drum >= 0 && <Roll {...p} ci={drum} rows={DRUM_ROWS} rh={DRUM_H} drums />}
     </div>
   );
 }
 
 let gestureId = 0;
 
-function PianoRoll({ song, chi, noteLen, playStep, assetId }: { song: SongData; chi: number; noteLen: number; playStep: number | null; assetId: string }) {
-  const wrap = useRef<HTMLDivElement>(null);
+function Roll({ song, active, noteLen, playStep, assetId, onSelect, ci, rows, rh, drums }: GridProps & { ci: number; rows: number[]; rh: number; drums: boolean }) {
   const grid = useRef<HTMLCanvasElement>(null);
   const keys = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ index: number; gesture: string } | null>(null);
-  const ch = song.channels[chi];
-  const rows = rowsOf(ch);
-  const rh = rowHeight(ch);
+  const ch = song.channels[ci];
   const W = song.length * CELL;
   const H = rows.length * rh;
-  const keysW = isDrums(ch) ? 120 : 44;
   const lang = getEditorLang();
+  const on = ci === active;
 
   useEffect(() => {
     const g = setup(grid.current!, W, H);
     rows.forEach((p, r) => {
-      g.fillStyle = isDrums(ch) ? (r % 2 ? "#1b221b" : "#202820") : isBlack(p) ? "#161c16" : p % 12 === 0 ? "#243024" : "#1e261e";
+      g.fillStyle = drums ? (r % 2 ? "#1b221b" : "#202820") : isBlack(p) ? "#161c16" : p % 12 === 0 ? "#243024" : "#1e261e";
       g.fillRect(0, r * rh, W, rh);
     });
     for (let s = 0; s <= song.length; s++) {
       g.fillStyle = s % 16 === 0 ? "rgba(255,255,255,0.3)" : s % 4 === 0 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)";
       g.fillRect(s * CELL, 0, 1, H);
     }
-    // Le note degli altri canali, in trasparenza, per scrivere l'armonia sopra la melodia.
+    // Le note degli altri canali dello stesso tipo, in trasparenza, per scrivere l'armonia sopra la melodia.
     song.channels.forEach((o, oi) => {
-      if (oi === chi || isDrums(o) !== isDrums(ch)) return;
+      if (oi === ci || isDrums(o) !== drums) return;
       g.fillStyle = hexA(COLORS[oi % COLORS.length], 0.28);
       for (const n of o.notes) {
         const r = rows.indexOf(n.pitch);
         if (r >= 0) g.fillRect(n.step * CELL + 1, r * rh + 1, Math.max(1, n.len) * CELL - 2, rh - 2);
       }
     });
-    g.fillStyle = COLORS[chi % COLORS.length];
+    g.fillStyle = on ? COLORS[ci % COLORS.length] : hexA(COLORS[ci % COLORS.length], 0.75);
     g.strokeStyle = "rgba(0,0,0,0.55)";
     for (const n of ch.notes) {
       const r = rows.indexOf(n.pitch);
@@ -349,26 +428,25 @@ function PianoRoll({ song, chi, noteLen, playStep, assetId }: { song: SongData; 
       g.fillStyle = "#ffffff";
       g.fillRect(Math.floor(playStep * CELL), 0, 2, H);
     }
-  }, [song, chi, playStep, W, H]);
+  }, [song, ci, on, playStep, W, H]);
 
   useEffect(() => {
-    const g = setup(keys.current!, keysW, H);
+    const g = setup(keys.current!, KEYS_W, H);
     rows.forEach((p, r) => {
-      const dark = isDrums(ch) || isBlack(p);
-      g.fillStyle = isDrums(ch) ? "#263026" : isBlack(p) ? "#141914" : "#dfe8da";
-      g.fillRect(0, r * rh, keysW, rh - 1);
+      const dark = drums || isBlack(p);
+      g.fillStyle = drums ? (on ? "#2e3b2c" : "#263026") : isBlack(p) ? "#141914" : "#dfe8da";
+      g.fillRect(0, r * rh, KEYS_W, rh - 1);
       g.fillStyle = dark ? "#c8d4c2" : "#1d2819";
-      g.font = `${isDrums(ch) ? 11 : 9}px system-ui, sans-serif`;
+      g.font = `${drums ? 10 : 9}px system-ui, sans-serif`;
       g.textBaseline = "middle";
-      const label = isDrums(ch) ? T(DRUMS.find((d) => d.pitch === p)?.label ?? "") : isBlack(p) ? "" : noteName(p);
+      const label = drums ? T(DRUMS.find((d) => d.pitch === p)?.label ?? "") : isBlack(p) ? "" : noteName(p);
       g.fillText(label, 5, r * rh + rh / 2);
     });
-  }, [chi, H, keysW, lang, ch.wave]);
-
-  // Parte dalla zona centrale della tastiera (Do4) quando si cambia canale.
-  useEffect(() => {
-    if (wrap.current) wrap.current.scrollTop = isDrums(ch) ? 0 : Math.max(0, (TOP - 76) * rh - 20);
-  }, [chi, ch.wave]);
+    if (drums) {
+      g.fillStyle = COLORS[ci % COLORS.length];
+      g.fillRect(KEYS_W - 3, 0, 3, H);
+    }
+  }, [ci, on, H, lang, drums]);
 
   const at = (e: React.PointerEvent) => {
     const r = grid.current!.getBoundingClientRect();
@@ -379,51 +457,51 @@ function PianoRoll({ song, chi, noteLen, playStep, assetId }: { song: SongData; 
   const hit = (step: number, pitch: number) => ch.notes.findIndex((n) => n.pitch === pitch && step >= n.step && step < n.step + Math.max(1, n.len));
 
   return (
-    <div className="mu-roll-wrap" ref={wrap}>
-      <div className="mu-roll">
-        <canvas ref={keys} className="mu-keys" />
-        <canvas
-          ref={grid}
-          className="mu-grid"
-          title={T("Clic: aggiungi una nota (trascina per allungarla) · clic destro: cancella")}
-          onContextMenu={(e) => e.preventDefault()}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            const { step, pitch } = at(e);
-            const i = hit(step, pitch);
-            if (e.button === 2) {
-              if (i >= 0) updSong(assetId, (s) => void s.channels[chi].notes.splice(i, 1));
-              return;
-            }
-            grid.current!.setPointerCapture(e.pointerId);
-            const gesture = `roll:${++gestureId}`;
-            if (i >= 0) {
-              drag.current = { index: i, gesture };
-              previewNote(ch, pitch);
-              return;
-            }
-            drag.current = { index: ch.notes.length, gesture };
-            updSong(assetId, (s) => void s.channels[chi].notes.push({ step, len: noteLen, pitch }), gesture);
+    <div className={`mu-roll${drums ? " mu-drums" : ""}`}>
+      <canvas ref={keys} className="mu-keys" />
+      <canvas
+        ref={grid}
+        className="mu-grid"
+        title={T("Clic: aggiungi una nota (trascina per allungarla) · clic destro: cancella")}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          // Scrivendo nelle righe della batteria (o delle note) si passa a quel canale.
+          if (!on) onSelect(ci);
+          const { step, pitch } = at(e);
+          const i = hit(step, pitch);
+          if (e.button === 2) {
+            if (i >= 0) updSong(assetId, (s) => void s.channels[ci].notes.splice(i, 1));
+            return;
+          }
+          grid.current!.setPointerCapture(e.pointerId);
+          const gesture = `roll:${++gestureId}`;
+          if (i >= 0) {
+            drag.current = { index: i, gesture };
             previewNote(ch, pitch);
-          }}
-          onPointerMove={(e) => {
-            const d = drag.current;
-            if (!d) return;
-            const { step } = at(e);
-            const n = ch.notes[d.index];
-            if (!n || Math.max(1, step - n.step + 1) === n.len) return;
-            updSong(
-              assetId,
-              (s) => {
-                const note = s.channels[chi].notes[d.index];
-                if (note) note.len = Math.max(1, step - note.step + 1);
-              },
-              d.gesture,
-            );
-          }}
-          onPointerUp={() => (drag.current = null)}
-        />
-      </div>
+            return;
+          }
+          drag.current = { index: ch.notes.length, gesture };
+          updSong(assetId, (s) => void s.channels[ci].notes.push({ step, len: noteLen, pitch }), gesture);
+          previewNote(ch, pitch);
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          const { step } = at(e);
+          const n = ch.notes[d.index];
+          if (!n || Math.max(1, step - n.step + 1) === n.len) return;
+          updSong(
+            assetId,
+            (s) => {
+              const note = s.channels[ci].notes[d.index];
+              if (note) note.len = Math.max(1, step - note.step + 1);
+            },
+            d.gesture,
+          );
+        }}
+        onPointerUp={() => (drag.current = null)}
+      />
     </div>
   );
 }

@@ -2,8 +2,10 @@ import { getBlockDef, resolveProps, type PropSchema } from "../core/block";
 import { mergeBlocks } from "../core/scene";
 import { getRuleItemDef, splitRuleKey, type RuleItemDef } from "../rules/rules";
 import { compilePython, PythonError } from "../scripting/python";
+import { compilePepino } from "../scripting/pepino";
 import { collectTexts, missingTranslations } from "./texts";
 import { isBuiltinFont } from "../render/fonts";
+import { powerupInfo } from "../items/items";
 import { DEFAULT_INPUT, DIALOGUE_END, type BlockData, type EntityData, type ProjectData, type RuleData, type RuleItem, type SceneData } from "./format";
 
 /**
@@ -51,6 +53,7 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
   const inputs = new Set([...Object.keys(DEFAULT_INPUT), ...Object.keys(p.input ?? {})]);
   const dialogues = new Map((p.dialogues ?? []).map((d) => [d.id, d]));
   const cutscenes = new Set((p.cutscenes ?? []).map((c) => c.id));
+  const items = new Map((p.items ?? []).map((i) => [i.id, i]));
   const allTags = new Set<string>();
   for (const pf of p.prefabs) pf.tags?.forEach((t) => allTags.add(t));
   for (const s of p.scenes) for (const e of flatten(s.entities)) e.tags?.forEach((t) => allTags.add(t));
@@ -93,12 +96,24 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
     if (!(t.columns > 0)) add("error", where, "Il numero di colonne deve essere maggiore di zero.");
   }
 
+  // ---------------------------------------------------------- oggetti dell'archivio
+  duplicates((p.items ?? []).map((i) => i.id), "oggetti", "Oggetti");
+  for (const it of p.items ?? []) {
+    const where = `Oggetto ${q(it.name || it.id)}`;
+    if (it.icon && assets.get(it.icon)?.type !== "image") add("error", where, `L'immagine ${q(it.icon)} non esiste.`);
+    const fx = it.effect;
+    if (fx?.type === "variable" && fx.variable && !vars.has(fx.variable)) add("warn", where, `La variabile ${q(fx.variable)} non è tra le variabili globali.`);
+    if (fx?.type === "powerup" && !powerupInfo(fx.powerup ?? "")) add("error", where, `Il potenziamento ${q(fx.powerup ?? "")} non esiste.`);
+  }
+
   // ---------------------------------------------------------- script
   duplicates((p.scripts ?? []).map((s) => s.id), "script", "Script");
   for (const s of p.scripts ?? []) {
     const sw = `Script ${q(s.name)}`;
     const ids = { scriptId: s.id };
-    if (s.language === "py") {
+    if (s.language === "pep") {
+      for (const d of compilePepino(s.code ?? "", "it").diagnostics) if (d.severity === "error") add("error", sw, `Riga ${d.line}: ${d.message}`, ids);
+    } else if (s.language === "py") {
       try {
         compilePython(s.code ?? "");
       } catch (err) {
@@ -309,6 +324,34 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
       case "prefab":
         if (s && !prefabs.has(s)) add("error", where, `Il modello ${q(s)} non esiste.`, ids);
         break;
+      case "item":
+        if (!s) {
+          if (!schema.optional) add("warn", where, "Scegli l'oggetto.", ids);
+        } else if (!items.has(s)) add("error", where, `L'oggetto ${q(s)} non esiste.`, ids);
+        break;
+      case "itemList":
+        if (!Array.isArray(v)) add("warn", where, "Deve essere un elenco di oggetti.", ids);
+        else {
+          for (const row of v as { item?: string }[]) {
+            const id = String(row?.item ?? "");
+            if (!items.has(id)) add("error", where, `L'oggetto ${q(id)} non esiste.`, ids);
+          }
+        }
+        break;
+      case "list": {
+        if (!Array.isArray(v)) {
+          add("warn", where, "Deve essere un elenco di righe.", ids);
+          break;
+        }
+        const fields = schema.fields ?? {};
+        (v as Record<string, unknown>[]).forEach((row, i) => {
+          for (const [k, f] of Object.entries(fields)) {
+            const value = row && k in row ? row[k] : structuredClone(f.default);
+            checkProp(f, value, `${where} › ${i + 1} › ${f.label}`, ids, blocks);
+          }
+        });
+        break;
+      }
       case "dialogue":
         if (s && !dialogues.has(s)) add("error", where, `Il dialogo ${q(s)} non esiste.`, ids);
         break;
@@ -447,6 +490,11 @@ export function validateProject(p: ProjectData): ProjectIssue[] {
       case "prefab":
         if (!s) err("Scegli il modello.");
         else if (!prefabs.has(s)) err(`Il modello ${q(s)} non esiste.`);
+        return;
+      case "item":
+        if (!s) {
+          if (!schema.optional) err("Scegli l'oggetto.");
+        } else if (!items.has(s)) err(`L'oggetto ${q(s)} non esiste.`);
         return;
       case "audio":
         if (s && assets.get(s)?.type !== "audio") err(`Il suono ${q(s)} non esiste.`);

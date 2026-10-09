@@ -28,7 +28,7 @@ describe("corse", () => {
     const a = w.get("a");
     w.input.hold("left");
     w.step(30);
-    expect(a.fx.rot).toBe(0);
+    expect(a.rotation).toBe(0);
     expect(a.x).toBe(100);
     w.input.release("left");
     w.input.hold("up");
@@ -38,7 +38,7 @@ describe("corse", () => {
     expect(a.state).toBe("drive");
     w.input.hold("right");
     w.step(20);
-    expect(a.fx.rot).toBeGreaterThan(0.3);
+    expect(a.rotation).toBeGreaterThan(0.3);
     expect(a.body!.vy).toBeGreaterThan(0);
   });
 
@@ -128,8 +128,43 @@ describe("corse", () => {
     pf.def.actions.go.run(pf);
     w.step(60);
     expect(r.x).toBeCloseTo(196, 0);
-    expect(r.fx.rot).toBeCloseTo(0, 3);
+    expect(r.rotation).toBeCloseTo(0, 3);
     w.step(20);
-    expect(r.fx.rot).toBeCloseTo(Math.PI / 2, 3);
+    expect(r.rotation).toBeCloseTo(Math.PI / 2, 3);
+  });
+
+  it("gli Effetti animati non cancellano la rotazione dell'auto", () => {
+    const w = makeWorld(makeProject(LOT, [car("a", 100, 100, {}, [{ type: "SpriteFX", props: { trail: true } }])]));
+    const a = w.get("a");
+    w.input.hold("up");
+    w.step(40);
+    w.input.hold("right");
+    w.step(20);
+    expect(a.rotation).toBeGreaterThan(0.3);
+    expect(a.fx.rot).toBe(0);
+  });
+
+  it("uscendo di pista manda un evento e, se resta fuori troppo, torna dov'era in pista", () => {
+    const W = 30;
+    const H = 20;
+    const p = makeProject(LOT, [car("a", 40, 40, { trackLayer: "pista", resetAfter: 1 })]);
+    // Asfalto solo nelle prime 4 righe: andando giù si esce.
+    const data = Array.from({ length: W * H }, (_, i) => (Math.floor(i / W) < 4 ? 0 : -1));
+    p.scenes[0].layers.push({ id: "pista", name: "pista", tileset: "t", width: W, height: H, data, z: 1, collides: false });
+    const w = makeWorld(p);
+    const a = w.get("a");
+    const events: string[] = [];
+    for (const ev of ["offroad", "ontrack", "reset"]) a.on(ev, () => events.push(ev));
+    const cc = a.get("CarController")!;
+    cc.data.heading = Math.PI / 2; // muso in giù
+    w.input.hold("up");
+    w.step(50);
+    expect(events).toContain("offroad");
+    expect(cc.def.conditions.isOffroad.test(cc)).toBe(true);
+    w.input.release("up");
+    w.step(70);
+    expect(events).toEqual(["offroad", "reset", "ontrack"]);
+    expect(Math.floor(a.y / TS)).toBeLessThan(4);
+    expect(a.body!.vy).toBe(0);
   });
 });

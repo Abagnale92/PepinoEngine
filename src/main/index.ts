@@ -109,7 +109,21 @@ app.whenReady().then(() => {
     return openAt(r.filePaths[0]);
   });
 
-  ipcMain.handle("project:sample", () => openAt(join(app.getAppPath(), "samples", "demo", "project.json")));
+  // Giochi di esempio: samples/<id>/project.json, elencati in samples/esempi.json (scritto da «npm run samples» se ci sono esempi).
+  const samplesDir = () => join(app.getAppPath(), "samples");
+  const readSamples = async (): Promise<{ id: string }[]> => {
+    try {
+      const list = JSON.parse(await readFile(join(samplesDir(), "esempi.json"), "utf8"));
+      return Array.isArray(list) ? list.filter((s) => typeof s?.id === "string" && /^[a-z0-9_-]+$/.test(s.id)) : [];
+    } catch {
+      return [];
+    }
+  };
+  ipcMain.handle("samples:list", () => readSamples());
+  ipcMain.handle("project:sample", async (_e, id: string) => {
+    if (!(await readSamples()).some((s) => s.id === id)) throw new Error(`L'esempio "${id}" non esiste. Esegui "npm run samples".`);
+    return openAt(join(samplesDir(), id, "project.json"));
+  });
 
   // Nuovo progetto da un modello di genere: project.json del modello + gli asset che usa, in una cartella vuota.
   ipcMain.handle("project:new", async (_e, templateId: string) => {
@@ -126,7 +140,8 @@ app.whenReady().then(() => {
     const dest = join(dir, "project.json");
     if (existsSync(dest)) throw new Error("In questa cartella c'è già un progetto Pepino: scegline una vuota.");
     const data = JSON.parse(await readFile(src, "utf8")) as { assets?: { src: string }[] };
-    const assetsDir = join(samples, "demo");
+    // I percorsi degli asset dei modelli (assets/…) partono da samples/templates.
+    const assetsDir = join(samples, "templates");
     for (const a of data.assets ?? []) {
       const from = resolve(assetsDir, a.src);
       const to = resolve(dir, a.src);

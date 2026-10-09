@@ -737,9 +737,13 @@ export class Renderer {
     return { tex: this.createTexture(c), w: c.width, h: c.height, offX: left, offY: top - capY, textW, used: 0 };
   }
 
-  dispose(): void {
+  /**
+   * Libera le risorse. Con `loseContext` (predefinito) rilascia anche il contesto WebGL: va bene quando
+   * la tela sparisce; non se la stessa tela verrà riusata (un contesto perso non compila più gli shader).
+   */
+  dispose(loseContext = true): void {
     for (const e of this.texts.values()) this.gl.deleteTexture(e.tex.tex);
     this.texts.clear();
-    this.gl.getExtension("WEBGL_lose_context")?.loseContext();
+    if (loseContext) this.gl.getExtension("WEBGL_lose_context")?.loseContext();
   }
 }

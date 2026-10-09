@@ -99,7 +99,6 @@ export const EN_A: Record<string, string> = {
   Apertura: "Spread",
   "Appare con un rimbalzo": "Pop in with a bounce",
   Apri: "Open",
-  "Apri il progetto demo": "Open the demo project",
   "Apri un progetto": "Open a project",
   "Apri un progetto…": "Open a project…",
   Arrampicata: "Climb",
@@ -141,7 +140,7 @@ export const EN_A: Record<string, string> = {
   "Barra della vita in alto": "Health bar at the top",
   battuta: "line",
   "Beat 'em up": "Beat 'em up",
-  "Beat 'em up: scorre solo in orizzontale": "Beat 'em up: scrolls horizontally only",
+  "Scorre solo in orizzontale": "Scrolls horizontally only",
   Bersaglio: "Target",
   "Bianco e nero": "Black and white",
   Blocca: "Lock",
@@ -167,8 +166,8 @@ export const EN_A: Record<string, string> = {
   Camera: "Camera",
   "Camera che segue": "Follow camera",
   Cammina: "Walk",
-  "Cammina lungo la strada (avanti, indietro e in profondità) e salta con l'ombra a terra, come in Final Fight o Streets of Rage. I colpi forti lo mandano a terra e poi si rialza. Nella scena attiva «Ordina per Y».":
-    "Walks along the street (forward, back and in depth) and jumps with a shadow on the ground, like in Final Fight or Streets of Rage. Strong hits knock it down, then it gets up. In the scene turn on «Sort by Y».",
+  "Cammina su un piano con la profondità (destra, sinistra, avanti e indietro) e salta con l'ombra a terra. I colpi forti lo mandano a terra e poi si rialza. Nella scena attiva «Ordina per Y».":
+    "Walks on a floor with depth (right, left, forward and back) and jumps with a shadow on the ground. Strong hits knock it down, then it gets up. In the scene turn on «Sort by Y».",
   Camminata: "Walking",
   Carica: "Charge",
   "Carica la partita": "Load the game",
@@ -276,10 +275,10 @@ export const EN_A: Record<string, string> = {
     "Gives the object a collision shape: it stops against solid tiles and feels contact with objects in the chosen groups.",
   "Da solo, quando il bersaglio è a portata": "On its own, when the target is in reach",
   "Da solo, quando vede il bersaglio": "On its own, when it sees the target",
-  "Dà vita alle sprite senza disegnare altri fotogrammi, come JuiceFX: si schiaccia quando atterra, si allunga quando salta, lampeggia e trema quando è colpita, sparisce con stile. Ci sono anche effetti continui: galleggia, pulsa, ondeggia.":
-    "Brings sprites to life without drawing more frames, like JuiceFX: it squashes when it lands, stretches when it jumps, flashes and shakes when hit, disappears in style. There are also continuous effects: float, pulse, wobble.",
+  "Dà vita alle sprite senza disegnare altri fotogrammi: si schiaccia quando atterra, si allunga quando salta, lampeggia e trema quando è colpita, sparisce con stile. Ci sono anche effetti continui: galleggia, pulsa, ondeggia. L'anteprima qui sotto mostra subito l'effetto scelto.":
+    "Brings sprites to life without drawing more frames: it squashes when it lands, stretches when it jumps, flashes and shakes when hit, disappears in style. There are also continuous effects: float, pulse, wobble. The preview below shows the chosen effect right away.",
   "Dal modello": "From prefab",
-  "Dall'alto: morbida in tutte le direzioni": "Top-down: smooth in every direction",
+  "Morbida in tutte le direzioni": "Smooth in every direction",
   Danno: "Damage",
   "Danno al contatto": "Contact damage",
   "Danno dai tile pericolo": "Damage from hazard tiles",

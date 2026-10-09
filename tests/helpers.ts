@@ -55,6 +55,13 @@ export class FakeInput {
     it.dashPressed = this.pressed("dash");
     it.actionPressed = this.pressed("action");
   }
+  readPlayerIntent(it: Intent, prefix: string) {
+    if (!prefix) return this.readIntent(it);
+    it.x = this.axis(`${prefix}left`, `${prefix}right`);
+    it.y = this.axis(`${prefix}up`, `${prefix}down`);
+    it.jump = it.jumpPressed = it.dashPressed = false;
+    it.actionPressed = this.pressed(`${prefix}action`);
+  }
   endStep() {
     this.justPressed.clear();
   }
@@ -159,6 +166,7 @@ export function makeWorld(project: ProjectData) {
     restartScene: () => calls.push("restartScene"),
     hitstop: (s: number) => calls.push(`hitstop:${s}`),
     showMessage: (text: string) => messages.push(text),
+    replaceMessage: (text: string) => messages.push(text),
     saveGame: () => calls.push("saveGame"),
     loadGame: () => calls.push("loadGame"),
     hasSave: () => false,
@@ -181,6 +189,10 @@ export function makeWorld(project: ProjectData) {
     },
     setBars: (on: boolean) => calls.push(`bars:${on}`),
     lockControls: false,
+    panel: null,
+    get controlsLocked() {
+      return this.lockControls;
+    },
     hasMessage: false,
     clearMessages: () => calls.push("clearMessages"),
   };
@@ -188,9 +200,16 @@ export function makeWorld(project: ProjectData) {
   game.scene = scene;
   const step = (n = 1) => {
     for (let i = 0; i < n; i++) {
-      input.masked = game.lockControls ? LOCKED_ACTIONS : null;
-      scene.update(DT);
-      input.masked = null;
+      // Come nel gioco vero: con una finestra aperta (negozio) la scena è ferma.
+      if (!game.panel) {
+        input.masked = game.lockControls ? LOCKED_ACTIONS : null;
+        scene.update(DT);
+        input.masked = null;
+      }
+      if (game.panel) {
+        game.panel.update(DT, input);
+        if (game.panel.closed) game.panel = null;
+      }
       input.endStep();
     }
   };

@@ -14,13 +14,14 @@ import { bodyCenter, facingVector, nearestTagged } from "../blocks/targets";
 import { interpolate } from "../blocks/text";
 import type { ScriptData } from "../project/format";
 import { compilePython, PythonError } from "./python";
+import { compilePepino, runPepinoScript } from "./pepino";
 import { PY } from "./pyruntime";
 import { clearScriptInfo, describeScriptError, registerScriptInfo, safeScriptId, snapshotScriptInfo } from "./errors";
 
 export interface ScriptResult {
   id: string;
   name: string;
-  language: "js" | "py";
+  language: "js" | "py" | "pep";
   /** Blocchi registrati dallo script. */
   blocks: string[];
   error?: { message: string; line?: number; col?: number };
@@ -34,6 +35,21 @@ export interface LoadOptions {
    * mentre si scrive, gli oggetti non perdono il blocco a ogni errore di battitura).
    */
   keepOnError?: boolean;
+  /** Lingua dei messaggi di Pepino Language (predefinita: quella in cui è scritto lo script). */
+  pepinoLang?: "it" | "en";
+  /** Quanti px è un tile nel progetto (per i numeri scritti in «tile» negli script Pepino). */
+  tileSize?: number;
+}
+
+/** Errore di scrittura di uno script in Pepino Language (il primo). */
+class PepinoCompileError extends Error {
+  constructor(
+    message: string,
+    readonly line: number,
+    readonly col: number,
+  ) {
+    super(message);
+  }
 }
 
 /** Nomi Python degli hook → nomi del blocco. */
@@ -154,12 +170,21 @@ export function loadScripts(scripts: ScriptData[], opts: LoadOptions = {}): Scri
     try {
       let code = s.code ?? "";
       let lineMap: number[] | undefined;
+      if (s.language === "pep") {
+        const compiled = compilePepino(code, opts.pepinoLang);
+        const first = compiled.diagnostics.find((d) => d.severity === "error");
+        if (!compiled.ok || !compiled.code) throw new PepinoCompileError(first?.message ?? "?", first?.line ?? 1, first?.col ?? 1);
+        registerScriptInfo(s.id, { name: s.name, lineMap: compiled.lineMap });
+        runPepinoScript(compiled, s.id, (spec) => void res.blocks.push(defineCustom(spec, s.id).type), (t) => PY.print(t), opts.tileSize);
+        continue;
+      }
       if (s.language === "py") ({ code, lineMap } = compilePython(code));
       registerScriptInfo(s.id, { name: s.name, lineMap });
       const fn = new Function("Pepino", `${code}\n//# sourceURL=pepino-script/${safeScriptId(s.id)}`);
       fn(makeApi(s.id, res.blocks));
     } catch (err) {
       if (err instanceof PythonError) res.error = { message: err.reason, line: err.line, col: err.col };
+      else if (err instanceof PepinoCompileError) res.error = { message: err.message, line: err.line, col: err.col };
       else {
         const d = describeScriptError(err);
         res.error = { message: err instanceof SyntaxError ? `Errore di sintassi: ${d.message}` : d.message, line: d.line };

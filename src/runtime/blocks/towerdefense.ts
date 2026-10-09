@@ -45,7 +45,7 @@ defineBlock({
   label: "Segue un percorso",
   category: "IA",
   description:
-    "Cammina da solo lungo i Punti del percorso con lo stesso nome, uno dopo l'altro: i nemici dei tower defense, le auto avversarie nelle corse. Alla fine può sparire, ricominciare il giro o fermarsi.",
+    "Cammina da solo lungo i Punti del percorso con lo stesso nome, uno dopo l'altro. Alla fine può sparire, ricominciare il giro o fermarsi.",
   priority: 21,
   props: {
     path: { type: "string", label: "Percorso", default: "strada" },
@@ -131,7 +131,7 @@ defineBlock({
         placeAt(e, e.worldX + (dx / dist) * step, e.worldY + (dy / dist) * step);
         if (Math.abs(dx) > 0.01) e.facingX = dx > 0 ? 1 : -1;
         e.direction = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
-        if (p.rotate) e.fx.rot = Math.atan2(dy, dx);
+        if (p.rotate) e.rotation = Math.atan2(dy, dx);
         return;
       }
       placeAt(e, t.x, t.y);
@@ -178,7 +178,7 @@ defineBlock({
   label: "Piazzola",
   category: "Gameplay",
   description:
-    "Un posto dove costruire con un clic (o un tocco): se la variabile dei soldi basta, crea il modello (per esempio una torretta) al suo posto e toglie il costo. Come nei tower defense.",
+    "Un posto dove costruire con un clic (o un tocco): se la variabile dei soldi basta, crea il modello (per esempio una torretta) al suo posto e toglie il costo.",
   priority: 95,
   props: {
     prefab: { type: "prefab", label: "Cosa costruisce", default: "" },

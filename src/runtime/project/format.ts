@@ -106,6 +106,11 @@ export interface EntityData {
   /** Id del modello (prefab) da cui deriva; i blocchi qui sovrascrivono quelli del modello. */
   prefab?: string;
   visible?: boolean;
+  /** Scala dell'oggetto (1 = grandezza originale): ingrandisce lo sprite e il corpo di collisione. */
+  scaleX?: number;
+  scaleY?: number;
+  /** Rotazione dello sprite in gradi, in senso orario, attorno al suo punto di origine (il corpo di collisione non ruota). */
+  rotation?: number;
   blocks: BlockData[];
   children?: EntityData[];
 }
@@ -189,7 +194,8 @@ export interface CutsceneData {
 export interface ScriptData {
   id: string;
   name: string;
-  language: "js" | "py";
+  /** js = JavaScript, py = Python ridotto, pep = Pepino Language. */
+  language: "js" | "py" | "pep";
   code: string;
 }
 
@@ -240,6 +246,35 @@ export const DEFAULT_TOUCH: TouchSettings = { mode: "auto", buttons: ["jump", "a
 
 export type VariableValue = number | string | boolean;
 
+/** Cosa succede quando si usa un oggetto dell'archivio. */
+export interface ItemEffect {
+  /** none = niente (ci pensano le Regole), heal = cura, variable = somma a una variabile, powerup = potenziamento a tempo. */
+  type: "none" | "heal" | "variable" | "powerup";
+  amount?: number;
+  variable?: string;
+  powerup?: string;
+  seconds?: number;
+  /** Intensità del potenziamento (0 = quella normale). */
+  strength?: number;
+}
+
+/** Un oggetto dell'archivio (scheda Oggetti): si raccoglie, si compra nei negozi, finisce nell'inventario. */
+export interface ItemData {
+  id: string;
+  name: string;
+  /** Immagine dell'icona e fotogramma. */
+  icon?: string;
+  frame?: number;
+  description?: string;
+  /** consumable = si usa e sparisce; key = resta (chiavi, oggetti delle missioni); instant = fa effetto appena preso. */
+  kind: "consumable" | "key" | "instant";
+  /** Prezzo nei negozi. */
+  price?: number;
+  /** Quanti se ne possono tenere (0 = senza limite). */
+  max?: number;
+  effect?: ItemEffect;
+}
+
 export interface ProjectData {
   format: "pepino";
   version: 1;
@@ -256,6 +291,8 @@ export interface ProjectData {
   dialogues?: DialogueData[];
   /** Filmati, avviati dalla Regola «Avvia un filmato». */
   cutscenes?: CutsceneData[];
+  /** Archivio degli oggetti (scheda Oggetti): inventario, raccolta, negozi, potenziamenti. */
+  items?: ItemData[];
   scripts?: ScriptData[];
   /** Lingue del gioco: la prima è quella in cui sono scritti i testi. */
   languages?: LanguageInfo[];
@@ -288,8 +325,36 @@ export const DEFAULT_INPUT: Record<string, string[]> = {
   dash: ["Key:ShiftLeft", "Key:KeyX", "Pad:RB", "Pad:B"],
   action: ["Key:KeyC", "Key:Enter", "Pad:X"],
   attack: ["Key:KeyV", "Key:KeyJ", "Pad:Y"],
+  item: ["Key:KeyQ", "Pad:LB"],
+  nextItem: ["Key:KeyE", "Pad:RT"],
   pause: ["Key:Escape", "Pad:Start"],
 };
+
+/**
+ * Tasti di ogni giocatore quando si gioca in più sullo stesso schermo: le azioni si chiamano "p1.left", "p2.action"…
+ * Ognuno ha anche il suo gamepad ("Pad2:A" = il secondo gamepad collegato).
+ */
+export const PLAYER_KEYS: { left: string; right: string; up: string; down: string; action: string[] }[] = [
+  { left: "KeyA", right: "KeyD", up: "KeyW", down: "KeyS", action: ["Space", "KeyQ", "KeyE"] },
+  { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown", action: ["Enter", "ControlRight", "ShiftRight"] },
+  { left: "KeyJ", right: "KeyL", up: "KeyI", down: "KeyK", action: ["KeyU", "KeyO"] },
+  { left: "Numpad4", right: "Numpad6", up: "Numpad8", down: "Numpad5", action: ["Numpad0", "NumpadEnter", "Numpad7"] },
+];
+
+/** Comandi dei giocatori da 1 a `count` (al massimo 4), da aggiungere a quelli del progetto. */
+export function playerInput(count = 4): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  PLAYER_KEYS.slice(0, count).forEach((k, i) => {
+    const p = `p${i + 1}.`;
+    const pad = `Pad${i + 1}`;
+    out[`${p}left`] = [`Key:${k.left}`, `${pad}:DPadLeft`, `${pad}:LeftStickLeft`];
+    out[`${p}right`] = [`Key:${k.right}`, `${pad}:DPadRight`, `${pad}:LeftStickRight`];
+    out[`${p}up`] = [`Key:${k.up}`, `${pad}:DPadUp`, `${pad}:LeftStickUp`];
+    out[`${p}down`] = [`Key:${k.down}`, `${pad}:DPadDown`, `${pad}:LeftStickDown`];
+    out[`${p}action`] = [...k.action.map((a) => `Key:${a}`), `${pad}:A`, `${pad}:X`];
+  });
+  return out;
+}
 
 export const INPUT_LABELS: Record<string, string> = {
   left: "Sinistra",
@@ -300,5 +365,7 @@ export const INPUT_LABELS: Record<string, string> = {
   dash: "Dash",
   action: "Azione",
   attack: "Attacco",
+  item: "Usa oggetto",
+  nextItem: "Oggetto successivo",
   pause: "Pausa",
 };

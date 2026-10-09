@@ -14,13 +14,14 @@ import {
   spriteBounds,
   type BlockData,
   type CollisionGrid,
+  type EntityData,
   type ProjectData,
   type SceneData,
   type TileLayerData,
   type TilesetData,
 } from "@runtime";
 import { currentScene, editProject, getState, log, setState, useEditor, viewInfo } from "../store";
-import { blockProps, effectiveBlocks, findEntity, flattenEntities, sceneOf, spriteOf, type FlatEntity } from "../projectOps";
+import { blockProps, effectiveBlocks, findEntity, flattenEntities, normalizeDegrees, sceneOf, spriteOf, type FlatEntity } from "../projectOps";
 import { addEntityAt } from "../commands";
 import { N, T } from "../i18n";
 import { getSettings } from "../settings";
@@ -31,10 +32,73 @@ interface View {
   zoom: number;
 }
 
+/**
+ * Ridimensionamento con le maniglie: l'angolo opposto resta fermo. Le posizioni «rel» sono gli angoli
+ * rispetto al punto di origine dello sprite, a scala 1.
+ */
+interface ScaleDrag {
+  kind: "scale";
+  id: string;
+  key: string;
+  sx0: number;
+  sy0: number;
+  x0: number;
+  y0: number;
+  ax0: number;
+  ay0: number;
+  relHx: number;
+  relHy: number;
+  relOx: number;
+  relOy: number;
+  /** Rotazione dell'oggetto (radianti): le maniglie lavorano negli assi dello sprite ruotato. */
+  rot: number;
+}
+
+/** Rotazione con il rombo sopra l'oggetto: si gira attorno al punto di origine dello sprite. */
+interface RotateDrag {
+  kind: "rotate";
+  id: string;
+  key: string;
+  ax: number;
+  ay: number;
+  a0: number;
+  deg0: number;
+}
+
 type Drag =
   | { kind: "pan"; sx: number; sy: number; vx: number; vy: number }
   | { kind: "move"; id: string; wx: number; wy: number; ox: number; oy: number; key: string; moved: boolean }
+  | ScaleDrag
+  | RotateDrag
   | { kind: "paint"; key: string; last: string };
+
+/** Grandezza delle maniglie, in pixel dello schermo. */
+const HANDLE = 7;
+const scaleOf = (e: EntityData) => ({ sx: e.scaleX ?? 1, sy: e.scaleY ?? 1 });
+/** Rotazione dell'oggetto in radianti (nel progetto è in gradi). */
+const rotOf = (e: EntityData) => ((e.rotation ?? 0) * Math.PI) / 180;
+/** Distanza del rombo di rotazione dal bordo alto, in pixel dello schermo. */
+const ROT_HANDLE = 16;
+
+/** Ruota il punto (x, y) attorno a (ax, ay) di `a` radianti. */
+function turn(x: number, y: number, ax: number, ay: number, a: number): [number, number] {
+  if (!a) return [x, y];
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const dx = x - ax;
+  const dy = y - ay;
+  return [ax + dx * c - dy * s, ay + dx * s + dy * c];
+}
+
+/** Segmento spesso `t` (per i contorni ruotati). */
+function segment(r: Renderer, x0: number, y0: number, x1: number, y1: number, t: number, color: number) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = ((-dy / len) * t) / 2;
+  const ny = ((dx / len) * t) / 2;
+  r.drawQuad(r.white, 0, 0, 1, 1, x0 + nx, y0 + ny, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x0 - nx, y0 - ny, color);
+}
 
 const COLL_FILL: Record<number, number> = Object.fromEntries(
   COLLISION_TYPES.filter((c) => c.id !== "none").map((c) => [COLL[c.id], hexColor(c.color, 0.42)]),
@@ -45,11 +109,29 @@ const BOUNDS = hexColor("#8cc480", 0.8);
 const SCREEN = hexColor("#7fb4d9", 0.55);
 const ERASE = hexColor("#e5695f");
 const PLACEHOLDER = packColor(0.55, 0.77, 0.5, 0.25);
+const HANDLE_FILL = packColor(0.05, 0.07, 0.05, 0.9);
 const TOOL_LABEL = { select: N("Seleziona"), paint: N("Pennello"), erase: N("Gomma") };
 
+/** Oggetto da raccogliere senza Sprite: nella scena si vede l'icona dell'oggetto scelto nell'archivio. */
+function pickupIcon(project: ProjectData, blocks: BlockData[]) {
+  const b = blocks.find((x) => x.type === "ItemPickup" && x.enabled !== false);
+  if (!b || blocks.some((x) => x.type === "Sprite" && x.enabled !== false)) return null;
+  const def = project.items?.find((i) => i.id === blockProps(b).item);
+  return def?.icon ? { image: def.icon, frame: def.frame ?? 0 } : null;
+}
+
 function entityBounds(project: ProjectData, assets: Assets, it: FlatEntity, blocks: BlockData[]) {
+  const icon = pickupIcon(project, blocks);
+  if (icon) return spriteBounds(assets.image(icon.image), it.wx, it.wy, "bottom");
   const sp = spriteOf(project, blocks);
-  if (sp) return spriteBounds(assets.image(sp.image), it.wx + sp.offsetX, it.wy + sp.offsetY, sp.origin);
+  if (sp) {
+    // Lo sprite cresce attorno al suo punto di origine (piedi, centro o angolo).
+    const ax = it.wx + sp.offsetX;
+    const ay = it.wy + sp.offsetY;
+    const b = spriteBounds(assets.image(sp.image), ax, ay, sp.origin);
+    const { sx, sy } = scaleOf(it.data);
+    return { x: ax + (b.x - ax) * sx, y: ay + (b.y - ay) * sy, w: b.w * sx, h: b.h * sy };
+  }
   const text = blocks.find((b) => b.type === "Text" && b.enabled !== false);
   if (text) {
     const p = blockProps(text);
@@ -65,11 +147,53 @@ function bodyBox(blocks: BlockData[], it: FlatEntity, origin: string) {
   const b = blocks.find((x) => x.type === "Body" && x.enabled !== false);
   if (!b) return null;
   const p = blockProps(b);
-  let ox = -p.width / 2;
-  let oy = -p.height;
-  if (origin === "center") oy = -p.height / 2;
+  // Come nel gioco: il corpo cresce con la scala dell'oggetto.
+  const kx = Math.abs(it.data.scaleX ?? 1);
+  const ky = Math.abs(it.data.scaleY ?? 1);
+  const w = p.width * kx;
+  const h = p.height * ky;
+  let ox = -w / 2;
+  let oy = -h;
+  if (origin === "center") oy = -h / 2;
   else if (origin === "topleft") ox = oy = 0;
-  return { x: it.wx + ox + p.offsetX, y: it.wy + oy + p.offsetY, w: p.width, h: p.height };
+  return { x: it.wx + ox + p.offsetX * kx, y: it.wy + oy + p.offsetY * ky, w, h };
+}
+
+/** Punto di origine dello sprite: lì si scala e si ruota (come nel gioco). */
+function anchorOf(project: ProjectData, it: FlatEntity, blocks: BlockData[]) {
+  const sp = spriteOf(project, blocks);
+  return sp ? { x: it.wx + sp.offsetX, y: it.wy + sp.offsetY } : { x: it.wx, y: it.wy };
+}
+
+/** Rotazione da usare per un oggetto: ruota solo chi ha uno Sprite. */
+function spriteRot(project: ProjectData, it: FlatEntity, blocks: BlockData[]) {
+  return spriteOf(project, blocks) ? rotOf(it.data) : 0;
+}
+
+/**
+ * Angoli dell'oggetto selezionato (in senso orario dall'alto a sinistra, già ruotati), solo se ha uno Sprite
+ * da ridimensionare. `local` = senza la rotazione.
+ */
+function cornersOf(project: ProjectData, assets: Assets, it: FlatEntity, blocks: BlockData[], local = false) {
+  if (!spriteOf(project, blocks)) return null;
+  const b = entityBounds(project, assets, it, blocks);
+  const a = local ? 0 : rotOf(it.data);
+  const o = anchorOf(project, it, blocks);
+  const box: [number, number][] = [
+    [b.x, b.y],
+    [b.x + b.w, b.y],
+    [b.x + b.w, b.y + b.h],
+    [b.x, b.y + b.h],
+  ];
+  return box.map(([x, y]) => turn(x, y, o.x, o.y, a));
+}
+
+/** Il rombo di rotazione: sopra il bordo alto dello sprite (ruotato con lui) e il punto da cui parte la sua asta. */
+function rotateHandleOf(corners: [number, number][], rot: number, zoom: number) {
+  const mx = (corners[0][0] + corners[1][0]) / 2;
+  const my = (corners[0][1] + corners[1][1]) / 2;
+  const d = ROT_HANDLE / zoom;
+  return { x: mx + Math.sin(rot) * d, y: my - Math.cos(rot) * d, mx, my };
 }
 
 export function SceneView({ hidden }: { hidden: boolean }) {
@@ -119,7 +243,8 @@ export function SceneView({ hidden }: { hidden: boolean }) {
       window.removeEventListener("keyup", ku);
       window.removeEventListener("blur", blur);
       gpu.current?.assets.dispose();
-      r.dispose();
+      // La tela resta nel documento (React può rieseguire l'effetto sulla stessa): il contesto non va perso.
+      r.dispose(false);
       gpu.current = null;
     };
   }, []);
@@ -212,7 +337,16 @@ export function SceneView({ hidden }: { hidden: boolean }) {
       const sp = spriteOf(project, blocks);
       const img = sp && g.assets.image(sp.image);
       if (sp && img) {
-        drawSpriteFrame(r, img, sp.frame, it.wx + sp.offsetX, it.wy + sp.offsetY, sp.origin, false, packColor(1, 1, 1, alpha));
+        const { sx, sy } = scaleOf(it.data);
+        const rot = rotOf(it.data);
+        const tf = sx === 1 && sy === 1 && !rot ? undefined : { sx, sy, rot, skew: 0 };
+        drawSpriteFrame(r, img, sp.frame, it.wx + sp.offsetX, it.wy + sp.offsetY, sp.origin, false, packColor(1, 1, 1, alpha), 0, tf);
+        drawn = true;
+      }
+      const icon = !drawn ? pickupIcon(project, blocks) : null;
+      const iconImg = icon && g.assets.image(icon.image);
+      if (icon && iconImg) {
+        drawSpriteFrame(r, iconImg, icon.frame, it.wx, it.wy, "bottom", false, packColor(1, 1, 1, alpha));
         drawn = true;
       }
       const text = blocks.find((b) => b.type === "Text" && b.enabled !== false);
@@ -300,11 +434,32 @@ export function SceneView({ hidden }: { hidden: boolean }) {
         const blocks = effectiveBlocks(project, it.data);
         const b = entityBounds(project, g.assets, it, blocks);
         const p = 1 / z;
-        r.strokeRect(b.x - 2 * p, b.y - 2 * p, b.w + 4 * p, b.h + 4 * p, 1.5 * p, ACCENT);
+        const rot = spriteRot(project, it, blocks);
+        if (!rot) r.strokeRect(b.x - 2 * p, b.y - 2 * p, b.w + 4 * p, b.h + 4 * p, 1.5 * p, ACCENT);
+        else {
+          // Contorno ruotato con lo sprite.
+          const c = cornersOf(project, g.assets, it, blocks)!;
+          for (let i = 0; i < 4; i++) segment(r, c[i][0], c[i][1], c[(i + 1) % 4][0], c[(i + 1) % 4][1], 1.5 * p, ACCENT);
+        }
         const body = bodyBox(blocks, it, spriteOf(project, blocks)?.origin ?? "bottom");
         if (body) r.strokeRect(body.x, body.y, body.w, body.h, p, BODY);
         r.rect(it.wx - 4 * p, it.wy - 0.5 * p, 8 * p, p, ACCENT);
         r.rect(it.wx - 0.5 * p, it.wy - 4 * p, p, 8 * p, ACCENT);
+        const corners = s.tool === "select" ? cornersOf(project, g.assets, it, blocks) : null;
+        const hs = HANDLE * p;
+        for (const [cx, cy] of corners ?? []) {
+          r.rect(cx - hs / 2, cy - hs / 2, hs, hs, HANDLE_FILL);
+          r.strokeRect(cx - hs / 2, cy - hs / 2, hs, hs, p, ACCENT);
+        }
+        if (corners) {
+          // Il rombo di rotazione con la sua asta (le maniglie della scala sono quadrate).
+          const h = rotateHandleOf(corners, rot, z);
+          segment(r, h.mx, h.my, h.x, h.y, p, ACCENT);
+          const k = hs * 0.75;
+          r.drawQuad(r.white, 0, 0, 1, 1, h.x, h.y - k, h.x + k, h.y, h.x, h.y + k, h.x - k, h.y, ACCENT);
+          const k2 = k * 0.5;
+          r.drawQuad(r.white, 0, 0, 1, 1, h.x, h.y - k2, h.x + k2, h.y, h.x, h.y + k2, h.x - k2, h.y, HANDLE_FILL);
+        }
       }
     }
     r.endFrame();
@@ -341,9 +496,131 @@ export function SceneView({ hidden }: { hidden: boolean }) {
       .map((d) => d.item!)
       .reverse();
     return items.find((it) => {
-      const b = entityBounds(project, g.assets, it, effectiveBlocks(project, it.data));
-      return wx >= b.x && wx <= b.x + b.w && wy >= b.y && wy <= b.y + b.h;
+      const blocks = effectiveBlocks(project, it.data);
+      const b = entityBounds(project, g.assets, it, blocks);
+      // Un oggetto ruotato si prova riportando il punto negli assi dello sprite.
+      const o = anchorOf(project, it, blocks);
+      const [px, py] = turn(wx, wy, o.x, o.y, -spriteRot(project, it, blocks));
+      return px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h;
     });
+  }
+
+  /** La maniglia dell'oggetto selezionato sotto il puntatore (indice dell'angolo), se c'è. */
+  function handleAt(wx: number, wy: number): { it: FlatEntity; corners: [number, number][]; i: number } | null {
+    const s = getState();
+    const project = s.project;
+    const scene = currentScene(s);
+    const g = gpu.current;
+    if (!project || !scene || !g || s.tool !== "select" || s.selection?.kind !== "entity") return null;
+    const sel = s.selection.id;
+    const it = flattenEntities(scene.entities).find((f) => f.data.id === sel);
+    if (!it) return null;
+    const corners = cornersOf(project, g.assets, it, effectiveBlocks(project, it.data));
+    if (!corners) return null;
+    const tol = (HANDLE / 2 + 2) / view.current.zoom;
+    const i = corners.findIndex(([cx, cy]) => Math.abs(wx - cx) <= tol && Math.abs(wy - cy) <= tol);
+    return i >= 0 ? { it, corners, i } : null;
+  }
+
+  /** Il rombo di rotazione dell'oggetto selezionato è sotto il puntatore? */
+  function rotateHandleAt(wx: number, wy: number): FlatEntity | null {
+    const s = getState();
+    const project = s.project;
+    const scene = currentScene(s);
+    const g = gpu.current;
+    if (!project || !scene || !g || s.tool !== "select" || s.selection?.kind !== "entity") return null;
+    const sel = s.selection.id;
+    const it = flattenEntities(scene.entities).find((f) => f.data.id === sel);
+    if (!it) return null;
+    const corners = cornersOf(project, g.assets, it, effectiveBlocks(project, it.data));
+    if (!corners) return null;
+    const h = rotateHandleOf(corners, rotOf(it.data), view.current.zoom);
+    const tol = (HANDLE / 2 + 3) / view.current.zoom;
+    return Math.hypot(wx - h.x, wy - h.y) <= tol ? it : null;
+  }
+
+  function startRotate(it: FlatEntity, wx: number, wy: number): RotateDrag {
+    const project = getState().project!;
+    const o = anchorOf(project, it, effectiveBlocks(project, it.data));
+    return { kind: "rotate", id: it.data.id, key: `rotate-${Date.now()}`, ax: o.x, ay: o.y, a0: Math.atan2(wy - o.y, wx - o.x), deg0: it.data.rotation ?? 0 };
+  }
+
+  function rotateTo(d: RotateDrag, wx: number, wy: number, coarse: boolean) {
+    const scene = currentScene(getState());
+    if (!scene) return;
+    const a = Math.atan2(wy - d.ay, wx - d.ax);
+    let deg = d.deg0 + ((a - d.a0) * 180) / Math.PI;
+    deg = coarse ? Math.round(deg / 15) * 15 : Math.round(deg);
+    const value = normalizeDegrees(deg);
+    editProject((p) => {
+      const ent = findEntity(sceneOf(p, scene.id)!.entities, d.id);
+      if (!ent) return;
+      if (value) ent.rotation = value;
+      else delete ent.rotation;
+    }, d.key);
+  }
+
+  function startScale(h: { it: FlatEntity; corners: [number, number][]; i: number }): ScaleDrag {
+    const project = getState().project!;
+    const blocks = effectiveBlocks(project, h.it.data);
+    const sp = spriteOf(project, blocks)!;
+    const { sx, sy } = scaleOf(h.it.data);
+    const ax0 = h.it.wx + sp.offsetX;
+    const ay0 = h.it.wy + sp.offsetY;
+    // I conti si fanno negli assi dello sprite: si usano gli angoli senza rotazione.
+    const local = cornersOf(project, gpu.current!.assets, h.it, blocks, true)!;
+    const [hx, hy] = local[h.i];
+    const [ox, oy] = local[(h.i + 2) % 4];
+    return {
+      kind: "scale",
+      id: h.it.data.id,
+      key: `scale-${Date.now()}`,
+      sx0: sx,
+      sy0: sy,
+      x0: h.it.data.x,
+      y0: h.it.data.y,
+      ax0,
+      ay0,
+      relHx: (hx - ax0) / sx,
+      relHy: (hy - ay0) / sy,
+      relOx: (ox - ax0) / sx,
+      relOy: (oy - ay0) / sy,
+      rot: rotOf(h.it.data),
+    };
+  }
+
+  function scaleTo(d: ScaleDrag, wx: number, wy: number, uniform: boolean, snap: boolean) {
+    const scene = currentScene(getState());
+    if (!scene) return;
+    // L'angolo opposto resta dov'era (con la rotazione si lavora negli assi dello sprite ruotato).
+    const c = Math.cos(d.rot);
+    const sn = Math.sin(d.rot);
+    const ox = d.ax0 + d.relOx * d.sx0 * c - d.relOy * d.sy0 * sn;
+    const oy = d.ay0 + d.relOx * d.sx0 * sn + d.relOy * d.sy0 * c;
+    const lx = (wx - ox) * c + (wy - oy) * sn;
+    const ly = -(wx - ox) * sn + (wy - oy) * c;
+    const w = d.relHx - d.relOx;
+    const h = d.relHy - d.relOy;
+    let sx = Math.abs(w) > 0.01 ? lx / w : d.sx0;
+    let sy = Math.abs(h) > 0.01 ? ly / h : d.sy0;
+    if (uniform) {
+      const k = Math.abs(sx / d.sx0 - 1) > Math.abs(sy / d.sy0 - 1) ? sx / d.sx0 : sy / d.sy0;
+      sx = d.sx0 * k;
+      sy = d.sy0 * k;
+    }
+    const step = snap ? 0.05 : 0.01;
+    sx = Math.max(0.05, Math.round(sx / step) * step);
+    sy = Math.max(0.05, Math.round(sy / step) * step);
+    const ax = ox - (d.relOx * sx * c - d.relOy * sy * sn);
+    const ay = oy - (d.relOx * sx * sn + d.relOy * sy * c);
+    editProject((p) => {
+      const ent = findEntity(sceneOf(p, scene.id)!.entities, d.id);
+      if (!ent) return;
+      ent.scaleX = Math.round(sx * 100) / 100;
+      ent.scaleY = Math.round(sy * 100) / 100;
+      ent.x = Math.round((d.x0 + ax - d.ax0) * 10) / 10;
+      ent.y = Math.round((d.y0 + ay - d.ay0) * 10) / 10;
+    }, d.key);
   }
 
   function paintAt(wx: number, wy: number) {
@@ -387,6 +664,17 @@ export function SceneView({ hidden }: { hidden: boolean }) {
     }
     if (e.button !== 0 || !s.project) return;
     if (s.tool === "select") {
+      const rotHit = rotateHandleAt(wx, wy);
+      if (rotHit) {
+        drag.current = startRotate(rotHit, wx, wy);
+        canvas.style.cursor = "grabbing";
+        return;
+      }
+      const handle = handleAt(wx, wy);
+      if (handle) {
+        drag.current = startScale(handle);
+        return;
+      }
       const hit = pick(wx, wy);
       if (hit) {
         setState({ selection: { kind: "entity", id: hit.data.id } });
@@ -405,9 +693,23 @@ export function SceneView({ hidden }: { hidden: boolean }) {
     const { wx, wy } = toWorld(e);
     hover.current = { wx, wy };
     const d = drag.current;
-    if (!d) return;
+    const canvas = canvasRef.current!;
+    if (!d) {
+      // Sopra una maniglia il puntatore mostra le frecce del ridimensionamento (o la mano per ruotare).
+      if (rotateHandleAt(wx, wy)) {
+        canvas.style.cursor = "grab";
+        return;
+      }
+      const h = handleAt(wx, wy);
+      canvas.style.cursor = h ? (h.i % 2 === 0 ? "nwse-resize" : "nesw-resize") : "";
+      return;
+    }
     const v = view.current;
-    if (d.kind === "pan") {
+    if (d.kind === "rotate") {
+      rotateTo(d, wx, wy, e.shiftKey);
+    } else if (d.kind === "scale") {
+      scaleTo(d, wx, wy, e.shiftKey, getState().snap && !e.altKey);
+    } else if (d.kind === "pan") {
       v.x = d.vx - (e.clientX - d.sx) / v.zoom;
       v.y = d.vy - (e.clientY - d.sy) / v.zoom;
     } else if (d.kind === "move") {
@@ -439,6 +741,7 @@ export function SceneView({ hidden }: { hidden: boolean }) {
 
   function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
     canvasRef.current?.releasePointerCapture(e.pointerId);
+    if (drag.current?.kind === "rotate" && canvasRef.current) canvasRef.current.style.cursor = "";
     drag.current = null;
   }
 
@@ -502,7 +805,9 @@ export function SceneView({ hidden }: { hidden: boolean }) {
           ))}
         </div>
       )}
-      <div className="scene-help">{T("Rotella: zoom · Tasto destro o Spazio + trascina: sposta la vista · Alt: senza aggancio")}</div>
+      <div className="scene-help">
+        {T("Rotella: zoom · Tasto destro o Spazio + trascina: sposta la vista · Angoli: ridimensiona (Maiusc in proporzione) · Rombo in alto: ruota (Maiusc a scatti di 15°) · Alt: senza aggancio")}
+      </div>
     </div>
   );
 }

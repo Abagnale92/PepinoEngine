@@ -15,7 +15,7 @@ defineBlock({
   label: "Insegue",
   category: "IA",
   description:
-    "Quando vede il bersaglio lo insegue: in orizzontale (saltando gli ostacoli) nei platform, trovando la strada tra i muri nel top-down. Imposta il controller su «IA o Regole»; con la Pattuglia, quando lo perde torna a pattugliare.",
+    "Quando vede il bersaglio lo insegue: se c'è la gravità corre in orizzontale e salta gli ostacoli, altrimenti cerca la strada tra i muri. Imposta il controller su «IA o Regole»; con la Pattuglia, quando lo perde torna a pattugliare.",
   requires: ["Body"],
   priority: 12,
   props: {

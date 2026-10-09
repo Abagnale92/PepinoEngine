@@ -17,12 +17,21 @@ import "./npc";
 import "./beatemup";
 import "./particles";
 import "./light";
-import "./juice";
+import "./spritefx";
 import "./combo";
 import "./boss";
 import "./shmup";
 import "./towerdefense";
 import "./racing";
+import "./pointclick";
+import "./items";
+import "./firstperson";
+import "./fighting";
+import "./roguelike";
+import "./cards";
+import "./horror";
+import "./rhythm";
+import "./party";
 
 /** Garantisce che i blocchi di serie siano caricati (l'import sopra fa il lavoro). */
 export function registerBuiltinBlocks(): void {}

@@ -3,10 +3,11 @@ import type { Entity } from "../core/entity";
 import { overlaps, type Rect } from "../math";
 import { drawArc } from "../render/shapes";
 import { bodyCenter } from "./targets";
-import { spawnImpact } from "./juice";
+import { spawnImpact } from "./spritefx";
+import { boosted } from "../items/items";
 
 /**
- * Combo da picchiaduro: premendo più volte il tasto d'attacco escono colpi diversi uno dopo l'altro
+ * Combo: premendo più volte il tasto d'attacco escono colpi diversi uno dopo l'altro
  * (es. pugno, pugno, calcio che manda a terra). Ogni colpo ha il suo stato, quindi la sua animazione.
  * Il tasto premuto durante un colpo viene ricordato: il colpo successivo parte appena possibile.
  */
@@ -75,15 +76,20 @@ function moveOf(self: BlockInstance, n: number): Move {
   };
 }
 
-/** In aria? Beat 'em up: salto sull'asse dell'altezza. Platform: non tocca terra. */
+/** In aria? Con il salto sull'asse dell'altezza (profondità) conta `air`, altrimenti non tocca terra. */
 function airborne(e: Entity): boolean {
   const bu = e.get("BeatEmUpController");
   if (bu) return !!bu.data.air;
-  return e.has("PlatformController") && !!e.body && !e.body.onGround;
+  return (e.has("PlatformController") || e.has("FighterController")) && !!e.body && !e.body.onGround;
 }
 
 const planar = (e: Entity) => e.has("TopDownController") || e.has("BeatEmUpController");
-const isDown = (e: Entity) => !!e.get("BeatEmUpController")?.data.down;
+/** A terra (beat 'em up) o senza vita (K.O.): niente colpi. */
+const isDown = (e: Entity) => {
+  if (e.get("BeatEmUpController")?.data.down) return true;
+  const hp = e.get("Health");
+  return !!hp && (hp.data.dead || Number(hp.data.hp) <= 0);
+};
 
 function hitbox(self: BlockInstance, m: Move): Rect {
   const c = bodyCenter(self.entity);
@@ -133,7 +139,7 @@ function hitTargets(self: BlockInstance, m: Move) {
     if (Math.abs(o.elevation - e.elevation) > (m.air ? 40 : m.height)) continue;
     if (!overlaps(box, o.body.rect())) continue;
     d.hit.add(o);
-    o.get("Health")?.actions.damage(m.damage, from, { push: m.push, knockdown: m.knockdown, stun: 0.3 });
+    o.get("Health")?.actions.damage(boosted(m.damage, e), from, { push: m.push, knockdown: m.knockdown, stun: 0.3 });
     const oc = bodyCenter(o);
     spawnImpact(self.scene, (box.x + box.w / 2 + oc.x) / 2, oc.y - o.elevation - 4, p.impactColor);
     if (p.hitstop > 0) self.game.hitstop?.(m.knockdown ? p.hitstop * 2 : p.hitstop);
@@ -148,7 +154,7 @@ defineBlock({
   label: "Combo di colpi",
   category: "Combattimento",
   description:
-    "Premendo più volte il tasto d'attacco escono colpi diversi in sequenza, come nei picchiaduro: l'ultimo manda a terra. C'è anche il colpo in aria. Ogni colpo è uno stato (attack1, attack2, attack3, airAttack): dai all'animazione lo stesso nome e si collega da sola.",
+    "Premendo più volte il tasto d'attacco escono colpi diversi uno dopo l'altro: l'ultimo manda a terra. C'è anche il colpo in aria. Ogni colpo è uno stato (attack1, attack2, attack3, airAttack): dai all'animazione lo stesso nome e si collega da sola.",
   priority: 22,
   props: {
     mode: {

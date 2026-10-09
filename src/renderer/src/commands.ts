@@ -1,15 +1,15 @@
 import { validateProject, type BlockData, type EntityData } from "@runtime";
 import { api } from "./api";
 import { currentScene, editProject, getState, loadProject, log, setState, viewInfo } from "./store";
-import { collectIds, effectiveBlocks, findEntity, prefabUses, removeEntity, sceneOf, uniqueId } from "./projectOps";
+import { assetUses, collectIds, effectiveBlocks, findEntity, prefabUses, removeEntity, replaceAssetRefs, sceneOf, uniqueId } from "./projectOps";
 import { T, Twhere } from "./i18n";
 import { getSettings } from "./settings";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export async function openSample(): Promise<void> {
+export async function openSample(id: string): Promise<void> {
   try {
-    const p = await api.openSample();
+    const p = await api.openSample(id);
     if (p) {
       loadProject(p);
       log("info", T("Aperto il progetto «{0}»", p.data.name));
@@ -248,7 +248,32 @@ export function deleteSelection(): void {
       p.prefabs = p.prefabs.filter((x) => x.id !== sel.id);
     });
     setState({ selection: null });
+  } else if (sel.kind === "asset") {
+    deleteAsset(sel.id);
   }
+}
+
+/**
+ * Toglie un asset dal progetto (il file resta nella cartella). Se qualcosa lo usa lo chiede prima,
+ * poi svuota quei campi; l'immagine di un tileset non si può togliere.
+ */
+export function deleteAsset(id: string): boolean {
+  const s = getState();
+  const a = s.project?.assets.find((x) => x.id === id);
+  if (!s.project || !a) return false;
+  if (a.type === "image" && s.project.tilesets.some((t) => t.image === id)) {
+    log("warn", T("L'immagine «{0}» è usata da un tileset: non si può eliminare.", id));
+    return false;
+  }
+  const uses = assetUses(s.project, id);
+  if (uses > 0 && !window.confirm(T("«{0}» è usato in {1} punti del progetto: quei campi resteranno vuoti. Eliminarlo lo stesso?", id, uses))) return false;
+  editProject((p) => {
+    replaceAssetRefs(p, a.type, id, "");
+    p.assets = p.assets.filter((x) => x.id !== id);
+  });
+  if (getState().selection?.kind === "asset" && getState().selection?.id === id) setState({ selection: null });
+  log("info", T("Asset «{0}» tolto dal progetto (il file resta nella cartella del progetto).", id));
+  return true;
 }
 
 export function duplicateSelection(): void {

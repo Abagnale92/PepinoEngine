@@ -22,20 +22,23 @@ import {
 import { currentScene, editProject, setState, useEditor, viewInfo } from "../store";
 import {
   assetUrl,
+  assetUses,
   effectiveBlocks,
   findEntity,
   missingWithRequires,
+  normalizeDegrees,
   prefabUses,
   projectTags,
   sceneOf,
   spriteOf,
   statesFor,
 } from "../projectOps";
-import { addEntityAt, createPrefabFromEntity, deleteSelection, duplicateSelection, unlinkPrefab } from "../commands";
+import { addEntityAt, createPrefabFromEntity, deleteAsset, deleteSelection, duplicateSelection, unlinkPrefab } from "../commands";
 import { CommitInput, Field, NumberField, PropField, TagsInput, Toggle, type FieldCtx } from "./fields";
 import { Icon } from "./Icon";
 import { AnimPreview, FrameThumb } from "./thumbs";
 import { FontPreview } from "./FontPreview";
+import { FxPreview, type FxSprite } from "./FxPreview";
 import { openImageAsset } from "../pixel/store";
 import { openInMusic, previewAsset } from "../music/player";
 import { T } from "../i18n";
@@ -101,9 +104,14 @@ interface BlockOps {
 }
 
 function BlockList({ blocks, project, ops }: { blocks: BlockData[]; project: ProjectData; ops: BlockOps }) {
+  const baseUrl = useEditor((s) => s.baseUrl);
   const sprite = spriteOf(project, blocks);
   const ctx: FieldCtx = { project, states: statesFor(blocks), animations: Object.keys(sprite?.asset?.animations ?? {}) };
   const active = new Set(blocks.filter((b) => b.enabled !== false).map((b) => b.type));
+  const a = sprite?.asset;
+  const fxSprite: FxSprite | null = a
+    ? { url: assetUrl(baseUrl, a.src, a.rev), fw: a.frameWidth ?? 0, fh: a.frameHeight ?? 0, frame: sprite.frame, origin: sprite.origin }
+    : null;
   return (
     <>
       {blocks.map((b) => (
@@ -113,6 +121,7 @@ function BlockList({ blocks, project, ops }: { blocks: BlockData[]; project: Pro
           ctx={ctx}
           ops={ops}
           missing={(getBlockDef(b.type)?.requires ?? []).filter((r) => !active.has(r))}
+          preview={(props) => (b.type === "SpriteFX" ? <FxPreview props={props} sprite={fxSprite} /> : null)}
         />
       ))}
       {blocks.length === 0 && (
@@ -123,7 +132,20 @@ function BlockList({ blocks, project, ops }: { blocks: BlockData[]; project: Pro
   );
 }
 
-function BlockCard({ block, ctx, ops, missing }: { block: BlockData; ctx: FieldCtx; ops: BlockOps; missing: string[] }) {
+function BlockCard({
+  block,
+  ctx,
+  ops,
+  missing,
+  preview,
+}: {
+  block: BlockData;
+  ctx: FieldCtx;
+  ops: BlockOps;
+  missing: string[];
+  /** Anteprima animata sotto la descrizione (per ora solo gli Effetti animati). */
+  preview?: (props: Record<string, any>) => ReactNode;
+}) {
   const def = getBlockDef(block.type);
   const [open, setOpen] = useState(true);
   if (!def) {
@@ -176,6 +198,7 @@ function BlockCard({ block, ctx, ops, missing }: { block: BlockData; ctx: FieldC
       {open && (
         <div className="block-body">
           {def.description && <p className="block-desc">{T(def.description)}</p>}
+          {!off && preview?.(props)}
           {missing.length > 0 && (
             <div className="warn-line">
               <span>{T("Serve anche: ")}{missing.map((m) => T(getBlockDef(m)?.label ?? m)).join(", ")}</span>
@@ -186,7 +209,7 @@ function BlockCard({ block, ctx, ops, missing }: { block: BlockData; ctx: FieldC
             <Fragment key={g}>
               {g && <div className="group-label">{T(g)}</div>}
               {entries.map(([key, schema]) =>
-                schema.type === "stateMap" ? (
+                schema.type === "stateMap" || schema.type === "itemList" || schema.type === "list" ? (
                   <div className="field-wide" key={key}>
                     <div className="field-wide-label">{T(schema.label)}</div>
                     <PropField schema={schema} value={props[key]} ctx={ctx} onChange={(v) => ops.setProp(block.type, key, v)} />
@@ -369,6 +392,51 @@ function EntityInspector({ id }: { id: string }) {
         </Field>
         <Field label={T("Posizione Y")}>
           <NumberField value={e.y} unit="px" step={1} onChange={(v) => upd((ent) => void (ent.y = v), `y:${id}`)} />
+        </Field>
+        <Field label={T("Scala")} help={T("1 = grandezza originale. Ingrandisce lo sprite e il corpo di collisione. Nella scena si cambia anche trascinando gli angoli dell'oggetto selezionato (Maiusc = in proporzione).")}>
+          <div className="scale-field">
+            <NumberField value={e.scaleX ?? 1} step={0.1} min={0.05} unit="×" onChange={(v) => upd((ent) => void (ent.scaleX = Math.max(0.05, v)), `sx:${id}`)} />
+            <NumberField value={e.scaleY ?? 1} step={0.1} min={0.05} unit="×" onChange={(v) => upd((ent) => void (ent.scaleY = Math.max(0.05, v)), `sy:${id}`)} />
+            {((e.scaleX ?? 1) !== 1 || (e.scaleY ?? 1) !== 1) && (
+              <button
+                type="button"
+                className="icon-btn"
+                title={T("Grandezza originale")}
+                onClick={() =>
+                  upd((ent) => {
+                    delete ent.scaleX;
+                    delete ent.scaleY;
+                  })
+                }
+              >
+                <Icon name="restart" size={12} />
+              </button>
+            )}
+          </div>
+        </Field>
+        <Field
+          label={T("Rotazione")}
+          help={T("In gradi, in senso orario attorno al punto di origine dello sprite. Nella scena si cambia anche trascinando il rombo sopra l'oggetto selezionato (Maiusc = a scatti di 15°). Il corpo di collisione non ruota.")}
+        >
+          <div className="scale-field">
+            <NumberField
+              value={e.rotation ?? 0}
+              step={15}
+              unit="°"
+              onChange={(v) =>
+                upd((ent) => {
+                  const d = normalizeDegrees(v);
+                  if (d) ent.rotation = d;
+                  else delete ent.rotation;
+                }, `rot:${id}`)
+              }
+            />
+            {!!e.rotation && (
+              <button type="button" className="icon-btn" title={T("Senza rotazione")} onClick={() => upd((ent) => void delete ent.rotation)}>
+                <Icon name="restart" size={12} />
+              </button>
+            )}
+          </div>
         </Field>
         <Field label={T("Livello di disegno")} help={T("Più alto = disegnato davanti. I layer di tile hanno il loro livello.")}>
           <NumberField integer value={e.z ?? prefab?.z ?? 0} onChange={(v) => upd((ent) => void (ent.z = v), `z:${id}`)} />
@@ -564,6 +632,7 @@ function AssetInspector({ id }: { id: string }) {
         <p className="empty-hint">
           {T("Usalo nei blocchi Testo e Pulsante (campo Carattere) o come carattere del gioco (Inspector della scena → Progetto).")}
         </p>
+        <AssetActions id={a.id} />
       </>
     );
   }
@@ -593,6 +662,7 @@ function AssetInspector({ id }: { id: string }) {
           )}
         </div>
         <p className="empty-hint">{T("Usalo nei blocchi con campi audio (suono salto, suono moneta…) o come musica della scena.")}</p>
+        <AssetActions id={a.id} />
       </>
     );
   }
@@ -703,6 +773,24 @@ function AssetInspector({ id }: { id: string }) {
           </div>
         ))}
       </Section>
+      <AssetActions id={a.id} />
+    </>
+  );
+}
+
+/** Quante volte è usato l'asset ed «Elimina asset». */
+function AssetActions({ id }: { id: string }) {
+  const project = useEditor((s) => s.project)!;
+  const uses = assetUses(project, id);
+  return (
+    <>
+      <p className="empty-hint">{uses ? T("Usato in {0} punti del progetto.", uses) : T("Non è ancora usato nel progetto.")}</p>
+      <div className="insp-actions">
+        <button type="button" className="btn small danger" onClick={() => deleteAsset(id)}>
+          <Icon name="trash" size={13} />
+          {T(" Elimina asset")}
+        </button>
+      </div>
     </>
   );
 }

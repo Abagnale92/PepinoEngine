@@ -131,7 +131,7 @@ export function argSchemas(def: RuleItemDef, item: RuleItem): Record<string, Pro
   return (isCond ? bd?.conditions[name]?.params : bd?.actions[name]?.params) ?? {};
 }
 
-const REQUIRED = new Set(["object", "event", "condition", "blockAction", "block", "prefab", "scene", "variable", "input", "dialogue", "language"]);
+const REQUIRED = new Set(["object", "event", "condition", "blockAction", "block", "prefab", "scene", "variable", "input", "dialogue", "language", "item"]);
 
 /** Testo di un parametro dentro la frase della regola; `missing` = da completare. */
 export function formatToken(
@@ -172,6 +172,10 @@ export function formatToken(
     case "dialogue": {
       const dl = rc.project.dialogues?.find((x) => x.id === s);
       return dl ? ok(dl.name) : miss(s);
+    }
+    case "item": {
+      const it = rc.project.items?.find((x) => x.id === s);
+      return it ? ok(`«${it.name}»`) : miss(s);
     }
     case "cutscene": {
       const cs = rc.project.cutscenes?.find((x) => x.id === s);

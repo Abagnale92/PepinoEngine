@@ -1,4 +1,5 @@
 import { defineBlock, type BlockInstance } from "../core/block";
+import { absorbHit } from "./items";
 
 export interface DamageSource {
   x: number;
@@ -23,6 +24,25 @@ function damage(self: BlockInstance, amount: number, from?: DamageSource, force 
   const d = self.data;
   if (d.dead || amount <= 0 || (!force && d.invuln > 0)) return;
   const e = self.entity;
+  if (!force) {
+    // Durante un filmato (o mentre si cambia scena) i comandi sono bloccati: niente danni.
+    if (self.props.cutsceneSafe && (self.scene.rules.cutscene || self.game.changingScene)) return;
+    // Dentro un nascondiglio non si viene colpiti.
+    if (e.hiding) return;
+    // Potenziamenti: l'invincibilità ignora i colpi, lo scudo ne para uno.
+    if (e.hasBoost("invincible")) return;
+    if (absorbHit(e)) {
+      d.invuln = self.props.invulnerability;
+      self.emit("blocked");
+      return;
+    }
+    // Parata: il colpo che arriva da davanti non fa male, spinge solo un po' indietro.
+    if (e.guarding && from && Math.sign(from.x - e.worldX) === e.facingX) {
+      if (e.body) e.body.vx = -e.facingX * 2 * self.scene.tileSize;
+      self.emit("blocked");
+      return;
+    }
+  }
   d.hp = Math.max(0, d.hp - amount);
   d.invuln = self.props.invulnerability;
   syncVar(self);
@@ -33,7 +53,8 @@ function damage(self: BlockInstance, amount: number, from?: DamageSource, force 
   const b = e.body;
   const kb = (opts.push ?? self.props.knockback) * self.scene.tileSize;
   if (b && kb > 0) {
-    const platform = e.has("PlatformController");
+    // Chi ha la gravità vola indietro e in alto; chi si muove su un piano viene spinto nella direzione del colpo.
+    const platform = e.has("PlatformController") || e.has("FighterController");
     let dx = from ? e.worldX - from.x : -e.facingX;
     let dy = from && !platform ? e.worldY - from.y : 0;
     if (platform) {
@@ -83,6 +104,12 @@ defineBlock({
     knockback: { type: "number", label: "Contraccolpo", unit: "tile/s", default: 8, min: 0 },
     hazardDamage: { type: "integer", label: "Danno dai tile pericolo", default: 1, min: 0 },
     hurtSound: { type: "audio", label: "Suono quando è colpito", default: "" },
+    cutsceneSafe: {
+      type: "boolean",
+      label: "Niente danni durante i filmati",
+      default: true,
+      help: "Mentre scorre un filmato, o mentre si passa a un'altra scena, i colpi e i pericoli non tolgono vita.",
+    },
     onDeath: {
       type: "select",
       label: "Quando la vita finisce",
@@ -98,6 +125,7 @@ defineBlock({
     { id: "hurt", label: "È stato colpito" },
     { id: "died", label: "È morto" },
     { id: "healed", label: "È stato curato" },
+    { id: "blocked", label: "Lo scudo ha parato un colpo" },
   ],
   conditions: {
     isDead: { label: "È morto", test: (self) => !!self.data.dead },

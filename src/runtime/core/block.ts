@@ -39,7 +39,12 @@ export type PropType =
   | "state"
   | "dialogue"
   | "cutscene"
-  | "language";
+  | "language"
+  // Oggetti dell'archivio (scheda Oggetti): uno solo, o un elenco con i prezzi (negozio).
+  | "item"
+  | "itemList"
+  // Elenco di righe tutte uguali (armi, carte…): i campi di una riga sono in `fields`.
+  | "list";
 
 export interface PropOption {
   value: string;
@@ -63,6 +68,26 @@ export interface PropSchema {
   optional?: boolean;
   /** Testo che il giocatore vede: compare nella scheda Testi per essere tradotto. */
   translatable?: boolean;
+  /** Solo per il tipo "list": i campi di ogni riga dell'elenco. */
+  fields?: Record<string, PropSchema>;
+  /** Solo per "list": campo da mostrare nel titolo della riga (altrimenti il numero). */
+  rowLabel?: string;
+  /** Solo per "list": testo del pulsante che aggiunge una riga. */
+  addLabel?: string;
+}
+
+/** Una riga di una proprietà di tipo "list". */
+export type ListRow = Record<string, unknown>;
+
+/** Le righe di una proprietà "list", con i valori predefiniti dei campi al posto di quelli mancanti. */
+export function listRows(schema: PropSchema, value: unknown): ListRow[] {
+  const fields = schema.fields ?? {};
+  return (Array.isArray(value) ? value : []).map((row) => {
+    const out: ListRow = {};
+    const r = (row ?? {}) as ListRow;
+    for (const [k, f] of Object.entries(fields)) out[k] = k in r ? r[k] : structuredClone(f.default);
+    return out;
+  });
 }
 
 export interface NamedInfo {
@@ -124,6 +149,8 @@ export interface BlockDef extends Hooks {
   source: "builtin" | "custom";
   /** Id dello script che l'ha definito (solo blocchi personalizzati). */
   script?: string;
+  /** Testi scritti dal blocco stesso sullo schermo (es. «Esci» nel negozio): finiscono nella scheda Testi. */
+  texts: string[];
 }
 
 /** Forma "comoda" con cui si scrive un blocco (anche un blocco custom). */
@@ -139,6 +166,7 @@ export interface BlockSpec extends Hooks {
   actions?: Record<string, ActionDef | ((self: Self, ...args: any[]) => void)>;
   requires?: string[];
   priority?: number;
+  texts?: string[];
 }
 
 const registry = new Map<string, BlockDef>();
@@ -164,6 +192,7 @@ export function defineBlock(spec: BlockSpec): BlockDef {
     requires: spec.requires ?? [],
     priority: spec.priority ?? 50,
     source: "builtin",
+    texts: spec.texts ?? [],
     init: spec.init,
     update: spec.update,
     physics: spec.physics,

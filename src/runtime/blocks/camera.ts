@@ -39,7 +39,7 @@ defineBlock({
   name: "CameraFollow",
   label: "Camera che segue",
   category: "Camera",
-  description: "La camera segue questo oggetto. Scegli lo stile adatto al genere del gioco.",
+  description: "La camera segue questo oggetto: scegli come lo segue, quanto anticipa e se resta dentro i bordi della scena.",
   priority: 90,
   props: {
     mode: {
@@ -47,9 +47,9 @@ defineBlock({
       label: "Stile",
       default: "platform",
       options: [
-        { value: "platform", label: "Platform: anticipa nella direzione di corsa" },
-        { value: "topdown", label: "Dall'alto: morbida in tutte le direzioni" },
-        { value: "beatemup", label: "Beat 'em up: scorre solo in orizzontale" },
+        { value: "platform", label: "Anticipa nella direzione di corsa" },
+        { value: "topdown", label: "Morbida in tutte le direzioni" },
+        { value: "beatemup", label: "Scorre solo in orizzontale" },
         { value: "rooms", label: "A stanze: passa da uno schermo all'altro" },
         { value: "locked", label: "Bloccata sull'oggetto" },
       ],
@@ -65,13 +65,13 @@ defineBlock({
       type: "boolean",
       label: "Non torna indietro",
       default: false,
-      help: "La camera avanza solo verso destra: tipico dei beat 'em up e dei runner.",
+      help: "La camera avanza solo verso destra e non torna mai indietro.",
     },
     keepInView: {
       type: "boolean",
       label: "L'oggetto non esce dallo schermo",
       default: false,
-      help: "Utile nei beat 'em up: con la camera bloccata il giocatore resta nell'arena.",
+      help: "Con la camera bloccata il giocatore non può uscire dall'inquadratura.",
     },
   },
   events: [{ id: "roomChanged", label: "Entra in un'altra stanza (camera a stanze)" }],

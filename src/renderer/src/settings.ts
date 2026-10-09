@@ -19,6 +19,8 @@ export interface EditorSettings {
   previewCollisions: boolean;
   previewSpeed: number;
   codeFontSize: number;
+  /** Dimensioni (px) dei riquadri cambiate trascinando i divisori, per id (vedi PANELS in Splitter.tsx); chi manca ha la dimensione iniziale. */
+  panels: Record<string, number>;
 }
 
 const KEY = "pepino:editor:settings";
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   previewCollisions: false,
   previewSpeed: 1,
   codeFontSize: 12.5,
+  panels: {},
 };
 
 function load(): EditorSettings {
@@ -80,6 +83,22 @@ export function updateSettings(patch: Partial<EditorSettings>): void {
     // senza memoria le impostazioni valgono solo fino alla chiusura
   }
   apply(settings);
+  for (const l of listeners) l();
+}
+
+/** Cambia la dimensione di un riquadro (`undefined` = quella iniziale). Mentre si trascina (`save` falso) non scrive in memoria e non riapplica lingua e zoom. */
+export function updatePanel(id: string, size: number | undefined, save = true): void {
+  const panels = { ...(settings.panels ?? {}) };
+  if (size === undefined) delete panels[id];
+  else panels[id] = size;
+  settings = { ...settings, panels };
+  if (save) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(settings));
+    } catch {
+      // senza memoria le dimensioni valgono solo fino alla chiusura
+    }
+  }
   for (const l of listeners) l();
 }
 

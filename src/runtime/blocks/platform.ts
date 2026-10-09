@@ -110,18 +110,18 @@ defineBlock({
     if (stunned) e.stunned -= dt;
     const it = stunned ? NO_INTENT : e.intent;
 
-    const h = p.jumpHeight * ts;
+    const h = p.jumpHeight * ts * e.boost("jump");
     const t = Math.max(0.05, p.timeToApex);
     const gravity = (2 * h) / (t * t);
     // Spinta corretta per il passo fisso: la formula continua 2h/t perderebbe ~h·dt/t in altezza.
     const halfStep = (gravity * dt) / 2;
     const jumpV = halfStep + Math.sqrt(halfStep * halfStep + 2 * gravity * h);
-    const speed = p.speed * ts;
+    const speed = p.speed * ts * e.boost("speed");
     const grounded = b.onGround;
 
     if (grounded) {
       d.coyote = p.coyoteTime;
-      d.airJumpsLeft = p.airJumps;
+      d.airJumpsLeft = p.airJumps + e.boost("airJump", 0);
       d.airDashUsed = false;
       if (!d.wasGrounded) self.emit("landed");
     } else {

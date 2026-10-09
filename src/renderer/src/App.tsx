@@ -12,12 +12,15 @@ import { PlayView } from "./components/PlayView";
 import { RulesView } from "./components/RulesView";
 import { Icon } from "./components/Icon";
 import { PanelBoundary } from "./components/PanelBoundary";
+import { Splitter, usePanelVar } from "./components/Splitter";
+import { bilingual, loadSamples, useSamples } from "./samples";
 import { DialoguesView } from "./components/DialoguesView";
 import { CodeView } from "./components/CodeView";
 import { TextsView } from "./components/TextsView";
 import { PixelEditor } from "./components/PixelEditor";
 import { MusicView } from "./components/MusicView";
 import { CutscenesView } from "./components/CutscenesView";
+import { ItemsView } from "./components/ItemsView";
 import { getPixelState, pixelKey, saveDoc } from "./pixel/store";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { getSettings, useSettings } from "./settings";
@@ -76,6 +79,7 @@ function useHotkeys() {
 }
 
 function Welcome() {
+  const samples = useSamples();
   return (
     <div className="welcome">
       <div className="welcome-card">
@@ -92,7 +96,11 @@ function Welcome() {
           ))}
         </div>
         <div className="row-btns">
-          <button type="button" className="btn primary" onClick={openSample}>{T("Apri il progetto demo")}</button>
+          {samples.map((s, i) => (
+            <button type="button" key={s.id} className={`btn${i === 0 ? " primary" : ""}`} onClick={() => void openSample(s.id)}>
+              {T("Apri «{0}»", bilingual(s.name))}
+            </button>
+          ))}
           <button type="button" className="btn" onClick={openProjectDialog}>{T("Apri un progetto…")}</button>
           <button type="button" className="btn ghost" onClick={() => setState({ settingsOpen: true })}>
             <Icon name="settings" size={13} /> {T("Impostazioni")}
@@ -120,6 +128,12 @@ export function App() {
   // Cambiando lingua tutto l'editor si ridisegna con i testi nuovi.
   useSettings((s) => s.language);
   const autosave = useSettings((s) => s.autosave);
+  // Dimensioni dei pannelli scelte trascinando i divisori.
+  const panelVars = {
+    ...usePanelVar("--left-w", "left"),
+    ...usePanelVar("--right-w", "right"),
+    ...usePanelVar("--bottom-h", "bottom"),
+  };
 
   // Salvataggio automatico (app desktop): solo se ci sono modifiche e non si sta provando il gioco.
   useEffect(() => {
@@ -138,7 +152,8 @@ export function App() {
   }, [scripts]);
 
   useEffect(() => {
-    openSample();
+    // All'avvio si apre il primo gioco di esempio, se c'è; altrimenti la schermata iniziale.
+    void loadSamples().then(([first]) => first && openSample(first.id));
     const guard = (e: BeforeUnloadEvent) => {
       if (getState().dirty && api.desktop) {
         e.preventDefault();
@@ -158,12 +173,15 @@ export function App() {
     );
   }
   return (
-    <div className={`app${playing ? " is-playing" : ""}`}>
+    <div className={`app${playing ? " is-playing" : ""}`} style={panelVars}>
       <SettingsDialog />
       <Toolbar />
       <PanelBoundary name="Gerarchia" area="left">
         <Hierarchy />
       </PanelBoundary>
+      <Splitter id="left" grid className="splitter-left" />
+      <Splitter id="right" edge="end" grid className="splitter-right" />
+      <Splitter id="bottom" axis="y" edge="end" grid className="splitter-bottom" />
       <main className="center">
         <div className="center-tabs">
           <button type="button" className={`ctab${centerTab === "scene" ? " on" : ""}`} onClick={() => setState({ centerTab: "scene" })}>
@@ -192,6 +210,11 @@ export function App() {
             <Icon name="music" size={13} />{T(" Musica")}</button>
           <button type="button" className={`ctab${centerTab === "cutscenes" ? " on" : ""}`} onClick={() => setState({ centerTab: "cutscenes" })}>
             <Icon name="film" size={13} />{T(" Filmati")}<span className="ctab-count">{project.cutscenes?.length ?? 0}</span>
+          </button>
+          <button type="button" className={`ctab${centerTab === "items" ? " on" : ""}`} onClick={() => setState({ centerTab: "items" })}>
+            <Icon name="coin" size={13} />
+            {T(" Oggetti")}
+            <span className="ctab-count">{project.items?.length ?? 0}</span>
           </button>
         </div>
         <div className="center-body">
@@ -231,6 +254,11 @@ export function App() {
           {centerTab === "cutscenes" && !playing && (
             <PanelBoundary name="Filmati" fill>
               <CutscenesView />
+            </PanelBoundary>
+          )}
+          {centerTab === "items" && !playing && (
+            <PanelBoundary name="Oggetti" fill>
+              <ItemsView />
             </PanelBoundary>
           )}
           {playing && (

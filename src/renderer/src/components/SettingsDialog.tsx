@@ -17,6 +17,7 @@ const SHORTCUTS: [string, string][] = [
   [N("Spazio + trascina"), N("Sposta la vista")],
   [N("Alt + trascina"), N("Sposta senza aggancio")],
   ["F1", N("Nel gioco: collisioni e debug")],
+  [N("Trascina un bordo"), N("Ridimensiona i pannelli (doppio clic: dimensione iniziale)")],
 ];
 
 const close = () => setState({ settingsOpen: false });

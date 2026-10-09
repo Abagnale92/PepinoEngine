@@ -1,5 +1,5 @@
 // Editor nel browser, senza Electron: utile per sviluppo e test rapidi.
-// I progetti di esempio in /samples sono serviti come file statici (es. /demo/project.json).
+// La cartella samples è servita come file statici: modelli in /templates, esempi in /<id>/project.json.
 import { resolve } from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";

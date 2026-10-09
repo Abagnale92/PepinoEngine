@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { getEditorLang } from "./i18n";
 import { loadScripts, setScriptLogger, type LogLevel, type ProjectData, type SceneData, type ScriptResult } from "@runtime";
 import type { OpenedProject } from "./api";
 import { findEntity } from "./projectOps";
@@ -12,7 +13,7 @@ export type Selection =
 
 export type Tool = "select" | "paint" | "erase";
 export type BottomTab = "tiles" | "prefabs" | "assets" | "console";
-export type CenterTab = "scene" | "rules" | "dialogues" | "texts" | "code" | "paint" | "music" | "cutscenes";
+export type CenterTab = "scene" | "rules" | "dialogues" | "texts" | "code" | "paint" | "music" | "cutscenes" | "items";
 export type RulesScope = "scene" | "global";
 
 /** A cosa si riferisce un messaggio della Console: con un clic l'editor ci porta lì. */
@@ -215,7 +216,7 @@ export function reloadScripts(fresh = false): void {
   if (!fresh && key === scriptsKey) return;
   scriptsKey = key;
   setScriptLogger((m) => log("info", m));
-  const results = loadScripts(scripts, { keepOnError: !fresh });
+  const results = loadScripts(scripts, { keepOnError: !fresh, pepinoLang: getEditorLang(), tileSize: state.project?.settings.tileSize });
   setState({ scriptResults: results, blocksVersion: state.blocksVersion + 1 });
 }
 

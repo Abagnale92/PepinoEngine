@@ -1,204 +1,175 @@
 import { describe, expect, it } from "vitest";
-import { applyEffect, identityFx, type EntityData } from "@runtime";
-import { makeProject, makeWorld } from "./helpers";
+import type { EntityData } from "@runtime";
+import { FLAT, TS, makeProject, makeWorld } from "./helpers";
 
-const STREET = Array(12).fill(".".repeat(60));
-
-const fighter = (x: number, blocks: EntityData["blocks"] = []): EntityData => ({
-  id: "p",
-  name: "Pepino",
+/** Un lottatore: corpo, controller, salute e un colpo corpo a corpo. */
+const fighter = (id: string, x: number, tags: string[], props: Record<string, unknown> = {}, extra: EntityData["blocks"] = []): EntityData => ({
+  id,
+  name: id,
   x,
-  y: 100,
-  tags: ["giocatore"],
+  y: 8 * TS,
+  tags,
   blocks: [
-    { type: "Body", props: { width: 10, height: 8, group: "giocatore", collidesWith: ["nemici"] } },
-    { type: "BeatEmUpController", props: {} },
-    { type: "Health", props: { max: 5, invulnerability: 0, knockback: 0 } },
-    ...blocks,
+    { type: "Body", props: { width: 12, height: 20, group: "giocatore", collidesWith: ["nemici"] } },
+    { type: "FighterController", props },
+    { type: "Health", props: { max: 5, invulnerability: 0, knockback: 0, onDeath: "none" } },
+    ...extra,
   ],
 });
 
-const dummy = (x: number, extra: Partial<EntityData> = {}): EntityData => ({
-  id: "e",
-  name: "Sacco",
-  x,
-  y: 100,
-  tags: ["nemico"],
-  blocks: [
-    { type: "Body", props: { width: 12, height: 8, group: "nemici", collidesWith: ["giocatore"] } },
-    { type: "BeatEmUpController", props: { input: "ai" } },
-    { type: "Health", props: { max: 20, invulnerability: 0, knockback: 0 } },
-  ],
-  ...extra,
+const punch = (target: string) => ({
+  type: "Attack",
+  props: { mode: "ai", target, damage: 1, reach: 12, width: 16, height: 18, startup: 0, active: 0.1, recovery: 0.1 },
 });
 
-/** Preme il tasto per un passo e lo rilascia. */
-function tap(w: ReturnType<typeof makeWorld>, action = "attack") {
-  w.input.hold(action);
-  w.step(1);
-  w.input.release(action);
-}
-
-describe("combo di colpi", () => {
-  it("tre pressioni fanno tre colpi diversi; l'ultimo manda a terra", () => {
-    const w = makeWorld(makeProject(STREET, [fighter(100, [{ type: "Combo", props: {} }]), dummy(113)]));
+describe("picchiaduro 1 contro 1", () => {
+  it("i due si guardano sempre in faccia e avanti e indietro cambiano velocità", () => {
+    const w = makeWorld(
+      makeProject(FLAT, [fighter("p", 60, ["giocatore"], { opponent: "avversario", speed: 4, backSpeed: 2 }), fighter("cpu", 180, ["avversario"], { input: "ai", opponent: "giocatore" })]),
+    );
     const p = w.get("p");
-    const e = w.get("e");
-    const hp = () => e.get("Health")!.data.hp;
-    const states: string[] = [];
-    // Premendo di continuo (una volta ogni 4 passi) la combo va avanti da sola.
-    for (let i = 0; i < 60; i++) {
-      if (i % 4 === 0) tap(w);
-      else w.step(1);
-      if (p.state.startsWith("attack") && states.at(-1) !== p.state) states.push(p.state);
-    }
-    // Dopo il colpo finale la combo ricomincia dal primo colpo.
-    expect(states.slice(0, 4)).toEqual(["attack1", "attack2", "attack3", "attack1"]);
-    // 1 + 1 + 2 (+ il primo colpo della combo successiva, se il nemico è di nuovo in piedi)
-    expect(20 - hp()).toBeGreaterThanOrEqual(4);
-    expect(w.calls.filter((c) => c.startsWith("hitstop")).length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("il colpo finale fa volare il nemico, che resta a terra e poi si rialza", () => {
-    const w = makeWorld(makeProject(STREET, [fighter(100, [{ type: "Combo", props: { moves: 1 } }]), dummy(113)]));
-    const e = w.get("e");
-    const events: string[] = [];
-    e.on("knockedDown", () => events.push("down"));
-    e.on("gotUp", () => events.push("up"));
-    tap(w);
-    let top = 0;
-    const seen = new Set<string>();
-    for (let i = 0; i < 120; i++) {
-      w.step(1);
-      top = Math.max(top, e.elevation);
-      seen.add(e.state);
-    }
-    expect(top).toBeGreaterThan(8);
-    expect(seen.has("down")).toBe(true);
-    expect(seen.has("getup")).toBe(true);
-    expect(events).toEqual(["down", "up"]);
-    expect(e.state).toBe("idle");
-    expect(e.stunned).toBe(0);
-  });
-
-  it("finito il tempo per il colpo successivo, la combo ricomincia dal primo", () => {
-    const w = makeWorld(makeProject(STREET, [fighter(100, [{ type: "Combo", props: { comboWindow: 0.2 } }])]));
-    const p = w.get("p");
-    tap(w);
+    const cpu = w.get("cpu");
+    w.step(2);
+    expect(p.facingX).toBe(1);
+    expect(cpu.facingX).toBe(-1);
+    // Verso l'avversario si va più veloci che all'indietro.
+    const x0 = p.x;
+    w.input.hold("right");
     w.step(30);
-    tap(w);
-    expect(p.state).toBe("attack1");
+    w.input.release("right");
+    const avanti = p.x - x0;
+    const x1 = p.x;
+    w.input.hold("left");
+    w.step(30);
+    w.input.release("left");
+    expect(avanti).toBeGreaterThan(x1 - p.x);
+    expect(p.x).toBeLessThan(x1);
   });
 
-  it("in aria esce il colpo in aria, una volta per salto", () => {
-    const w = makeWorld(makeProject(STREET, [fighter(100, [{ type: "Combo", props: {} }]), dummy(112)]));
+  it("tenendo indietro si para: il colpo da davanti non fa danno", () => {
+    const w = makeWorld(
+      makeProject(FLAT, [
+        fighter("p", 100, ["giocatore"], { opponent: "avversario" }),
+        fighter("cpu", 118, ["avversario"], { input: "ai", opponent: "giocatore" }, [punch("giocatore")]),
+      ]),
+    );
     const p = w.get("p");
-    tap(w, "jump");
-    w.step(4);
-    tap(w);
-    expect(p.state).toBe("airAttack");
-    w.step(60);
-    expect(p.elevation).toBe(0);
-    expect(w.get("e").get("Health")!.data.hp).toBeLessThan(20);
+    const hp = p.get("Health")!;
+    const attack = w.get("cpu").get("Attack")!;
+    w.step(2);
+    // Senza parata il colpo arriva.
+    attack.actions.attack();
+    w.step(20);
+    expect(hp.data.hp).toBe(4);
+    // Tenendo indietro (a sinistra, l'avversario è a destra) si para.
+    w.input.hold("left");
+    w.step(2);
+    expect(p.get("FighterController")!.data.guarding).toBe(true);
+    let blocked = 0;
+    p.on("blocked", () => blocked++);
+    p.x = 100;
+    attack.actions.attack();
+    w.step(6);
+    expect(hp.data.hp).toBe(4);
+    expect(blocked).toBe(1);
   });
-});
 
-describe("effetti animati", () => {
-  it("l'atterraggio schiaccia lo sprite e poi torna normale", () => {
-    const fx = identityFx();
-    applyEffect(fx, "squash", 0, 1, 1, 0xffffff);
-    expect(fx.sx).toBeGreaterThan(1.3);
-    expect(fx.sy).toBeLessThan(0.75);
-    const end = identityFx();
-    applyEffect(end, "squash", 1, 1, 1, 0xffffff);
-    expect(end).toEqual(identityFx());
+  it("abbassandosi il corpo diventa più basso e si torna su lasciando Giù", () => {
+    const w = makeWorld(makeProject(FLAT, [fighter("p", 100, ["giocatore"], { opponent: "avversario" })]));
+    const p = w.get("p");
+    w.step(2);
+    const h = p.body!.h;
+    w.input.hold("down");
+    w.step(2);
+    expect(p.body!.h).toBeLessThan(h);
+    expect(p.state).toBe("crouch");
+    w.input.release("down");
+    w.step(2);
+    expect(p.body!.h).toBe(h);
   });
 
-  it("il blocco reagisce agli eventi e alla fine lascia una copia che sparisce", () => {
-    const e: EntityData = {
-      id: "s",
-      name: "Slime",
-      x: 50,
-      y: 100,
-      blocks: [{ type: "SpriteFX", props: { idle: "float" } }],
+  it("la Regia conta i round: chi resta senza vita li perde e alla fine c'è un vincitore", () => {
+    const regia = {
+      id: "regia",
+      name: "Regia",
+      x: 0,
+      y: 0,
+      blocks: [{ type: "FightMatch", props: { fighter1: "giocatore", fighter2: "avversario", rounds: 2, time: 0 } }],
     };
-    const w = makeWorld(makeProject(STREET, [e]));
-    const s = w.get("s");
-    w.step(10);
-    expect(s.fx.dy).toBeLessThan(0);
-    s.emit("hurt");
-    w.step(1);
-    expect(s.fx.flash).toBeGreaterThan(0.5);
-    w.step(30);
-    expect(s.fx.flash).toBe(0);
-    // Senza immagine non c'è nulla da far sparire; con lo sprite si aggiunge l'effetto alla scena (vedi demo).
-    s.destroy();
-    w.step(1);
-    expect(s.fx).toEqual(identityFx());
-  });
-});
-
-describe("boss", () => {
-  const boss = (attacks: Record<string, unknown>, extra: EntityData["blocks"] = []): EntityData => ({
-    id: "boss",
-    name: "Capo",
-    x: 200,
-    y: 100,
-    tags: ["nemico", "boss"],
-    blocks: [
-      { type: "Body", props: { width: 20, height: 10, group: "nemici", collidesWith: ["giocatore"] } },
-      { type: "Health", props: { max: 10, invulnerability: 0, knockback: 0 } },
-      {
-        type: "Boss",
-        props: { wakeRange: 8, windupTime: 0.2, restTime: 0.5, melee: false, charge: false, slam: false, ...attacks },
-      },
-      ...extra,
-    ],
-  });
-
-  it("dorme finché il bersaglio è lontano, poi si sveglia", () => {
-    const w = makeWorld(makeProject(STREET, [fighter(20), boss({ slam: true })]));
-    const b = w.get("boss");
-    const events: string[] = [];
-    b.on("awake", () => events.push("awake"));
-    w.step(10);
-    expect(b.get("Boss")!.data.awake).toBe(false);
-    w.get("p").x = 120;
-    w.step(2);
-    expect(events).toEqual(["awake"]);
-  });
-
-  it("la schiacciata atterra dove era il bersaglio e lo manda a terra", () => {
-    const w = makeWorld(makeProject(STREET, [fighter(140), boss({ slam: true })]));
-    const b = w.get("boss");
-    const p = w.get("p");
-    let top = 0;
-    for (let i = 0; i < 150 && p.get("Health")!.data.hp === 5; i++) {
-      w.step(1);
-      top = Math.max(top, b.elevation);
-    }
-    expect(top).toBeGreaterThan(30);
-    expect(p.get("Health")!.data.hp).toBe(4);
-    expect(Math.abs(b.x - 140)).toBeLessThan(20);
-    w.step(2);
-    expect(p.get("BeatEmUpController")!.data.down).toBe(true);
-  });
-
-  it("chiama gli aiutanti e cambia fase quando la vita scende", () => {
-    const minion = { id: "aiutante", name: "Aiutante", tags: ["nemico"], blocks: [{ type: "Body", props: { width: 8, height: 8, group: "nemici" } }] };
-    const p = makeProject(STREET, [fighter(150), boss({ summon: true, minion: "aiutante", minions: 2 })], { prefabs: [minion] });
-    const w = makeWorld(p);
-    const b = w.get("boss");
-    const phases: string[] = [];
-    b.on("phase2", () => phases.push("2"));
-    b.on("phase3", () => phases.push("3"));
+    const w = makeWorld(
+      makeProject(FLAT, [fighter("p", 60, ["giocatore"], { opponent: "avversario" }), fighter("cpu", 180, ["avversario"], { input: "ai", opponent: "giocatore" }), regia]),
+    );
+    const match = w.get("regia").get("FightMatch")!;
+    const cpuHp = w.get("cpu").get("Health")!;
+    expect(match.data.phase).toBe("intro");
+    expect(w.game.lockControls).toBe(true);
     w.step(120);
-    expect(w.scene.entities.filter((e) => e.prefab === "aiutante").length).toBeGreaterThanOrEqual(2);
-    b.get("Health")!.actions.damage(5);
-    w.step(1);
-    b.get("Health")!.actions.damage(3);
-    w.step(1);
-    expect(phases).toEqual(["2", "3"]);
-    expect(b.get("Boss")!.data.phase).toBe(3);
+    expect(match.data.phase).toBe("fight");
+    expect(w.game.lockControls).toBe(false);
+    // Primo round: la CPU va al tappeto.
+    cpuHp.actions.kill();
+    w.step(2);
+    expect(match.data.phase).toBe("ko");
+    w.step(180);
+    // Nuovo round: vita piena per tutti e conto dei round aggiornato.
+    expect(match.data.round).toBe(2);
+    expect(cpuHp.data.hp).toBe(5);
+    w.step(120);
+    cpuHp.actions.kill();
+    w.step(200);
+    expect(match.data.phase).toBe("over");
+    expect(w.game.vars.vincitore).toBeUndefined();
+  });
+
+  it("l'avversario del computer si avvicina e attacca", () => {
+    const w = makeWorld(
+      makeProject(FLAT, [
+        fighter("p", 60, ["giocatore"], { opponent: "avversario" }),
+        fighter("cpu", 200, ["avversario"], { input: "ai", opponent: "giocatore" }, [
+          punch("giocatore"),
+          { type: "FighterAI", props: { target: "giocatore", aggression: 1, think: 0.1, jumpChance: 0 } },
+        ]),
+      ]),
+    );
+    const cpu = w.get("cpu");
+    const hp = w.get("p").get("Health")!;
+    const x0 = cpu.x;
+    w.step(60 * 4);
+    expect(cpu.x).toBeLessThan(x0 - 40);
+    expect(hp.data.hp).toBeLessThan(5);
+  });
+
+  it("dopo il K.O. chi ha perso resta a terra e il computer smette di attaccare", () => {
+    const regia = {
+      id: "regia",
+      name: "Regia",
+      x: 0,
+      y: 0,
+      blocks: [{ type: "FightMatch", props: { fighter1: "giocatore", fighter2: "avversario", rounds: 1, time: 0 } }],
+    };
+    const w = makeWorld(
+      makeProject(FLAT, [
+        fighter("p", 100, ["giocatore"], { opponent: "avversario" }),
+        fighter("cpu", 118, ["avversario"], { input: "ai", opponent: "giocatore" }, [
+          punch("giocatore"),
+          { type: "FighterAI", props: { target: "giocatore", aggression: 1, think: 0.05, jumpChance: 0 } },
+        ]),
+        regia,
+      ]),
+    );
+    const match = w.get("regia").get("FightMatch")!;
+    w.step(120);
+    expect(match.data.phase).toBe("fight");
+    // Il giocatore manda al tappeto la CPU: lei resta a terra e non colpisce più.
+    const p = w.get("p").get("Health")!;
+    const cpu = w.get("cpu");
+    p.data.hp = 5;
+    cpu.get("Health")!.actions.kill();
+    w.step(2);
+    const hp = p.data.hp;
+    w.step(60 * 3);
+    expect(match.data.phase).toBe("over");
+    expect(cpu.state).toBe("down");
+    expect(p.data.hp).toBe(hp);
   });
 });

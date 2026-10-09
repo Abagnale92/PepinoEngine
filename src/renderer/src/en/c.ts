@@ -28,7 +28,7 @@ export const EN_C: Record<string, string> = {
   "Pixel perfect": "Pixel perfect",
   "Pixel quadrato": "Square pixel",
   Platform: "Platform",
-  "Platform: anticipa nella direzione di corsa": "Platform: looks ahead in the running direction",
+  "Anticipa nella direzione di corsa": "Looks ahead in the running direction",
   "Polvere, scintille, fumo, pioggia di stelle: tante piccole particelle che nascono dall'oggetto. Di continuo, oppure a raffica quando succede qualcosa (colpo, salto, morte…).":
     "Dust, sparks, smoke, showers of stars: lots of small particles coming out of the object. Continuously, or in a burst when something happens (hit, jump, death…).",
   "Porta alla scena": "Leads to scene",
@@ -36,13 +36,12 @@ export const EN_C: Record<string, string> = {
   "Posizione X": "Position X",
   "Posizione Y": "Position Y",
   "Preavviso prima di attaccare": "Warning before attacking",
-  "Premendo più volte il tasto d'attacco escono colpi diversi in sequenza, come nei picchiaduro: l'ultimo manda a terra. C'è anche il colpo in aria. Ogni colpo è uno stato (attack1, attack2, attack3, airAttack): dai all'animazione lo stesso nome e si collega da sola.":
-    "Pressing the attack key repeatedly throws different hits in sequence, like in fighting games: the last one knocks down. There's an air attack too. Each hit is a state (attack1, attack2, attack3, airAttack): give the animation the same name and it links by itself.",
+  "Premendo più volte il tasto d'attacco escono colpi diversi uno dopo l'altro: l'ultimo manda a terra. C'è anche il colpo in aria. Ogni colpo è uno stato (attack1, attack2, attack3, airAttack): dai all'animazione lo stesso nome e si collega da sola.":
+    "Pressing the attack key several times chains different hits one after the other: the last one knocks down. There is also the air hit. Each hit is a state (attack1, attack2, attack3, airAttack): give the animation the same name and it links by itself.",
   Premi: "Press",
   Preparazione: "Wind-up",
   Probabilità: "Probability",
   Progetto: "Project",
-  "Progetto demo non trovato ({0}). Esegui «npm run samples».": "Demo project not found ({0}). Run «npm run samples».",
   "Progetto salvato": "Project saved",
   Proiettile: "Projectile",
   "Proiettile (modello)": "Projectile (prefab)",
@@ -85,8 +84,8 @@ export const EN_C: Record<string, string> = {
   "Quando spara": "When it shoots",
   "Quando sparisce": "When it disappears",
   "Quando succede qualcosa": "When something happens",
-  "Quando vede il bersaglio lo insegue: in orizzontale (saltando gli ostacoli) nei platform, trovando la strada tra i muri nel top-down. Imposta il controller su «IA o Regole»; con la Pattuglia, quando lo perde torna a pattugliare.":
-    "When it sees the target it chases it: horizontally (jumping over obstacles) in platformers, finding its way between walls in top-down. Set the controller to «AI or Rules»; with Patrol, when it loses the target it goes back to patrolling.",
+  "Quando vede il bersaglio lo insegue: se c'è la gravità corre in orizzontale e salta gli ostacoli, altrimenti cerca la strada tra i muri. Imposta il controller su «IA o Regole»; con la Pattuglia, quando lo perde torna a pattugliare.":
+    "When it sees the target it chases it: with gravity it runs horizontally and jumps over obstacles, otherwise it looks for a way between the walls. Set the controller to «AI or Rules»; with Patrol, when it loses the target it goes back to patrolling.",
   Quante: "How many",
   Quantità: "Amount",
   "Questo layer è solo decorativo: i suoi tile non bloccano nessuno.": "This layer is only decorative: its tiles don't block anyone.",
@@ -319,8 +318,8 @@ export const EN_C: Record<string, string> = {
   "Un oggetto sta toccando un altro": "An object is touching another",
   "Un salto premuto poco prima di atterrare parte comunque.": "A jump pressed just before landing still happens.",
   "Un'animazione è finita": "An animation ended",
-  "Un'ombra sotto i piedi: nei beat 'em up fa capire dove si trova e dove atterra un personaggio.":
-    "A shadow under the feet: in beat 'em ups it shows where a character is and where it will land.",
+  "Un'ombra sotto i piedi: fa capire dove si trova e dove atterrerà un personaggio che salta.":
+    "A shadow under the feet: it shows where a jumping character is and where it will land.",
   "Una lingua che non è nell'elenco": "A language that isn't in the list",
   "Una scena deve avere almeno un layer.": "A scene must have at least one layer.",
   "Una strada di notte con i lampioni: si cammina in profondità, si salta e si combatte a ondate.": "A street at night with street lamps: you walk in depth, jump and fight in waves.",
@@ -330,7 +329,7 @@ export const EN_C: Record<string, string> = {
   "Usalo nei blocchi con campi audio (suono salto, suono moneta…) o come musica della scena.": "Use it in blocks with audio fields (jump sound, coin sound…) or as scene music.",
   "usato da": "used by",
   "Uscita verso scena": "Scene exit",
-  "Utile nei beat 'em up: con la camera bloccata il giocatore resta nell'arena.": "Useful in beat 'em ups: with the camera locked the player stays in the arena.",
+  "Con la camera bloccata il giocatore non può uscire dall'inquadratura.": "With the camera locked the player cannot leave the frame.",
   "Utile per capire se una regola scatta.": "Useful to find out if a rule fires.",
   'Va avanti e indietro, girandosi contro i muri e sul bordo delle piattaforme. Imposta il controller su "IA o Regole".':
     'Goes back and forth, turning at walls and at platform edges. Set the controller to "AI or Rules".',

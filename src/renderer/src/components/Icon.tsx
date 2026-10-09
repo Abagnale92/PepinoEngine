@@ -57,6 +57,7 @@ const PATHS: Record<string, string> = {
   minus: "M3 8h10",
   film: "M2.5 3.5h11v9h-11zM5 3.5v9M11 3.5v9M2.5 6.5H5M2.5 9.5H5M11 6.5h2.5M11 9.5h2.5",
   music: "M6 12.5V3.5l7-1.5v9M6 12.5a2 2 0 11-4 0 2 2 0 014 0zM13 11a2 2 0 11-4 0 2 2 0 014 0z",
+  globe: "M8 1.8a6.2 6.2 0 100 12.4A6.2 6.2 0 008 1.8zM1.8 8h12.4M8 1.8c-1.8 1.8-2.6 4-2.6 6.2s.8 4.4 2.6 6.2M8 1.8c1.8 1.8 2.6 4 2.6 6.2s-.8 4.4-2.6 6.2",
 };
 
 const FILLED = new Set(["play", "stop", "pause"]);

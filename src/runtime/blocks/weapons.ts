@@ -3,6 +3,7 @@ import type { Entity } from "../core/entity";
 import { hexColor, overlaps, type Rect } from "../math";
 import { lineOfSight } from "../world/pathfinding";
 import { bodyCenter, facingVector, nearestTagged } from "./targets";
+import { boosted } from "../items/items";
 
 // ------------------------------------------------------------------ Proiettile
 
@@ -22,6 +23,12 @@ defineBlock({
     gravity: { type: "number", label: "Gravità", unit: "tile/s²", default: 0, step: 1, help: "0 = vola dritto; più alto = arco." },
     destroyOnWall: { type: "boolean", label: "Sparisce contro i muri", default: true },
     piercing: { type: "boolean", label: "Attraversa i bersagli", default: false },
+    offscreen: {
+      type: "boolean",
+      label: "Sparisce fuori dallo schermo",
+      default: false,
+      help: "Appena esce dalla vista della camera sparisce: non colpisce quello che il giocatore non vede.",
+    },
   },
   events: [{ id: "hit", label: "Ha colpito" }],
   init(self) {
@@ -41,12 +48,18 @@ defineBlock({
     if (p.gravity) b.vy += p.gravity * self.scene.tileSize * dt;
     if (p.destroyOnWall && (b.onWallLeft || b.onWallRight || b.onGround || b.onCeiling)) return e.destroy();
     const r = b.rect();
+    if (p.offscreen) {
+      const cam = self.scene.camera;
+      const vw = cam.viewW / cam.zoom;
+      const vh = cam.viewH / cam.zoom;
+      if (r.x + r.w < cam.left || r.x > cam.left + vw || r.y + r.h < cam.top || r.y > cam.top + vh) return e.destroy();
+    }
     for (const o of self.scene.entities) {
       if (o === e || o.destroyed || o === d.owner || !o.hasTag(p.target) || !o.body || d.hit.has(o)) continue;
       if (!overlaps(r, o.body.rect())) continue;
       d.hit.add(o);
       // Il contraccolpo spinge nella direzione di volo.
-      o.get("Health")?.actions.damage(p.damage, { x: e.worldX - b.vx, y: e.worldY - b.vy });
+      o.get("Health")?.actions.damage(boosted(p.damage, d.owner), { x: e.worldX - b.vx, y: e.worldY - b.vy });
       self.emit("hit", o);
       if (!p.piercing) return e.destroy();
     }
@@ -278,7 +291,10 @@ defineBlock({
       if (p.mode === "player" && self.game.input.pressed(p.command)) startAttack(self);
       else if (p.mode === "auto") {
         d.cool -= dt;
-        if (d.cool <= 0 && e.stunned <= 0 && targetsInReach(self).length) {
+        // Chi è senza vita (K.O., in attesa di sparire) non attacca più.
+        const hp = e.get("Health");
+        const down = !!hp && (hp.data.dead || Number(hp.data.hp) <= 0);
+        if (d.cool <= 0 && e.stunned <= 0 && !down && targetsInReach(self).length) {
           d.cool = p.cooldown;
           startAttack(self);
         }
@@ -300,7 +316,7 @@ defineBlock({
     for (const o of targetsInReach(self)) {
       if (d.hit.has(o)) continue;
       d.hit.add(o);
-      o.get("Health")?.actions.damage(p.damage, from);
+      o.get("Health")?.actions.damage(boosted(p.damage, e), from);
       self.emit("hit", o);
     }
   },

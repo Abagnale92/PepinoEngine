@@ -5,7 +5,8 @@ contextBridge.exposeInMainWorld("pepinoZoom", (factor: number) => webFrame.setZo
 
 contextBridge.exposeInMainWorld("pepino", {
   openProject: () => ipcRenderer.invoke("project:open"),
-  openSample: () => ipcRenderer.invoke("project:sample"),
+  listSamples: () => ipcRenderer.invoke("samples:list"),
+  openSample: (id: string) => ipcRenderer.invoke("project:sample", id),
   newProject: (template: string) => ipcRenderer.invoke("project:new", template),
   saveProject: (data: unknown) => ipcRenderer.invoke("project:save", data),
   exportWeb: (data: unknown) => ipcRenderer.invoke("project:export", data),

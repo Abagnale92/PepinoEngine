@@ -6,7 +6,7 @@ defineBlock({
   name: "TopDownController",
   label: "Controller Top-down",
   category: "Movimento",
-  description: "Movimento visto dall'alto in 4 o 8 direzioni, senza gravità (stile Zelda o RPG).",
+  description: "Movimento visto dall'alto in 4 o 8 direzioni, senza gravità.",
   requires: ["Body"],
   priority: 20,
   props: {
@@ -78,7 +78,7 @@ defineBlock({
       y /= len;
     }
 
-    const speed = p.speed * self.scene.tileSize;
+    const speed = p.speed * self.scene.tileSize * self.entity.boost("speed");
     const acc = speed / Math.max(p.accelTime, 1e-3);
     const dec = speed / Math.max(p.decelTime, 1e-3);
     const tx = x * speed;

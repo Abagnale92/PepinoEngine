@@ -49,7 +49,10 @@ function editorTexts(): string[] {
     add(s.help);
     add(s.unit);
     add(s.group);
+    add(s.addLabel);
     for (const o of s.options ?? []) add(o.label);
+    // Elenchi di righe (armi, carte…): anche i campi di una riga hanno etichette da tradurre.
+    Object.values(s.fields ?? {}).forEach(schema);
   };
   for (const d of listBlockDefs()) {
     if (d.source === "custom") continue;
@@ -115,8 +118,8 @@ describe("editor in inglese", () => {
 
   it("i messaggi del controllo del progetto si traducono con le parti variabili", () => {
     setEditorLang("en");
-    const demo = JSON.parse(readFileSync(resolve("samples/demo/project.json"), "utf8")) as ProjectData;
-    const broken: ProjectData = structuredClone(demo);
+    const platform = JSON.parse(readFileSync(resolve("samples/templates/platform.json"), "utf8")) as ProjectData;
+    const broken: ProjectData = structuredClone(platform);
     broken.settings.startScene = "scena-che-non-c-e";
     for (const issue of validateProject(broken)) {
       expect(lookupEnglish(issue.message), issue.message).toBeDefined();

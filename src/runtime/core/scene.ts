@@ -77,6 +77,8 @@ export class Scene {
   readonly rules: RuleSystem;
   entities: Entity[] = [];
   time = 0;
+  /** Blocco «Vista in prima persona» attivo: se c'è, disegna lui la scena (dagli occhi del giocatore). */
+  firstPerson: BlockInstance | null = null;
   /** Pulsante del menù selezionato (indice nell'ordine dei pulsanti). */
   uiFocus = 0;
   /** Colore della luce ambiente: se c'è, la scena è al buio e la illuminano i blocchi Luce. */
@@ -141,6 +143,9 @@ export class Scene {
       z: ed.z ?? prefab?.z,
       tags: [...(prefab?.tags ?? []), ...(ed.tags ?? [])],
       visible: ed.visible,
+      scaleX: ed.scaleX,
+      scaleY: ed.scaleY,
+      rotation: ed.rotation,
     });
     e.prefab = ed.prefab;
     for (const bd of mergeBlocks(prefab?.blocks ?? [], ed.blocks)) e.addBlock(bd);
@@ -244,11 +249,20 @@ export class Scene {
   }
 
   render(r: Renderer, debug = false): void {
+    // Vista in prima persona: al posto della scena vista dall'alto si disegna quello che vede il giocatore.
+    const fp = this.firstPerson;
+    if (fp && fp.enabled && !fp.entity.destroyed) {
+      r.setView(0, 0, 1);
+      this.callHook(fp, "render", r);
+      return;
+    }
     const cam = this.camera;
     const vw = cam.viewW / cam.zoom;
     const vh = cam.viewH / cam.zoom;
-    const x0 = cam.left;
-    const y0 = cam.top;
+    // La camera si disegna a pixel interi (come i layer): sprite e tile si muovono insieme, senza tremolii
+    // quando la camera avanza di frazioni di pixel (scorrimento lento, inseguimento morbido).
+    const x0 = Math.round(cam.left * cam.zoom) / cam.zoom;
+    const y0 = Math.round(cam.top * cam.zoom) / cam.zoom;
 
     type Draw = { z: number; y: number; order: number; layer?: TileLayerData; entity?: Entity };
     const draws: Draw[] = [];

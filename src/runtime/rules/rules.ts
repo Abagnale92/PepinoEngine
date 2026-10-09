@@ -4,6 +4,7 @@ import type { Scene } from "../core/scene";
 import { clamp, overlaps } from "../math";
 import type { CutsceneData, RuleData, RuleItem, VariableValue } from "../project/format";
 import { interpolate } from "../blocks/text";
+import { POWERUP_OPTIONS, addItem, hasItem, itemDef, removeItem, useItem } from "../items/items";
 import { describeScriptError } from "../scripting/errors";
 import { SCREEN_EFFECTS } from "../render/effects";
 
@@ -814,6 +815,94 @@ DEFS.push(
     },
     run: (ctx, p, rs) => void (rs.game.lockControls = p.mode !== "unlock"),
   },
+  // ---- Inventario, oggetti dell'archivio e potenziamenti
+  {
+    type: "inventory.add",
+    kind: "action",
+    category: "Inventario",
+    label: "Metti nell'inventario",
+    sentence: "metti {qty} × {item} nell'inventario",
+    params: {
+      item: { type: "item", label: "Oggetto", default: "" },
+      qty: { type: "integer", label: "Quantità", default: 1, min: 1 },
+    },
+    run: (ctx, p, rs) => void addItem(rs.game.vars, p.item, Number(p.qty ?? 1), itemDef(rs.game.project, p.item)?.max ?? 0),
+  },
+  {
+    type: "inventory.remove",
+    kind: "action",
+    category: "Inventario",
+    label: "Togli dall'inventario",
+    sentence: "togli {qty} × {item} dall'inventario",
+    params: {
+      item: { type: "item", label: "Oggetto", default: "" },
+      qty: { type: "integer", label: "Quantità", default: 1, min: 1 },
+    },
+    run: (ctx, p, rs) => void removeItem(rs.game.vars, p.item, Number(p.qty ?? 1)),
+  },
+  {
+    type: "inventory.has",
+    kind: "condition",
+    category: "Inventario",
+    label: "Nell'inventario c'è un oggetto",
+    sentence: "nell'inventario ci sono almeno {qty} × {item}",
+    params: {
+      item: { type: "item", label: "Oggetto", default: "" },
+      qty: { type: "integer", label: "Quantità", default: 1, min: 1 },
+    },
+    test: (ctx, p, rs) => hasItem(rs.game.vars, p.item, Number(p.qty ?? 1)),
+  },
+  {
+    type: "item.use",
+    kind: "action",
+    category: "Inventario",
+    label: "Usa un oggetto dell'inventario",
+    sentence: "{target} usa {item}",
+    params: { target: obj("Chi lo usa", "#giocatore"), item: { type: "item", label: "Oggetto", default: "" } },
+    run: (ctx, p, rs) => {
+      const who = resolveRef(p.target, ctx, rs.scene)[0];
+      useItem(rs.scene, who, String(p.item ?? ""));
+    },
+  },
+  {
+    type: "item.used",
+    kind: "trigger",
+    category: "Inventario",
+    label: "Un oggetto viene usato",
+    sentence: "si usa {item}",
+    params: { item: { type: "item", label: "Oggetto", default: "", optional: true, help: "Vuoto = qualsiasi oggetto." } },
+  },
+  {
+    type: "powerup.give",
+    kind: "action",
+    category: "Inventario",
+    label: "Dai un potenziamento",
+    sentence: "dai {kind} a {target} per {seconds} s",
+    params: {
+      target: obj("A chi", "#giocatore"),
+      kind: { type: "select", label: "Potenziamento", default: "speed", options: POWERUP_OPTIONS },
+      seconds: seconds("Durata", 8),
+      strength: { type: "number", label: "Intensità", default: 0, min: 0, step: 0.1, help: "0 = quella normale." },
+    },
+    run: (ctx, p, rs) =>
+      each(p, "target", ctx, rs, (e) => {
+        const pu = e.get("PowerUps");
+        if (pu) pu.actions.give(p.kind, p.seconds, p.strength);
+        else rs.game.log(`"${e.name}" non ha il blocco Potenziamenti`, "warn");
+      }),
+  },
+  {
+    type: "powerup.has",
+    kind: "condition",
+    category: "Inventario",
+    label: "Ha un potenziamento",
+    sentence: "{target} ha {kind}",
+    params: {
+      target: obj("Oggetto", "#giocatore"),
+      kind: { type: "select", label: "Potenziamento", default: "speed", options: POWERUP_OPTIONS },
+    },
+    test: (ctx, p, rs) => resolveRef(p.target, ctx, rs.scene).some((e) => e.hasBoost(String(p.kind))),
+  },
 );
 
 const BY_TYPE = new Map(DEFS.map((d) => [d.type, d]));
@@ -822,7 +911,7 @@ const BY_TYPE = new Map(DEFS.map((d) => [d.type, d]));
 const TIME_EPS = 1e-6;
 
 export const RULE_ITEMS: readonly RuleItemDef[] = DEFS;
-export const RULE_CATEGORIES = ["Scena e tempo", "Comandi", "Oggetti", "Variabili", "Audio", "Camera", "Effetti", "Interfaccia", "Filmati", "Partita", "Varie"];
+export const RULE_CATEGORIES = ["Scena e tempo", "Comandi", "Oggetti", "Variabili", "Audio", "Camera", "Effetti", "Interfaccia", "Inventario", "Filmati", "Partita", "Varie"];
 export const getRuleItemDef = (type: string) => BY_TYPE.get(type);
 
 interface Entry {
@@ -891,6 +980,17 @@ export class RuleSystem {
           if (w.type !== "cutscene.end") continue;
           const want = String(w.params.cutscene ?? "");
           if (want && want !== payload.data?.cutscene) continue;
+          this.queue.push({ entry, ctx: { self: payload.entity } });
+        }
+      });
+    }
+    if (this.entries.some((e) => e.data.when.type === "item.used")) {
+      scene.events.on("itemUse", (payload: { entity?: Entity; data?: { item?: string } }) => {
+        for (const entry of this.entries) {
+          const w = entry.data.when;
+          if (w.type !== "item.used") continue;
+          const want = String(w.params.item ?? "");
+          if (want && want !== payload.data?.item) continue;
           this.queue.push({ entry, ctx: { self: payload.entity } });
         }
       });

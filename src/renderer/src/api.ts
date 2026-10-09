@@ -14,10 +14,34 @@ export interface ImportedAsset {
   src: string;
 }
 
+/** Testo in italiano e in inglese. */
+export interface Bilingual {
+  it: string;
+  en?: string;
+}
+
+/** Un gioco di esempio in samples/<id>/project.json, elencato in samples/esempi.json (lo scrive «npm run samples» se ci sono esempi). */
+export interface SampleInfo {
+  id: string;
+  name: Bilingual;
+  description?: Bilingual;
+}
+
+const SAMPLE_ID = /^[a-z0-9_-]+$/;
+
+/** Tiene solo le voci valide dell'indice degli esempi. */
+export function parseSamples(list: unknown): SampleInfo[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter((s): s is SampleInfo => typeof s?.id === "string" && SAMPLE_ID.test(s.id) && typeof s?.name?.it === "string");
+}
+
 export interface Bridge {
   desktop: boolean;
   openProject(): Promise<OpenedProject | null>;
-  openSample(): Promise<OpenedProject | null>;
+  /** Gli esempi disponibili (nessuno se samples/esempi.json manca). */
+  listSamples(): Promise<SampleInfo[]>;
+  /** Apre un gioco di esempio per id. */
+  openSample(id: string): Promise<OpenedProject | null>;
   /** Nuovo progetto da un modello di genere (platform, topdown, beatemup). */
   newProject(template: string): Promise<OpenedProject | null>;
   saveProject(data: ProjectData): Promise<{ ok: boolean; message?: string }>;
@@ -36,23 +60,40 @@ declare global {
   }
 }
 
-/** Versione per il browser (npm run dev:web): legge la demo dal server di sviluppo. */
+/** Legge un JSON dal server di sviluppo; `null` se manca (il server può rispondere con la pagina dell'editor). */
+async function fetchJson(url: URL): Promise<unknown> {
+  try {
+    const res = await fetch(url);
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Versione per il browser (npm run dev:web): modelli ed esempi arrivano dal server di sviluppo (cartella samples). */
 const web: Bridge = {
   desktop: false,
   async openProject() {
-    return web.openSample();
+    // Nel browser non si sceglie un file: si apre il primo esempio, se c'è.
+    const [first] = await web.listSamples();
+    if (!first) throw new Error(T("Nel browser si aprono solo i modelli (menu Nuovo): per i tuoi progetti usa l'app desktop («npm run dev»)."));
+    return web.openSample(first.id);
   },
-  async openSample() {
-    const url = new URL("/demo/project.json", location.href);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(T("Progetto demo non trovato ({0}). Esegui «npm run samples».", res.status));
-    return { path: url.pathname, baseUrl: url.href, data: await res.json() };
+  async listSamples() {
+    return parseSamples(await fetchJson(new URL("/esempi.json", location.href)));
+  },
+  async openSample(id) {
+    const url = new URL(`/${SAMPLE_ID.test(id) ? id : "_"}/project.json`, location.href);
+    const data = await fetchJson(url);
+    if (!data) throw new Error(T("Esempio «{0}» non trovato. Esegui «npm run samples».", id));
+    return { path: url.pathname, baseUrl: url.href, data: data as ProjectData };
   },
   async newProject(template) {
-    // Nel browser il modello si apre in memoria; gli asset sono quelli della demo.
-    const res = await fetch(new URL(`/templates/${template}.json`, location.href));
-    if (!res.ok) throw new Error(T("Modello «{0}» non trovato ({1}). Esegui «npm run samples».", template, res.status));
-    return { path: "", baseUrl: new URL("/demo/project.json", location.href).href, data: await res.json() };
+    // Nel browser il modello si apre in memoria; i suoi asset sono in samples/templates/assets.
+    const url = new URL(`/templates/${template}.json`, location.href);
+    const data = await fetchJson(url);
+    if (!data) throw new Error(T("Modello «{0}» non trovato. Esegui «npm run samples».", template));
+    return { path: "", baseUrl: url.href, data: data as ProjectData };
   },
   async saveProject() {
     return { ok: false, message: N("Nel browser non si salva su file: apri l'app desktop con «npm run dev».") };

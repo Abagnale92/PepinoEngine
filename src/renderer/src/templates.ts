@@ -8,6 +8,12 @@ export interface ProjectTemplate {
 
 export const TEMPLATES: ProjectTemplate[] = [
   {
+    id: "vuoto",
+    label: "Progetto vuoto",
+    description: "Una scena vuota con il tileset e le immagini di base: parti da zero.",
+    icon: "plus",
+  },
+  {
     id: "platform",
     label: "Platform",
     description: "Corsa, salti, monete e nemici da schiacciare, con la camera che anticipa la corsa.",
@@ -42,5 +48,47 @@ export const TEMPLATES: ProjectTemplate[] = [
     label: "Corse 2D",
     description: "Gran premio dei cetrioli: un circuito visto dall'alto, tre avversari, tre giri, conto alla rovescia, tempo e posizione in classifica.",
     icon: "flag",
+  },
+  {
+    id: "pointclick",
+    label: "Punta e clicca",
+    description: "La casa del nonno: clicca per camminare, raccogli gli oggetti, usali dall'inventario e parla con il nonno per riuscire ad aprire la porta.",
+    icon: "eye",
+  },
+  {
+    id: "ritmo",
+    label: "Gioco a ritmo",
+    description: "Il concerto dell'orto: le note scendono su quattro corsie e vanno premute a tempo, con Perfetto, combo e punteggio.",
+    icon: "music",
+  },
+  {
+    id: "horror",
+    label: "Horror",
+    description: "La serra abbandonata: al buio con la torcia, un'Ombra che ti cerca seguendo i rumori, armadi in cui sparire e tre fusibili da trovare.",
+    icon: "eyeOff",
+  },
+  {
+    id: "carte",
+    label: "Gioco di carte",
+    description: "Il torneo dell'orto: duelli a turni con le carte, energia, scudi e una carta nuova da imparare dopo la prima vittoria.",
+    icon: "copy",
+  },
+  {
+    id: "roguelike",
+    label: "Roguelike",
+    description: "Le cantine del nonno: ogni piano è costruito dal computer, con stanze, slime, scrigni e la scala per scendere sempre più giù.",
+    icon: "grid",
+  },
+  {
+    id: "picchiaduro",
+    label: "Picchiaduro 1 contro 1",
+    description: "Sfida sul tetto: due lottatori uno di fronte all'altro, parate, combo di tre colpi, round al meglio dei tre e barre della vita.",
+    icon: "enemy",
+  },
+  {
+    id: "fps",
+    label: "Prima persona",
+    description: "Il labirinto degli slime: si gioca in prima persona, con muri di pietra, slime che inseguono, munizioni, medikit e l'uscita da trovare.",
+    icon: "cube",
   },
 ];
